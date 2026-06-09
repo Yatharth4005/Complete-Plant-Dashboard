@@ -1,0 +1,309 @@
+/* cmc/static/cmc/css/cmc.css */
+
+/* CMC module accent color */
+:root {
+  --cmc-primary:  #7C3AED;   /* Purple — CMC brand */
+  --cmc-light:    #F5F3FF;
+  --cmc-border:   #DDD6FE;
+}
+
+/* Override module-tpm color for CMC context */
+.module-cmc { border-top: 4px solid var(--cmc-primary); }
+
+/* Navigation Tab Styles */
+.cmc-subnav {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid var(--jspl-border);
+  margin-bottom: 20px;
+  background-color: var(--jspl-white);
+  padding: 8px 16px 0 16px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  border: 1px solid var(--jspl-border);
+  border-bottom: none;
+}
+
+.cmc-tab {
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--jspl-muted);
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cmc-tab:hover {
+  color: var(--cmc-primary);
+}
+
+.cmc-tab.active {
+  color: var(--cmc-primary);
+  border-bottom-color: var(--cmc-primary);
+}
+
+/* Equipment health status badges */
+.health-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.health-ok        { background: #DCFCE7; color: #16A34A; border: 1px solid rgba(22,163,74,0.2); }
+.health-attention { background: #FEF3C7; color: #D97706; border: 1px solid rgba(217,119,6,0.2); }
+.health-critical  { background: #FEE2E2; color: #DC2626; border: 1px solid rgba(220,38,38,0.2); }
+.health-unknown   { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
+
+/* PM Schedule Grid */
+.schedule-grid table { font-size: 0.75rem; }
+.schedule-cell {
+  width: 34px;
+  height: 34px;
+  text-align: center;
+  vertical-align: middle !important;
+  cursor: pointer;
+  padding: 0 !important;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.cell-done          { background: #DCFCE7; color: #16A34A; }
+.cell-nr            { background: #E5E7EB; color: #4B5563; }
+.cell-sd            { background: #FEF3C7; color: #D97706; }
+.cell-na            { background: #F3E8FF; color: #7E22CE; }
+.cell-np            { background: #374151; color: #F9FAFB; }
+.cell-overdue       { background: #FEE2E2; border: 1px solid #DC2626 !important; color: #DC2626; }
+.cell-pending       { background: #F9FAFB; color: #D1D5DB; }
+
+/* Dynamic bearing input classes */
+.bearing-reading-input {
+  width: 80px;
+  text-align: right;
+  padding: 4px 8px;
+  border: 1px solid var(--jspl-border);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.bearing-reading-input:focus {
+  border-color: var(--cmc-primary);
+  outline: none;
+}
+
+/* SAP Notification cards */
+.notif-card {
+  border-left: 4px solid var(--cmc-primary);
+}
+.notif-overdue {
+  border-left-color: var(--status-red) !important;
+}
+.notif-warning {
+  border-left-color: var(--status-amber) !important;
+}
+
+.chart-container-cmc {
+  position: relative;
+  height: 320px;
+  width: 100%;
+}
+
+/* Modern Button Design System */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border-radius: var(--radius-md, 8px);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none !important;
+  color: var(--jspl-white, #ffffff) !important;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05));
+  user-select: none;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.08));
+  filter: brightness(1.08);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background-color: var(--cmc-primary) !important;
+  color: var(--jspl-white, #ffffff) !important;
+}
+
+.btn-primary:hover {
+  background-color: #6D28D9 !important;
+}
+
+.btn-secondary {
+  background-color: var(--jspl-white, #ffffff) !important;
+  color: var(--cmc-primary) !important;
+  border: 1px solid var(--cmc-border) !important;
+}
+
+.btn-secondary:hover {
+  background-color: var(--cmc-light) !important;
+  border-color: var(--cmc-primary) !important;
+}
+
+.btn-pdf {
+  background-color: #DC2626 !important;
+  color: var(--jspl-white, #ffffff) !important;
+}
+
+.btn-pdf:hover {
+  background-color: #B91C1C !important;
+}
+
+.btn-excel {
+  background-color: #16A34A !important;
+  color: var(--jspl-white, #ffffff) !important;
+}
+
+.btn-excel:hover {
+  background-color: #15803D !important;
+}
+
+/* Accordion Accordance Styling */
+.dept-accordion-btn {
+  width: 100%;
+  text-align: left;
+  background-color: var(--jspl-gray, #F4F6F9) !important;
+  border: 1px solid var(--jspl-border, #D1DCF0) !important;
+  color: var(--jspl-navy, #003478) !important;
+  padding: 12px 20px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.dept-accordion-btn:hover {
+  background-color: var(--jspl-white, #ffffff) !important;
+  border-color: var(--jspl-blue, #0057A8) !important;
+  box-shadow: var(--shadow-sm, 0 2px 6px rgba(0,52,120,0.04));
+}
+
+/* Form Inputs & Fields Styles */
+.input-mono {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--jspl-border, #D1DCF0);
+  border-radius: var(--radius, 6px);
+  color: var(--jspl-text, #1A2640);
+  background-color: var(--jspl-white, #ffffff);
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+select.input-mono {
+  cursor: pointer;
+}
+
+.input-mono:focus {
+  border-color: var(--cmc-primary, #7C3AED);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.input-remarks {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--jspl-border, #D1DCF0);
+  border-radius: var(--radius, 6px);
+  color: var(--jspl-text, #1A2640);
+  background-color: var(--jspl-white, #ffffff);
+  outline: none;
+  font-family: inherit;
+  font-size: 0.88rem;
+  resize: vertical;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-remarks:focus {
+  border-color: var(--cmc-primary, #7C3AED);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+/* Modern Tables Design System */
+.table-container {
+  background: var(--jspl-white, #ffffff);
+  border: 1px solid var(--jspl-border, #D1DCF0);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-sm, 0 2px 6px rgba(0,52,120,0.04));
+  overflow: auto;
+  margin-top: 15px;
+  margin-bottom: 24px;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+}
+
+/* Premium Filter Bar card */
+.filter-bar {
+  background-color: var(--jspl-white, #ffffff);
+  padding: 16px 24px;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--jspl-border, #D1DCF0);
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm, 0 2px 6px rgba(0,52,120,0.04));
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.kpi-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.kpi-table th {
+  background-color: var(--jspl-navy, #003478);
+  color: var(--jspl-white, #ffffff);
+  font-weight: 600;
+  padding: 14px 18px;
+  font-size: 0.85rem;
+  border-bottom: 2px solid var(--jspl-border, #D1DCF0);
+  white-space: nowrap;
+}
+
+.kpi-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--jspl-border, #D1DCF0);
+  font-size: 0.88rem;
+  vertical-align: middle;
+  color: var(--jspl-text, #1A2640);
+}
+
+.kpi-table tbody tr:hover {
+  background-color: var(--cmc-light, #F5F3FF);
+}
+
+

@@ -48,7 +48,7 @@ class Command(BaseCommand):
         for name, code in DEPARTMENTS:
             Department.objects.get_or_create(code=code, defaults={'name': name})
             
-        self.stdout.write(f'  ✓ Seeded {len(DEPARTMENTS)} plant departments.')
+        self.stdout.write(f'  [OK] Seeded {len(DEPARTMENTS)} plant departments.')
 
     def seed_modules(self):
         # Clean up old deprecated modules
@@ -66,11 +66,11 @@ class Command(BaseCommand):
             },
             {
                 'key': 'CMC',
-                'label': 'Contract Management Cell',
-                'description': 'Contractor compliance, billing, and workforce logs',
+                'label': 'Condition Monitoring Cell',
+                'description': 'Machinery health: vibration monitoring, oil testing, and wear debris analysis (WDA)',
                 'icon': 'file-contract',
                 'color_class': 'module-cmc',
-                'redirect_url_template': '/department/{dept_id}/coming-soon/CMC/',
+                'redirect_url_template': 'http://localhost:8002/department/{dept_id}/',
                 'sort_order': 2,
             },
             {
@@ -114,7 +114,7 @@ class Command(BaseCommand):
         for m in MODULES:
             Module.objects.update_or_create(key=m['key'], defaults=m)
             
-        self.stdout.write(f'  ✓ Seeded {len(MODULES)} operational modules.')
+        self.stdout.write(f'  [OK] Seeded {len(MODULES)} operational modules.')
 
     def seed_portal_users_and_access(self):
         # 1. Update/Create Saurabh Agrawal as Plant Admin
@@ -132,7 +132,7 @@ class Command(BaseCommand):
                 'password': admin_pass,
             }
         )
-        self.stdout.write('  ✓ Seeded Plant Admin: saurabh.agrawal@jindalsteel.in')
+        self.stdout.write('  [OK] Seeded Plant Admin: saurabh.agrawal@jindalsteel.in')
 
         # 2. Update/Create Lalit Goyal as SMS-2 user
         sms2_dept = Department.objects.get(code='SMS2')
@@ -148,7 +148,7 @@ class Command(BaseCommand):
                 'password': user_pass,
             }
         )
-        self.stdout.write('  ✓ Seeded Department User: lalit.goyal@jindalsteel.in')
+        self.stdout.write('  [OK] Seeded Department User: lalit.goyal@jindalsteel.in')
 
         # Grant Lalit TPM and CMC access inside SMS-2 for testing
         tpm_mod = Module.objects.get(key='TPM')
@@ -166,4 +166,4 @@ class Command(BaseCommand):
             module=cmc_mod,
             defaults={'access_level': 'VIEW', 'granted_by': admin}
         )
-        self.stdout.write('  ✓ Seeded module access permissions for Lalit Goyal (SMS-2).')
+        self.stdout.write('  [OK] Seeded module access permissions for Lalit Goyal (SMS-2).')

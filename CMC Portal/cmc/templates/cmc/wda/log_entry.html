@@ -1,0 +1,136 @@
+{% extends 'cmc/base_cmc.html' %}
+
+{% block cmc_breadcrumb %}
+  <span class="breadcrumb-sep">›</span>
+  <a href="{% url 'cmc:wda_list' department.id %}">WDA Logs</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">New Log</span>
+{% endblock %}
+
+{% block cmc_content %}
+  <div style="margin-bottom: 24px;">
+    <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">📝 New WDA Log Entry</h3>
+    <p style="color: var(--jspl-muted); font-size: 0.85rem;">Input Wear Debris Analysis (WDA) laboratory results.</p>
+  </div>
+
+  <form method="POST" x-data="{ final_status: 'OK' }">
+    {% csrf_token %}
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+      <!-- Left side fields -->
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        
+        <div style="position: relative; display: flex; flex-direction: column;">
+          <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Equipment Description</label>
+          <input type="text" 
+                 id="equip_search_input"
+                 class="input-mono" 
+                 style="max-width: 100%; height: 38px;" 
+                 placeholder="Type to search equipment (min 2 chars)..."
+                 hx-get="{% url 'cmc:equipment_search' %}"
+                 hx-vals="js:{dept_id: {{ department.id }} }"
+                 hx-trigger="keyup[value.length>1]"
+                 hx-target="#search-results">
+          
+          <input type="hidden" name="equipment" id="hidden_equipment_id" required>
+          <div id="search-results" style="position: relative;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="display: flex; flex-direction: column;">
+            <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Date</label>
+            {{ form.date }}
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Sample Ratio</label>
+            {{ form.ratio }}
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="display: flex; flex-direction: column;">
+            <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">DL (Direct Load)</label>
+            {{ form.dl }}
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">DS (Direct Sediment)</label>
+            {{ form.ds }}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right side fields -->
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="display: flex; flex-direction: column;">
+            <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">WPC (Wear Particle Count)</label>
+            {{ form.wpc }}
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Slide Type</label>
+            {{ form.slide }}
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="display: flex; flex-direction: column;">
+            <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Checked By Initials</label>
+            {{ form.checked_by }}
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Final Status</label>
+            <select name="final_status" class="form-select" x-model="final_status" required>
+              <option value="OK">OK</option>
+              <option value="ATTENTION">Need Attention</option>
+              <option value="NOT_OK">Not OK</option>
+              <option value="NA">Not Applicable</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Conditional SAP Notification Panel -->
+        <div x-show="final_status === 'NOT_OK' || final_status === 'ATTENTION'" x-transition style="background-color: #FEF2F2; border: 1px solid #FCA5A5; border-radius: var(--radius); padding: 15px; display: flex; flex-direction: column; gap: 10px;">
+          <h4 style="color: #991B1B; margin-bottom: 4px; font-size: 0.95rem;">Alert: Raise SAP Notification</h4>
+          
+          <div style="display: flex; flex-direction: column;">
+            <label style="font-size: 0.8rem; font-weight: bold; color: #991B1B;">SAP Notification No.</label>
+            {{ form.notification_no }}
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="display: flex; flex-direction: column;">
+              <label style="font-size: 0.8rem; font-weight: bold; color: #991B1B;">Sent Login</label>
+              {{ form.sent_login }}
+            </div>
+            <div style="display: flex; flex-direction: column;">
+              <label style="font-size: 0.8rem; font-weight: bold; color: #991B1B;">Sent Date</label>
+              {{ form.sent_date }}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Remarks -->
+    <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+      <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Remarks & Observation Notes</label>
+      {{ form.remarks }}
+    </div>
+
+    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <a href="{% url 'cmc:wda_list' department.id %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary" style="background-color: var(--cmc-primary);">Submit Log</button>
+    </div>
+  </form>
+
+  <script>
+    function selectEquipment(id, name, eqClass) {
+      document.getElementById('hidden_equipment_id').value = id;
+      document.getElementById('equip_search_input').value = name;
+      document.getElementById('search-results').innerHTML = '';
+    }
+  </script>
+{% endblock %}

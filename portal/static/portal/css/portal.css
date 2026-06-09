@@ -275,6 +275,8 @@ a {
   padding: 30px;
   background-color: var(--jspl-gray);
   transition: margin-left 0.3s;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 #portal-shell.sidebar-collapsed #portal-sidebar {

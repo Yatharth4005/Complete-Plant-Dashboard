@@ -1,0 +1,21 @@
+<div style="background: white; border: 1px solid var(--jspl-border); border-radius: 4px; box-shadow: var(--shadow-md); max-height: 200px; overflow-y: auto; position: absolute; z-index: 50; width: 100%;">
+  {% if not results %}
+    <div style="padding: 10px; color: var(--jspl-muted); font-size: 0.85rem;">No active equipment found.</div>
+  {% else %}
+    {% for eq in results %}
+      <div style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--jspl-gray); font-size: 0.85rem;"
+           class="search-item"
+           onclick="selectEquipment('{{ eq.id }}', '{{ eq.name|escapejs }}', '{{ eq.equipment_class }}')">
+        <strong>{{ eq.name }}</strong> <br>
+        <small class="text-muted">SAP Mech: {{ eq.sap_code_mech|default:'N/A' }} | Class: {{ eq.equipment_class }}</small>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<style>
+  .search-item:hover {
+    background-color: var(--cmc-light);
+    color: var(--cmc-primary);
+  }
+</style>

@@ -3,6 +3,7 @@ function portalShell() {
   return {
     sidebarOpen: window.innerWidth > 768,
     isMobile: window.innerWidth <= 768,
+    profileModalOpen: false,
     
     init() {
       // Monitor window size to show/hide sidebar automatically

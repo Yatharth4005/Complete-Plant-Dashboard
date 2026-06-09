@@ -1,0 +1,102 @@
+{% extends 'cmc/base_cmc.html' %}
+
+{% block cmc_breadcrumb %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">PM Schedule</span>
+{% endblock %}
+
+{% block cmc_content %}
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div>
+      <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">📅 Predictive Maintenance Schedule</h3>
+      <p style="color: var(--jspl-muted); font-size: 0.85rem;">Click any cell on the grid to change the inspection status inline.</p>
+    </div>
+    
+    <!-- Compliance Rate Badge -->
+    <div style="text-align: right;">
+      <span style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-muted); text-transform: uppercase;">Compliance Rate</span>
+      <div style="font-size: 1.8rem; font-weight: 700; color: var(--status-green);">{{ compliance_rate }}%</div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <form method="GET" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+      
+      <div style="display: flex; flex-direction: column; width: 140px;">
+        <label style="font-size: 0.78rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Month</label>
+        <select name="month" class="input-mono" style="height: 38px; padding: 6px 12px;" onchange="this.form.submit()">
+          {% for m_id, m_name in months %}
+            <option value="{{ m_id }}" {% if m_id == month %}selected{% endif %}>{{ m_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="display: flex; flex-direction: column; width: 100px;">
+        <label style="font-size: 0.78rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Year</label>
+        <select name="year" class="input-mono" style="height: 38px; padding: 6px 12px;" onchange="this.form.submit()">
+          {% for y in years %}
+            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="display: flex; flex-direction: column; width: 140px;">
+        <label style="font-size: 0.78rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Class</label>
+        <select name="class" class="input-mono" style="height: 38px; padding: 6px 12px;" onchange="this.form.submit()">
+          <option value="">All Classes</option>
+          <option value="A" {% if equip_class == 'A' %}selected{% endif %}>Class A</option>
+          <option value="B" {% if equip_class == 'B' %}selected{% endif %}>Class B</option>
+        </select>
+      </div>
+
+      <div style="display: flex; flex-direction: column; width: 320px; max-width: 100%;">
+        <label style="font-size: 0.78rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Search Equipment</label>
+        <input type="text" name="q" value="{{ search_query }}" class="input-mono" style="height: 38px;" placeholder="Search description...">
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 24px;">Search</button>
+    </form>
+  </div>
+
+  <!-- Main Grid Table Wrapper (Horizontal scrollable) -->
+  <div class="pm-grid-container" style="width: 100%; max-width: 100%; max-height: 600px; overflow-x: auto; overflow-y: auto; border: 1px solid var(--jspl-border); border-radius: 12px; box-shadow: var(--shadow-sm); display: block; background-color: var(--jspl-white);">
+    <table class="kpi-table schedule-grid" style="min-width: 1480px; border-collapse: separate; border-spacing: 0; margin-bottom: 0;">
+      <thead>
+        <tr>
+          <th style="position: sticky; left: 0; background-color: var(--jspl-navy); z-index: 5; min-width: 250px;">Equipment Description</th>
+          <th style="text-align: center; width: 60px;">Class</th>
+          <th style="text-align: center; width: 60px;">Freq</th>
+          <th style="text-align: center; width: 80px;">Days</th>
+          {% for day in days_list %}
+            <th style="text-align: center; width: 34px;">{{ day }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% if not grid_data %}
+          <tr>
+            <td colspan="{{ days_list|length|add:4 }}" style="text-align: center; color: var(--jspl-muted); padding: 40px;">No equipment found matching criteria.</td>
+          </tr>
+        {% else %}
+          {% for row in grid_data %}
+            <tr>
+              <!-- Equipment Description (Sticky Left) -->
+              <td style="position: sticky; left: 0; background-color: var(--jspl-white); z-index: 4; font-weight: 600; color: var(--jspl-navy); border-right: 2px solid var(--jspl-border);">
+                {{ row.equipment.name }}
+              </td>
+              <td style="text-align: center; font-weight: bold; color: var(--jspl-muted);">{{ row.equipment.equipment_class }}</td>
+              <td style="text-align: center; font-size: 0.7rem; color: var(--jspl-muted);">{{ row.equipment.get_frequency_display }}</td>
+              <td style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--cmc-primary);">{{ row.equipment.scheduled_days }}</td>
+              
+              <!-- Individual days cells -->
+              {% for day_data in row.days %}
+                {% include "cmc/partials/_schedule_cell.html" with day=day_data.day entry=day_data.entry department=department %}
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

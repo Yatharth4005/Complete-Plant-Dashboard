@@ -1,0 +1,54 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block title %}CMC — {{ department.name }} — JSPL Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <a href="{% url 'portal:dept_hub' department.id %}">{{ department.name }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current" style="color: var(--cmc-primary); font-weight: 600;">CMC</span>
+  {% block cmc_breadcrumb %}{% endblock %}
+{% endblock %}
+
+{% block module_badge %}
+  <span class="badge badge-muted" style="background: var(--cmc-light); color: var(--cmc-primary); border: 1px solid var(--cmc-border);">
+    🔬 CMC Module
+  </span>
+{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'cmc/css/cmc.css' %}">
+  {% block cmc_extra_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="card" style="width: 100%; padding: 0; overflow: hidden; border: none; background: transparent; box-shadow: none; max-width: 100%; box-sizing: border-box;">
+  <!-- CMC Sub-navigation tabs (visible on all CMC pages) -->
+  <div class="cmc-subnav" style="max-width: 100%; box-sizing: border-box; overflow-x: auto; white-space: nowrap;">
+    <a href="{% url 'cmc:dept_overview' department.id %}"
+       class="cmc-tab {% if active_tab == 'overview' %}active{% endif %}">📊 Overview</a>
+    <a href="{% url 'cmc:schedule_grid' department.id %}"
+       class="cmc-tab {% if active_tab == 'schedule' %}active{% endif %}">📅 PM Schedule</a>
+    <a href="{% url 'cmc:vibration_list' department.id %}"
+       class="cmc-tab {% if active_tab == 'vibration' %}active{% endif %}">📳 Vibration Logs</a>
+    <a href="{% url 'cmc:oil_list' department.id %}"
+       class="cmc-tab {% if active_tab == 'oil' %}active{% endif %}">🧪 Oil Testing</a>
+    <a href="{% url 'cmc:wda_list' department.id %}"
+       class="cmc-tab {% if active_tab == 'wda' %}active{% endif %}">🔬 WDA Logs</a>
+    <a href="{% url 'cmc:notification_tracker' department.id %}"
+       class="cmc-tab {% if active_tab == 'notif' %}active{% endif %}">🔔 SAP Notifications</a>
+    <a href="{% url 'cmc:report_page' department.id %}"
+       class="cmc-tab {% if active_tab == 'reports' %}active{% endif %}">📋 Report Center</a>
+  </div>
+
+  <div style="width: 100%; background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: 0 0 var(--radius) var(--radius); padding: 24px; box-shadow: var(--shadow-sm); border-top: none; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+    {% block cmc_content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'cmc/js/cmc.js' %}"></script>
+  {% block cmc_extra_js %}{% endblock %}
+{% endblock %}

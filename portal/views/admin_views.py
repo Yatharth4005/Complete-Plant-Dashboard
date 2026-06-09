@@ -119,3 +119,46 @@ def toggle_admin(request):
         messages.error(request, 'Invalid action.')
 
     return redirect('portal:admin_access')
+
+
+@login_required
+@admin_required
+def user_informations(request):
+    """
+    Renders user information management table.
+    """
+    users = User.objects.all().select_related('department').order_by('username')
+    departments = Department.objects.all().order_by('name')
+    context = {
+        'users': users,
+        'departments': departments,
+        'active_section': 'user_info',
+    }
+    return render(request, 'portal/admin/user_informations.html', context)
+
+
+@login_required
+@admin_required
+def admin_reset_password(request):
+    """
+    Allows admin to reset any user's password directly.
+    """
+    if request.method == 'POST':
+        user_id = request.POST.get('user_id')
+        password = request.POST.get('password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+        
+        try:
+            target_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            messages.error(request, 'User not found.')
+            return redirect('portal:user_informations')
+            
+        if password and password == confirm_password:
+            target_user.set_password(password)
+            target_user.save()
+            messages.success(request, f'Password for {target_user.get_display_name()} has been reset.')
+        else:
+            messages.error(request, 'Passwords do not match or are empty.')
+            
+    return redirect('portal:user_informations')

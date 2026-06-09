@@ -1,0 +1,182 @@
+{% extends 'cmc/base_cmc.html' %}
+
+{% block cmc_breadcrumb %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">Dashboard</span>
+{% endblock %}
+
+{% block cmc_content %}
+  <!-- Header Title -->
+  <div style="margin-bottom: 24px;">
+    <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">🔬 Condition Monitoring Cell (CMC) Overview</h3>
+    <p style="color: var(--jspl-muted); font-size: 0.9rem;">Real-time equipment reliability monitoring, wear analysis, and vibration measurements.</p>
+  </div>
+
+  <!-- Summary Cards Ribbon -->
+  <div class="card-grid" style="margin-bottom: 24px;">
+    <!-- Monitored This Month -->
+    <div class="card card-border-green">
+      <div class="card-title">Completed (This Month)</div>
+      <div class="card-value">{{ monitored_this_month }}</div>
+      <div class="card-subtext">Vibration routes completed</div>
+    </div>
+    
+    <!-- Due Today -->
+    <div class="card card-border-red">
+      <div class="card-title">Due Today</div>
+      <div class="card-value">{{ due_today }}</div>
+      <div class="card-subtext">Scheduled inspection tasks</div>
+    </div>
+
+    <!-- Open SAP Notifications -->
+    <div class="card" style="border-left: 4px solid var(--cmc-primary);">
+      <div class="card-title">Open SAP Alerts</div>
+      <div class="card-value">{{ open_notifications }}</div>
+      <div class="card-subtext">Outstanding maintenance requests</div>
+    </div>
+
+    <!-- Last Oil Test Status -->
+    <div class="card">
+      <div class="card-title">Latest Oil Testing</div>
+      <div class="card-value">
+        {% if last_oil_status == 'OK' %}
+          <span style="color: var(--status-green);">OK</span>
+        {% elif last_oil_status == 'NOT_OK' %}
+          <span style="color: var(--status-red);">ALERT</span>
+        {% else %}
+          <span style="color: var(--jspl-muted);">—</span>
+        {% endif %}
+      </div>
+      <div class="card-subtext">Most recent sample analysis status</div>
+    </div>
+  </div>
+
+  <!-- Module Entry Grid -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 30px;">
+    <a href="{% url 'cmc:schedule_grid' department.id %}" style="text-decoration: none;" class="card">
+      <div style="font-size: 1.5rem; margin-bottom: 8px;">📅</div>
+      <h4 style="color: var(--jspl-navy); margin-bottom: 4px;">PM Schedule</h4>
+      <p style="font-size: 0.8rem; color: var(--jspl-muted); margin-bottom: 10px;">Track inspections compliance matrix</p>
+      <span style="font-size: 0.85rem; font-weight: bold; color: var(--cmc-primary);">Open Grid &rarr;</span>
+    </a>
+
+    <a href="{% url 'cmc:vibration_list' department.id %}" style="text-decoration: none;" class="card">
+      <div style="font-size: 1.5rem; margin-bottom: 8px;">📳</div>
+      <h4 style="color: var(--jspl-navy); margin-bottom: 4px;">Vibration Logs</h4>
+      <p style="font-size: 0.8rem; color: var(--jspl-muted); margin-bottom: 10px;">Log bearing vibration points (Form F-520)</p>
+      <span style="font-size: 0.85rem; font-weight: bold; color: var(--cmc-primary);">Open Vibration &rarr;</span>
+    </a>
+
+    <a href="{% url 'cmc:oil_list' department.id %}" style="text-decoration: none;" class="card">
+      <div style="font-size: 1.5rem; margin-bottom: 8px;">🧪</div>
+      <h4 style="color: var(--jspl-navy); margin-bottom: 4px;">Oil Testing</h4>
+      <p style="font-size: 0.8rem; color: var(--jspl-muted); margin-bottom: 10px;">Register sample physical viscosity logs</p>
+      <span style="font-size: 0.85rem; font-weight: bold; color: var(--cmc-primary);">Open Oil Testing &rarr;</span>
+    </a>
+
+    <a href="{% url 'cmc:wda_list' department.id %}" style="text-decoration: none;" class="card">
+      <div style="font-size: 1.5rem; margin-bottom: 8px;">🔬</div>
+      <h4 style="color: var(--jspl-navy); margin-bottom: 4px;">WDA Logs</h4>
+      <p style="font-size: 0.8rem; color: var(--jspl-muted); margin-bottom: 10px;">Debris and particle microscopic analyses</p>
+      <span style="font-size: 0.85rem; font-weight: bold; color: var(--cmc-primary);">Open WDA Logs &rarr;</span>
+    </a>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+    <!-- Class A Health Board -->
+    <div>
+      <h4 style="color: var(--jspl-navy); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+        🛡️ Critical Equipment Health Board (Class A)
+      </h4>
+      <div class="table-container">
+        <table class="kpi-table">
+          <thead>
+            <tr>
+              <th>Equipment</th>
+              <th>Vibration</th>
+              <th>Oil Test</th>
+              <th>WDA Status</th>
+              <th style="text-align: center;">Overall Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not health_board %}
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--jspl-muted);">No Class A equipment configured.</td>
+              </tr>
+            {% else %}
+              {% for hb in health_board %}
+                <tr>
+                  <td style="font-weight: 600; color: var(--jspl-navy);">{{ hb.equipment.name }}</td>
+                  <td>
+                    {% if hb.last_vibration %}
+                      <span class="health-badge {% if hb.last_vibration.status == 'OK' %}health-ok{% elif hb.last_vibration.status == 'UM' or hb.last_vibration.status == 'ATTENTION' %}health-attention{% else %}health-critical{% endif %}">
+                        {{ hb.last_vibration.status }}
+                      </span>
+                      <br><small class="text-muted">{{ hb.last_vibration.date }}</small>
+                    {% else %}
+                      <span class="health-badge health-unknown">No Data</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if hb.last_oil_test %}
+                      <span class="health-badge {% if hb.last_oil_test.status == 'OK' %}health-ok{% else %}health-critical{% endif %}">
+                        {{ hb.last_oil_test.status }}
+                      </span>
+                      <br><small class="text-muted">{{ hb.last_oil_test.date }}</small>
+                    {% else %}
+                      <span class="health-badge health-unknown">No Data</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if hb.last_wda %}
+                      <span class="health-badge {% if hb.last_wda.final_status == 'OK' %}health-ok{% elif hb.last_wda.final_status == 'ATTENTION' %}health-attention{% else %}health-critical{% endif %}">
+                        {{ hb.last_wda.final_status }}
+                      </span>
+                      <br><small class="text-muted">{{ hb.last_wda.date }}</small>
+                    {% else %}
+                      <span class="health-badge health-unknown">No Data</span>
+                    {% endif %}
+                  </td>
+                  <td style="text-align: center;">
+                    <span class="badge {% if hb.overall_status == 'ok' %}badge-green{% elif hb.overall_status == 'attention' %}badge-amber{% elif hb.overall_status == 'critical' %}badge-red{% else %}badge-muted{% endif %}">
+                      {{ hb.overall_status }}
+                    </span>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Upcoming Schedule -->
+    <div>
+      <h4 style="color: var(--jspl-navy); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+        📅 Scheduled Inspection Checklist (7 Days)
+      </h4>
+      <div style="background-color: var(--jspl-gray); border: 1px solid var(--jspl-border); padding: 16px; border-radius: var(--radius);">
+        {% if not upcoming_entries %}
+          <div style="text-align: center; color: var(--jspl-muted); padding: 20px 0;">
+            No scheduled visits for the next 7 days.
+          </div>
+        {% else %}
+          <ul style="list-style: none; padding: 0;">
+            {% for entry in upcoming_entries %}
+              <li style="padding: 10px 0; border-bottom: 1px solid var(--jspl-border); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-weight: 500; font-size: 0.85rem; color: var(--jspl-text);">{{ entry.equipment.name }}</div>
+                  <small style="color: var(--jspl-muted);">Class {{ entry.equipment.equipment_class }}</small>
+                </div>
+                <span class="badge badge-muted" style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
+                  {{ entry.scheduled_date|date:"d M" }}
+                </span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

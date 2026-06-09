@@ -25,6 +25,7 @@ class User(AbstractUser):
     )
     is_plant_admin = models.BooleanField(default=False)
     phone = models.CharField(max_length=20, blank=True)
+    photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
     employee_id = models.CharField(max_length=30, blank=True)
     designation = models.CharField(max_length=100, blank=True)
     last_active = models.DateTimeField(null=True, blank=True)

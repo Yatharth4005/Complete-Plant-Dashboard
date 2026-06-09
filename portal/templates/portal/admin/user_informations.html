@@ -1,0 +1,148 @@
+{% extends "portal/base.html" %}
+
+{% block title %}User Informations — JSPL Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">User Informations</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container" x-data="{ resetUserId: null, resetUserName: '', resetModalOpen: false }">
+  
+  <div class="dashboard-header-row">
+    <div>
+      <h1 class="portal-page-title">👤 User Informations</h1>
+      <p class="portal-page-subtitle">View and manage profile details for all registered portal users.</p>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--jspl-border); border-radius: 16px; box-shadow: var(--shadow-sm); background-color: var(--jspl-white);">
+    <div style="overflow-x: auto;">
+      <table class="kpi-table" style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 0;">
+        <thead>
+          <tr style="background-color: var(--jspl-navy); color: var(--jspl-white);">
+            <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem; width: 80px; text-align: center;">Photo</th>
+            <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem;">Full Name</th>
+            <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem;">Email / Username</th>
+            <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem;">Phone Number</th>
+            <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem;">Department</th>
+            <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem; width: 150px; text-align: center;">Role</th>
+            <th style="padding: 16px 20px; font-weight: 600; font-size: 0.85rem; width: 160px; text-align: center;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+            <tr style="border-bottom: 1px solid var(--jspl-border); background-color: {% if forloop.counter|divisibleby:2 %}var(--jspl-gray){% else %}var(--jspl-white){% endif %}; transition: background-color 0.2s;">
+              <!-- Photo / Avatar -->
+              <td style="padding: 12px 20px; vertical-align: middle; text-align: center;">
+                <div style="width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: var(--jspl-light-blue); border: 1px solid var(--jspl-border); display: inline-flex; align-items: center; justify-content: center; font-weight: bold; color: var(--jspl-blue);">
+                  {% if u.photo %}
+                    <img src="{{ u.photo.url }}" alt="{{ u.get_display_name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                  {% else %}
+                    {{ u.first_name|default:u.username|slice:":1"|upper }}
+                  {% endif %}
+                </div>
+              </td>
+              
+              <!-- Full Name -->
+              <td style="padding: 12px 20px; vertical-align: middle; font-weight: 600; color: var(--jspl-navy);">
+                {{ u.first_name }} {{ u.last_name }}
+              </td>
+
+              <!-- Email / Username -->
+              <td style="padding: 12px 20px; vertical-align: middle; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">
+                {{ u.email|default:u.username }}
+              </td>
+
+              <!-- Phone Number -->
+              <td style="padding: 12px 20px; vertical-align: middle; color: var(--jspl-muted);">
+                {{ u.phone|default:"—" }}
+              </td>
+
+              <!-- Department -->
+              <td style="padding: 12px 20px; vertical-align: middle;">
+                {% if u.department %}
+                  <span style="font-weight: 600; color: var(--jspl-orange); font-size: 0.85rem;">🏢 {{ u.department.name }}</span>
+                {% else %}
+                  <span style="color: var(--jspl-muted); font-style: italic;">No Department</span>
+                {% endif %}
+              </td>
+
+              <!-- Role -->
+              <td style="padding: 12px 20px; vertical-align: middle; text-align: center;">
+                {% if u.is_admin %}
+                  <span style="background: #FEF3C7; color: #D97706; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; border: 1px solid rgba(217,119,6,0.2);">ADMIN</span>
+                {% else %}
+                  <span style="background: #E5E7EB; color: #4B5563; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; border: 1px solid #D1D5DB;">DEPT USER</span>
+                {% endif %}
+              </td>
+
+              <!-- Actions -->
+              <td style="padding: 12px 20px; vertical-align: middle; text-align: center;">
+                <button type="button" 
+                        class="btn" 
+                        style="padding: 6px 12px; font-size: 0.78rem; background-color: var(--jspl-navy); color: white !important;"
+                        @click="resetUserId = '{{ u.id }}'; resetUserName = '{{ u.first_name }} {{ u.last_name }}'; resetModalOpen = true;">
+                  🔑 Reset PW
+                </button>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 30px; color: var(--jspl-muted);">No users found.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ADMIN PASSWORD RESET MODAL -->
+  <div x-show="resetModalOpen" 
+       x-transition 
+       x-cloak
+       style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;">
+    
+    <div @click.outside="resetModalOpen = false" 
+         style="background: white; border-radius: 16px; width: 100%; max-width: 440px; box-shadow: var(--shadow-lg); border: 1px solid var(--jspl-border);">
+      
+      <!-- Modal Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--jspl-border);">
+        <h3 style="color: var(--jspl-navy); margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">🔑 Reset User Password</h3>
+        <button @click="resetModalOpen = false" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--jspl-muted);">&times;</button>
+      </div>
+
+      <!-- Modal Body -->
+      <form action="{% url 'portal:admin_reset_password' %}" method="POST" style="padding: 24px;">
+        {% csrf_token %}
+        <input type="hidden" name="user_id" :value="resetUserId">
+        
+        <p style="margin-bottom: 16px; font-size: 0.9rem; color: var(--jspl-text);">
+          Resetting password for: <strong x-text="resetUserName" style="color: var(--jspl-navy);"></strong>
+        </p>
+
+        <!-- New Password -->
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">New Password</label>
+          <input type="password" name="password" class="input-mono" placeholder="Enter new password" required style="width: 100%; height: 38px;">
+        </div>
+
+        <!-- Confirm New Password -->
+        <div style="margin-bottom: 24px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Confirm New Password</label>
+          <input type="password" name="confirm_password" class="input-mono" placeholder="Confirm new password" required style="width: 100%; height: 38px;">
+        </div>
+
+        <!-- Form Actions -->
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button type="button" @click="resetModalOpen = false" class="btn" style="background-color: var(--jspl-gray); color: var(--jspl-text) !important; border: 1px solid var(--jspl-border);">Cancel</button>
+          <button type="submit" class="btn btn-primary">Reset Password</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

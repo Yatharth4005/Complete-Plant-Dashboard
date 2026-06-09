@@ -5,10 +5,11 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Add TPM Portal to path to allow importing tpm
-sys.path.append(str(BASE_DIR / 'TPM Portal'))
+# Add Main Portal and TPM Portal directories to path to allow importing portal and tpm
+sys.path.append(str(BASE_DIR.parent))
+sys.path.append(str(BASE_DIR.parent / 'TPM Portal'))
 
-# Security Settings (MUST match TPM Portal's SECRET_KEY for session sharing)
+# Security Settings (MUST match TPM and Portal for session sharing)
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-jspl-tpm-portal-secret-key-1029384756')
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
@@ -23,12 +24,16 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_htmx',
-    'portal',
+    'crispy_forms',
+    'crispy_bootstrap5',
+    'cmc',
     'tpm',
+    'portal',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -38,12 +43,15 @@ MIDDLEWARE = [
     'django_htmx.middleware.HtmxMiddleware',
 ]
 
-ROOT_URLCONF = 'main_portal.urls'
+ROOT_URLCONF = 'jspl_cmc.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'portal' / 'templates'],
+        'DIRS': [
+            BASE_DIR / 'cmc' / 'templates',
+            BASE_DIR.parent / 'portal' / 'templates',
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -51,45 +59,29 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'portal.context_processors.sidebar_context',
+                'portal.context_processors.sidebar_context', # Use main portal sidebar context
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'main_portal.wsgi.application'
+WSGI_APPLICATION = 'jspl_cmc.wsgi.application'
 
-# Shared Database with TPM Portal
+# Shared Database with Main Portal & TPM Portal
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR.parent / 'db.sqlite3',
     }
 }
-
-# Custom User Model mapped to existing tpm_user table
-AUTH_USER_MODEL = 'tpm.User'
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'portal.auth_backends.EmailBackend',
 ]
 
-# Password validation
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
+# Auth Model
+AUTH_USER_MODEL = 'tpm.User'
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
@@ -101,16 +93,20 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
-    BASE_DIR / 'portal' / 'static',
+    BASE_DIR / 'cmc' / 'static',
 ]
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = BASE_DIR.parent / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Session Configuration (Must be aligned)
+# Session Configuration
 SESSION_COOKIE_AGE = 28800  # 8 hours
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/'
+LOGIN_URL = 'http://localhost:8000/login/'
+
+# Crispy Forms
+CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
+CRISPY_TEMPLATE_PACK = 'bootstrap5'

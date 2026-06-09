@@ -29,7 +29,7 @@
   {% block extra_css %}{% endblock %}
 </head>
 
-<body x-data="portalShell()" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body x-data="Object.assign(portalShell(), { profileModalOpen: false })" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
   <!-- TOPBAR -->
   <header id="portal-topbar">
@@ -53,7 +53,13 @@
       <!-- User Menu -->
       <div class="user-menu" x-data="{ open: false }" @click.outside="open = false">
         <button class="user-menu-trigger" @click="open = !open">
-          <span class="user-avatar">{{ request.user.first_name|default:request.user.username|slice:":1"|upper }}</span>
+          <span class="user-avatar" style="overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 0;">
+            {% if request.user.photo %}
+              <img src="{{ request.user.photo.url }}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+            {% else %}
+              {{ request.user.first_name|default:request.user.username|slice:":1"|upper }}
+            {% endif %}
+          </span>
           <span class="user-name">{{ request.user.first_name|default:request.user.username }}</span>
           <span class="user-chevron">▼</span>
         </button>
@@ -65,6 +71,7 @@
             <small class="user-dept-badge">🏢 {{ request.user.department.name }}</small>
             {% endif %}
           </div>
+          <a href="#" @click.prevent="profileModalOpen = true; open = false;">👤 Edit Profile</a>
           {% if request.user.is_admin %}
           <a href="{% url 'portal:admin_access' %}">🔑 Manage Access</a>
           {% endif %}
@@ -122,6 +129,10 @@
           class="sidebar-link {% if active_section == 'admin' %}active{% endif %}">
           <span class="sidebar-icon">🔑</span> Access Control
         </a>
+        <a href="{% url 'portal:user_informations' %}"
+          class="sidebar-link {% if active_section == 'user_info' %}active{% endif %}">
+          <span class="sidebar-icon">👤</span> User Informations
+        </a>
         {% endif %}
       </div>
     </aside>
@@ -143,6 +154,88 @@
 
       {% block content %}{% endblock %}
     </main>
+  </div>
+
+  <!-- EDIT PROFILE MODAL -->
+  <div x-show="profileModalOpen" 
+       x-transition 
+       x-cloak
+       style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;">
+    
+    <div @click.outside="profileModalOpen = false" 
+         style="background: white; border-radius: var(--radius-lg, 16px); width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--jspl-border);">
+      
+      <!-- Modal Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--jspl-border);">
+        <h3 style="color: var(--jspl-navy); margin: 0; display: flex; align-items: center; gap: 8px;">👤 Edit User Profile</h3>
+        <button @click="profileModalOpen = false" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--jspl-muted);">&times;</button>
+      </div>
+
+      <!-- Modal Body (Form) -->
+      <form action="{% url 'portal:update_profile' %}" method="POST" enctype="multipart/form-data" style="padding: 24px;">
+        {% csrf_token %}
+        
+        <!-- Name -->
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Full Name</label>
+          <input type="text" name="name" value="{{ request.user.first_name }} {{ request.user.last_name }}" class="input-mono" required style="width: 100%; height: 38px;">
+        </div>
+
+        <!-- Phone Number -->
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Phone Number</label>
+          <input type="text" name="phone" value="{{ request.user.phone }}" class="input-mono" style="width: 100%; height: 38px;">
+        </div>
+
+        <!-- Department select -->
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Department</label>
+          <select name="department" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
+            <option value="">No Department</option>
+            {% for d in sidebar_departments %}
+              <option value="{{ d.id }}" {% if request.user.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Profile Photo -->
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Profile Photo</label>
+          <div style="display: flex; align-items: center; gap: 16px; margin-top: 8px;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; background: var(--jspl-gray); display: flex; align-items: center; justify-content: center; border: 1px solid var(--jspl-border);">
+              {% if request.user.photo %}
+                <img src="{{ request.user.photo.url }}" alt="Current Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+              {% else %}
+                <span style="font-size: 1.5rem; color: var(--jspl-muted);">👤</span>
+              {% endif %}
+            </div>
+            <input type="file" name="photo" accept="image/*" style="font-size: 0.85rem;">
+          </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid var(--jspl-border); margin: 20px 0;">
+
+        <!-- Password Reset Area -->
+        <h4 style="color: var(--jspl-navy); font-size: 0.9rem; margin-bottom: 12px;">🔑 Reset Password (Optional)</h4>
+        
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">New Password</label>
+          <input type="password" name="password" class="input-mono" placeholder="Leave blank to keep current" style="width: 100%; height: 38px;">
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Confirm New Password</label>
+          <input type="password" name="confirm_password" class="input-mono" placeholder="Confirm new password" style="width: 100%; height: 38px;">
+        </div>
+
+        <!-- Form Actions -->
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button type="button" @click="profileModalOpen = false" class="btn" style="background-color: var(--jspl-gray); color: var(--jspl-text) !important; border: 1px solid var(--jspl-border);">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+
+    </div>
   </div>
 
   <!-- Scripts -->

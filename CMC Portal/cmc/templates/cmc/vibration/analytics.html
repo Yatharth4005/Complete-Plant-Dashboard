@@ -1,0 +1,127 @@
+{% extends 'cmc/base_cmc.html' %}
+
+{% block cmc_breadcrumb %}
+  <span class="breadcrumb-sep">›</span>
+  <a href="{% url 'cmc:vibration_list' department.id %}">Vibration Logs</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">Vibration Analytics</span>
+{% endblock %}
+
+{% block cmc_content %}
+  <div style="margin-bottom: 24px;">
+    <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">📊 Vibration Monitoring Trends</h3>
+    <p style="color: var(--jspl-muted); font-size: 0.85rem;">Select an equipment below to view historical vibration trends for each bearing point.</p>
+  </div>
+
+  <!-- Selection Form -->
+  <div style="margin-bottom: 24px; background-color: var(--jspl-gray); padding: 15px; border-radius: var(--radius); border: 1px solid var(--jspl-border);">
+    <form method="GET" style="display: flex; gap: 15px; align-items: center;">
+      <label style="font-weight: 600; color: var(--jspl-navy);">Select Equipment:</label>
+      <select name="equipment_id" class="input-mono" style="width: 300px; max-width: 100%;" onchange="this.form.submit()">
+        {% for eq in equipments %}
+          <option value="{{ eq.id }}" {% if eq.id == selected_equip.id %}selected{% endif %}>
+            {{ eq.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <!-- Trends Display -->
+  {% if not selected_equip %}
+    <div style="padding: 40px; text-align: center; color: var(--jspl-muted);">
+      <h3>No Equipment Data Available</h3>
+    </div>
+  {% else %}
+    <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); margin-bottom: 24px;">
+      <h3 style="margin-bottom: 15px; color: var(--jspl-navy);">{{ selected_equip.name }} — Bearing Trends</h3>
+      
+      <div id="charts-wrapper" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); gap: 24px;">
+        <!-- Dynamic Chart Canvases are injected by JS below -->
+      </div>
+    </div>
+
+    <script>
+      (function() {
+        const trends = JSON.parse('{{ bearing_trends_json|escapejs }}');
+        const dates = JSON.parse('{{ chart_dates_json|escapejs }}');
+        const wrapper = document.getElementById('charts-wrapper');
+
+        if (Object.keys(trends).length === 0) {
+          wrapper.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--jspl-muted);">No vibration history logs found for this equipment.</div>';
+          return;
+        }
+
+        for (const label in trends) {
+          const bpData = trends[label];
+          
+          const cardDiv = document.createElement('div');
+          cardDiv.style.border = '1px solid var(--jspl-border)';
+          cardDiv.style.borderRadius = 'var(--radius)';
+          cardDiv.style.padding = '15px';
+          cardDiv.style.backgroundColor = 'var(--jspl-white)';
+          
+          const title = document.createElement('h4');
+          title.style.marginBottom = '10px';
+          title.style.color = 'var(--jspl-navy)';
+          title.innerText = `Bearing Point: ${label}`;
+          cardDiv.appendChild(title);
+          
+          const canvasDiv = document.createElement('div');
+          canvasDiv.style.position = 'relative';
+          canvasDiv.style.height = '220px';
+          
+          const canvas = document.createElement('canvas');
+          canvasDiv.appendChild(canvas);
+          cardDiv.appendChild(canvasDiv);
+          wrapper.appendChild(cardDiv);
+          
+          new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+              labels: dates,
+              datasets: [
+                {
+                  label: 'Horizontal (R1)',
+                  data: bpData.horizontal,
+                  borderColor: '#F47920',
+                  borderWidth: 2,
+                  tension: 0.1,
+                  spanGaps: true
+                },
+                {
+                  label: 'Vertical (R2)',
+                  data: bpData.vertical,
+                  borderColor: '#7C3AED',
+                  borderWidth: 2,
+                  tension: 0.1,
+                  spanGaps: true
+                },
+                {
+                  label: 'Axial',
+                  data: bpData.axial,
+                  borderColor: '#0057A8',
+                  borderWidth: 2,
+                  tension: 0.1,
+                  spanGaps: true
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: { 
+                  beginAtZero: true, 
+                  grid: { color: '#E8F0FA' },
+                  title: { display: true, text: 'Vibration velocity (mm/s)', font: { size: 10 } }
+                },
+                x: { grid: { display: false } }
+              }
+            }
+          });
+        }
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

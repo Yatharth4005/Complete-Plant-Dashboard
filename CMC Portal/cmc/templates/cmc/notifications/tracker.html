@@ -1,0 +1,106 @@
+{% extends 'cmc/base_cmc.html' %}
+
+{% block cmc_breadcrumb %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">SAP Notifications</span>
+{% endblock %}
+
+{% block cmc_content %}
+  <div style="margin-bottom: 24px;">
+    <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">🔔 SAP Maintenance Notifications</h3>
+    <p style="color: var(--jspl-muted); font-size: 0.85rem;">Track SAP notifications raised due to abnormal vibration or oil lab findings.</p>
+  </div>
+
+  <!-- Open Alerts Section -->
+  <h4 style="color: var(--jspl-navy); margin-bottom: 12px;">Active Alerts / Open Notifications</h4>
+  
+  <div style="display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 35px;">
+    {% if not open_notifs %}
+      <div style="background-color: var(--jspl-gray); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 30px; text-align: center; color: var(--jspl-muted);">
+        All SAP Alerts resolved! No open notifications for this department.
+      </div>
+    {% else %}
+      {% for data in open_notifs %}
+        <div class="card notif-card {% if data.severity == 'danger' %}notif-overdue{% elif data.severity == 'warning' %}notif-warning{% endif %}" 
+             style="padding: 16px; display: flex; justify-content: space-between; align-items: flex-start; flex-direction: row; gap: 15px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--jspl-navy); font-size: 1.1rem;">
+                Notification No: #{{ data.notif.notification_no }}
+              </span>
+              <span class="badge {% if data.severity == 'danger' %}badge-red{% elif data.severity == 'warning' %}badge-amber{% else %}badge-green{% endif %}" style="font-size: 0.7rem;">
+                {{ data.days_open }} days open
+              </span>
+            </div>
+            
+            <div style="font-weight: 600; font-size: 0.9rem; color: var(--jspl-text); margin-bottom: 4px;">
+              Equipment: {{ data.notif.equipment.name }}
+            </div>
+            <p style="font-size: 0.85rem; color: var(--jspl-muted); margin-bottom: 8px;">
+              <b>Details:</b> {{ data.notif.description }}
+            </p>
+            <small class="text-muted">Raised by: <b>{{ data.notif.raised_by }}</b> on {{ data.notif.raised_date }}</small>
+          </div>
+
+          <!-- Close Action Form -->
+          <div style="background-color: var(--jspl-gray); border: 1px solid var(--jspl-border); border-radius: 6px; padding: 12px; min-width: 280px;" x-data="{ closing: false }">
+            <button class="btn btn-secondary" style="width: 100%; font-size: 0.85rem;" x-show="!closing" @click="closing = true">Resolve / Close Notif</button>
+            
+            <form method="POST" action="{% url 'cmc:close_notification' department.id data.notif.id %}" x-show="closing">
+              {% csrf_token %}
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <label style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-navy);">Action Taken Description</label>
+                <textarea name="action_taken" rows="2" required class="input-remarks" style="min-width: 100%;" placeholder="Describe mechanical repair/oil change done..."></textarea>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" class="btn btn-secondary" style="font-size: 0.75rem; padding: 4px 8px; flex: 1;" @click="closing = false">Cancel</button>
+                  <button type="submit" class="btn btn-primary" style="font-size: 0.75rem; padding: 4px 8px; flex: 1; background-color: var(--cmc-primary);">Confirm Close</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Closed Alerts Section -->
+  <div x-data="{ open: false }">
+    <button class="dept-accordion-btn" style="background-color: var(--jspl-gray); color: var(--jspl-navy); border: 1px solid var(--jspl-border); border-radius: var(--radius); margin-bottom: 15px;" @click="open = !open">
+      <span>📜 Closed Notifications Log ({{ closed_notifs|length }})</span>
+      <span x-text="open ? '▲' : '▼'"></span>
+    </button>
+    
+    <div x-show="open" x-transition class="table-container">
+      <table class="kpi-table">
+        <thead>
+          <tr>
+            <th>Notif No</th>
+            <th>Equipment</th>
+            <th>Raised Date</th>
+            <th>Closed Date</th>
+            <th>Action Taken</th>
+            <th>Raised By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if not closed_notifs %}
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--jspl-muted); padding: 20px;">No closed notifications.</td>
+            </tr>
+          {% else %}
+            {% for notif in closed_notifs %}
+              <tr>
+                <td style="font-family: 'JetBrains Mono', monospace; font-weight: bold;">#{{ notif.notification_no }}</td>
+                <td style="font-weight: 500; color: var(--jspl-navy);">{{ notif.equipment.name }}</td>
+                <td style="font-family: 'JetBrains Mono', monospace;">{{ notif.raised_date|date:"Y-m-d" }}</td>
+                <td style="font-family: 'JetBrains Mono', monospace; color: var(--status-green);">{{ notif.closed_date|date:"Y-m-d" }}</td>
+                <td style="font-size: 0.85rem;">{{ notif.action_taken }}</td>
+                <td>{{ notif.raised_by }}</td>
+              </tr>
+            {% endfor %}
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

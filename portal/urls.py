@@ -18,4 +18,9 @@ urlpatterns = [
     # Admin access management
     path('admin/access/', admin_views.manage_access, name='admin_access'),
     path('admin/toggle-admin/', admin_views.toggle_admin, name='toggle_admin'),
+    path('portal-admin/users/', admin_views.user_informations, name='user_informations'),
+    path('portal-admin/users/reset-password/', admin_views.admin_reset_password, name='admin_reset_password'),
+
+    # Profile Update
+    path('profile/update/', auth_views.update_profile, name='update_profile'),
 ]
