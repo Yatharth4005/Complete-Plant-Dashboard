@@ -1380,3 +1380,75 @@ a {
   background: #fee2e2;
   color: var(--status-red);
 }
+
+/* Universal Form Elements & Button Styles */
+.input-mono {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--jspl-border, #D1DCF0);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--jspl-text, #1A2640);
+  background-color: var(--jspl-white, #ffffff);
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+select.input-mono {
+  cursor: pointer;
+}
+
+.input-mono:focus {
+  border-color: var(--jspl-blue, #0057A8);
+  box-shadow: 0 0 0 3px rgba(0, 87, 168, 0.1);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border-radius: var(--radius-md, 8px);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none !important;
+  color: var(--jspl-white, #ffffff) !important;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05));
+  user-select: none;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.08));
+  filter: brightness(1.08);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background-color: var(--jspl-blue, #0057A8) !important;
+  color: var(--jspl-white, #ffffff) !important;
+}
+
+.btn-primary:hover {
+  background-color: var(--jspl-navy, #003478) !important;
+}
+
+.btn-secondary {
+  background-color: var(--jspl-white, #ffffff) !important;
+  color: var(--jspl-blue, #0057A8) !important;
+  border: 1px solid var(--jspl-border, #D1DCF0) !important;
+}
+
+.btn-secondary:hover {
+  background-color: var(--jspl-light-blue, #E8F0FA) !important;
+  border-color: var(--jspl-blue, #0057A8) !important;
+}

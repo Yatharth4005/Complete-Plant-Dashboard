@@ -16,8 +16,8 @@ urlpatterns = [
     path('department/<int:dept_id>/coming-soon/<str:module_key>/', department_views.coming_soon, name='coming_soon'),
 
     # Admin access management
-    path('admin/access/', admin_views.manage_access, name='admin_access'),
-    path('admin/toggle-admin/', admin_views.toggle_admin, name='toggle_admin'),
+    path('portal-admin/access/', admin_views.manage_access, name='admin_access'),
+    path('portal-admin/toggle-admin/', admin_views.toggle_admin, name='toggle_admin'),
     path('portal-admin/users/', admin_views.user_informations, name='user_informations'),
     path('portal-admin/users/reset-password/', admin_views.admin_reset_password, name='admin_reset_password'),
 
