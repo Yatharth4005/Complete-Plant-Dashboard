@@ -36,11 +36,9 @@
     {% if filter_type == 'range' %}
     <span>{{ row.actual|default:"—" }}</span>
     {% else %}
-    <input type="number" name="actual" x-model="actual" step="any" class="input-mono" style="text-align: right;" {% if
-      row.is_PRODUCTION_row %}readonly style="background-color: #F3F4F6;" {% endif %}
+    <input type="number" name="actual" x-model="actual" step="any" class="input-mono" style="text-align: right;" {% if row.is_PRODUCTION_row %}readonly style="background-color: #F3F4F6;"{% endif %}
       hx-post="{% url 'save_kpi_row' dept.id pillar_id %}?month={{ month }}&year={{ year }}&sl_no={{ row.sl_no }}"
-      hx-trigger="blur" hx-include="closest tr" hx-target="#row-{{ row.sl_no }}" hx-swap="outerHTML" {% if is_locked
-      %}disabled{% endif %}>
+      hx-trigger="blur" hx-include="closest tr" hx-target="#row-{{ row.sl_no }}" hx-swap="outerHTML" {% if is_locked %}disabled{% endif %}>
     {% endif %}
   </td>
 
@@ -51,7 +49,7 @@
     <span>{{ row.availability|default:"—" }}</span>
     {% else %}
     <input type="number" name="availability" x-model="availability" step="any" class="input-mono"
-      style="text-align: right;" {% if row.sl_no !='1' or is_locked %}disabled{% endif %} @input="computePRODUCTION()"
+      style="text-align: right;" {% if row.sl_no != '1' or is_locked %}disabled{% endif %} @input="computePRODUCTION()"
       hx-post="{% url 'save_kpi_row' dept.id pillar_id %}?month={{ month }}&year={{ year }}&sl_no={{ row.sl_no }}"
       hx-trigger="blur" hx-include="closest tr" hx-target="#row-{{ row.sl_no }}" hx-swap="outerHTML">
     {% endif %}
@@ -61,7 +59,7 @@
     <span>{{ row.performance|default:"—" }}</span>
     {% else %}
     <input type="number" name="performance" x-model="performance" step="any" class="input-mono"
-      style="text-align: right;" {% if row.sl_no !='1' or is_locked %}disabled{% endif %} @input="computePRODUCTION()"
+      style="text-align: right;" {% if row.sl_no != '1' or is_locked %}disabled{% endif %} @input="computePRODUCTION()"
       hx-post="{% url 'save_kpi_row' dept.id pillar_id %}?month={{ month }}&year={{ year }}&sl_no={{ row.sl_no }}"
       hx-trigger="blur" hx-include="closest tr" hx-target="#row-{{ row.sl_no }}" hx-swap="outerHTML">
     {% endif %}
@@ -70,8 +68,7 @@
     {% if filter_type == 'range' %}
     <span>{{ row.quality|default:"—" }}</span>
     {% else %}
-    <input type="number" name="quality" x-model="quality" step="any" class="input-mono" style="text-align: right;" {% if
-      row.sl_no !='1' or is_locked %}disabled{% endif %} @input="computePRODUCTION()"
+    <input type="number" name="quality" x-model="quality" step="any" class="input-mono" style="text-align: right;" {% if row.sl_no != '1' or is_locked %}disabled{% endif %} @input="computePRODUCTION()"
       hx-post="{% url 'save_kpi_row' dept.id pillar_id %}?month={{ month }}&year={{ year }}&sl_no={{ row.sl_no }}"
       hx-trigger="blur" hx-include="closest tr" hx-target="#row-{{ row.sl_no }}" hx-swap="outerHTML">
     {% endif %}

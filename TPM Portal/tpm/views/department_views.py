@@ -211,6 +211,8 @@ def dept_overview(request, dept_id):
         'filter_type': filter_type,
         'selected_month': selected_month,
         'selected_year': selected_year,
+        'month': selected_month,
+        'year': selected_year,
         'from_month': from_month,
         'from_year': from_year,
         'to_month': to_month,
