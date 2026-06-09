@@ -1,0 +1,153 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}JSPL Unified Portal{% endblock %}</title>
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+
+  <!-- Portal Unified CSS -->
+  <link rel="stylesheet" href="{% static 'portal/css/portal.css' %}">
+
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+
+  <!-- Alpine.js (defer) -->
+  <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  {% block extra_css %}{% endblock %}
+</head>
+
+<body x-data="portalShell()" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+  <!-- TOPBAR -->
+  <header id="portal-topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle Menu">☰</button>
+      <a href="{% url 'portal:root' %}" class="topbar-brand-link">
+        <span class="topbar-logo-container">🏭</span>
+        <span class="topbar-title">JSPL Operations</span>
+      </a>
+    </div>
+
+    <!-- Breadcrumb -->
+    <nav class="topbar-breadcrumb">
+      <a href="{% url 'portal:plant_dashboard' %}">Plant Dashboard</a>
+      {% block breadcrumb_items %}{% endblock %}
+    </nav>
+
+    <div class="topbar-right">
+      {% block module_badge %}{% endblock %}
+
+      <!-- User Menu -->
+      <div class="user-menu" x-data="{ open: false }" @click.outside="open = false">
+        <button class="user-menu-trigger" @click="open = !open">
+          <span class="user-avatar">{{ request.user.first_name|default:request.user.username|slice:":1"|upper }}</span>
+          <span class="user-name">{{ request.user.first_name|default:request.user.username }}</span>
+          <span class="user-chevron">▼</span>
+        </button>
+        <div class="user-dropdown" x-show="open" x-transition x-cloak>
+          <div class="user-dropdown-header">
+            <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+            <small>{{ request.user.email }}</small>
+            {% if request.user.department %}
+            <small class="user-dept-badge">🏢 {{ request.user.department.name }}</small>
+            {% endif %}
+          </div>
+          {% if request.user.is_admin %}
+          <a href="{% url 'portal:admin_access' %}">🔑 Manage Access</a>
+          {% endif %}
+          <a href="{% url 'portal:logout' %}" class="logout-link">↩ Sign Out</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <div id="portal-shell" :class="{ 'sidebar-collapsed': !sidebarOpen }">
+
+    <!-- SIDEBAR -->
+    <aside id="portal-sidebar">
+      <div class="sidebar-nav-container">
+        <a href="{% url 'portal:plant_dashboard' %}"
+          class="sidebar-link {% if active_section == 'dashboard' %}active{% endif %}">
+          <span class="sidebar-icon">🏭</span> Plant Overview
+        </a>
+
+        <div class="sidebar-divider">Departments</div>
+
+        <div class="sidebar-accordion">
+          {% for d in sidebar_departments %}
+          <div class="sidebar-dept-group" x-data="{ open: {{ d.id }} == {{ active_dept_id|default:0 }} }">
+            <button class="sidebar-dept-btn {% if active_dept_id == d.id %}active{% endif %}"
+                    @click="{{ d.id }} == {{ active_dept_id|default:0 }} ? (open = !open) : (window.location.href='{% url 'portal:dept_hub' d.id %}')">
+              <span class="dept-code">{{ d.code }}</span>
+              <span class="dept-name">{{ d.name }}</span>
+              <span class="sidebar-chevron" :class="{ 'rotated': open }">›</span>
+            </button>
+
+            <!-- If active department, show sub-modules links -->
+            {% if active_dept_id == d.id %}
+            <div class="sidebar-dept-modules" x-show="open" x-transition>
+              {% for m in sidebar_modules %}
+              <a href="{% url 'portal:enter_module' d.id m.key %}"
+                class="sidebar-module-link {% if active_module == m.key %}active{% endif %} {% if m.key not in user_modules_map %}locked{% endif %}">
+                {% if m.key in user_modules_map %}
+                  {% include "portal/partials/_module_icon.html" with key=m.key %} {{ m.key }}
+                {% else %}
+                  🔒 {{ m.key }}
+                {% endif %}
+              </a>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+        {% if request.user.is_admin %}
+        <div class="sidebar-divider">Administration</div>
+        <a href="{% url 'portal:admin_access' %}"
+          class="sidebar-link {% if active_section == 'admin' %}active{% endif %}">
+          <span class="sidebar-icon">🔑</span> Access Control
+        </a>
+        {% endif %}
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <main id="portal-content">
+      <div id="toast-container" aria-live="polite"></div>
+
+      {% if messages %}
+      <div class="messages-container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" x-data="{ show: true }" x-show="show" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>{{ message }}</span>
+          <button type="button" @click="show = false" style="background: none; border: none; color: inherit; font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; font-weight: bold; margin-left: 10px;" aria-label="Close">&times;</button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="{% static 'portal/js/portal.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+
+</html>

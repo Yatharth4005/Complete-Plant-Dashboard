@@ -1,0 +1,145 @@
+{# partials/_analytics_charts.html #}
+<div id="analytics-container">
+  <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow-sm);">
+    <h3 style="margin-bottom: 15px;">Monthly Performance Trend (Year YTD)</h3>
+    <div style="position: relative; height: 350px;">
+      <canvas id="kpiTrendChart"></canvas>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
+      <h3 style="margin-bottom: 15px;">Pillar KPI Achievement (%)</h3>
+      <div style="position: relative; height: 350px;">
+        <canvas id="kpiBarChart"></canvas>
+      </div>
+    </div>
+    
+    <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); overflow-y: auto;">
+      <h3 style="margin-bottom: 15px;">KPI Summary (Selected Month)</h3>
+      <table class="kpi-table">
+        <thead>
+          <tr>
+            <th>Sl</th>
+            <th>KPI Name</th>
+            <th style="text-align: right;">Target</th>
+            <th style="text-align: right;">Actual</th>
+            <th style="text-align: right;">Achievement</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in kpi_rows %}
+            <tr>
+              <td class="mono">{{ row.sl_no }}</td>
+              <td>{{ row.kpi_name }}</td>
+              <td class="mono" style="text-align: right;">{{ row.target|default:"—" }}</td>
+              <td class="mono" style="text-align: right;">{{ row.actual|default:"—" }}</td>
+              <td class="mono {% if row.achievement >= 90 %}text-status-green{% elif row.achievement >= 75 %}text-status-amber{% else %}text-status-red{% endif %}" style="text-align: right; font-weight: bold;">
+                {% if row.achievement is not None %}{{ row.achievement|floatformat:1 }}%{% else %}—{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Dynamic Chart Scripting -->
+  <script>
+    (function() {
+      // Parse data passed from Django context safely
+      const trends = JSON.parse('{{ kpis_trend_data_json|escapejs }}');
+      const barLabels = JSON.parse('{{ bar_labels_json|escapejs }}');
+      const barValues = JSON.parse('{{ bar_values_json|escapejs }}');
+      const barColors = JSON.parse('{{ bar_colors_json|escapejs }}');
+      const monthsLabels = JSON.parse('{{ months_labels_json|escapejs }}');
+      
+      const colorsPalette = [
+        '#003478', '#F47920', '#16A34A', '#D97706', 
+        '#DC2626', '#2563EB', '#7C3AED', '#EC4899'
+      ];
+      
+      // 1. Line Chart setup
+      const lineDatasets = [];
+      let colorIndex = 0;
+      
+      for (const sl in trends) {
+        const kpi = trends[sl];
+        const color = colorsPalette[colorIndex % colorsPalette.length];
+        
+        lineDatasets.push({
+          label: `Sl ${sl} (Actual)`,
+          data: kpi.actuals,
+          borderColor: color,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          tension: 0.2,
+          spanGaps: true
+        });
+        
+        colorIndex++;
+      }
+      
+      const ctxTrend = document.getElementById('kpiTrendChart').getContext('2d');
+      new Chart(ctxTrend, {
+        type: 'line',
+        data: {
+          labels: monthsLabels,
+          datasets: lineDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 12, font: { family: 'Sora', size: 10 } }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: '#E8F0FA' }
+            },
+            x: {
+              grid: { display: false }
+            }
+          }
+        }
+      });
+      
+      // 2. Horizontal Bar Chart setup
+      const ctxBar = document.getElementById('kpiBarChart').getContext('2d');
+      new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels: barLabels,
+          datasets: [{
+            label: 'Achievement %',
+            data: barValues,
+            backgroundColor: barColors,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              max: 100,
+              grid: { color: '#E8F0FA' }
+            },
+            y: {
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    })();
+  </script>
+</div>

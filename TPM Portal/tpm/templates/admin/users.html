@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}User Management — JSPL TPM Portal{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{% url 'plant_dashboard' %}">Plant Dashboard</a>
+  <span>User Management</span>
+{% endblock %}
+
+{% block content %}
+<div x-data="{ addModalOpen: false, editModalOpen: false, editUser: {} }" style="position: relative;">
+  
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2>👤 User Management</h2>
+    <button @click="addModalOpen = true" class="btn btn-primary">
+      ➕ Create User Account
+    </button>
+  </div>
+
+  <!-- Users Table -->
+  <div class="card" style="padding: 20px; overflow-x: auto;">
+    <table class="kpi-table" style="font-size: 0.9rem;">
+      <thead>
+        <tr style="background-color: var(--jspl-navy);">
+          <th>Username</th>
+          <th>Name</th>
+          <th>Email Address</th>
+          <th>Role</th>
+          <th>Department Assignment</th>
+          <th>Last Login</th>
+          <th>Status</th>
+          <th style="text-align: center; width: 100px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+          <tr>
+            <td class="mono"><b>{{ u.username }}</b></td>
+            <td>{{ u.first_name }} {{ u.last_name }}</td>
+            <td>{{ u.email }}</td>
+            <td>
+              <span class="badge {% if u.role == 'ADMIN' %}badge-green{% else %}badge-muted{% endif %}">
+                {{ u.role }}
+              </span>
+            </td>
+            <td>
+              {% if u.department %}
+                🏢 <b>{{ u.department.name }}</b> ({{ u.department.code }})
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="mono" style="font-size: 0.8rem;">
+              {{ u.last_login|date:"d M Y H:i"|default:"Never logged in" }}
+            </td>
+            <td>
+              <span class="badge {% if u.is_active %}badge-green{% else %}badge-red{% endif %}">
+                {% if u.is_active %}Active{% else %}Inactive{% endif %}
+              </span>
+            </td>
+            <td style="text-align: center;">
+              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem;"
+                      @click="
+                        editUser = {
+                          id: '{{ u.id }}',
+                          username: '{{ u.username|escapejs }}',
+                          email: '{{ u.email|escapejs }}',
+                          first_name: '{{ u.first_name|escapejs }}',
+                          last_name: '{{ u.last_name|escapejs }}',
+                          role: '{{ u.role|escapejs }}',
+                          department_id: '{{ u.department.id|default:'' }}',
+                          is_active: {% if u.is_active %}true{% else %}false{% endif %}
+                        };
+                        editModalOpen = true;
+                      ">
+                ✏️ Edit
+              </button>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ADD USER MODAL -->
+  <div x-show="addModalOpen" 
+       style="position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px;"
+       x-transition>
+    <div class="card" style="width: 100%; max-width: 500px; padding: 25px; box-shadow: var(--shadow-lg);" @click.away="addModalOpen = false">
+      <h3 style="margin-bottom: 20px; color: var(--jspl-navy);">➕ Create New User Account</h3>
+      
+      <form method="POST" action="{% url 'admin_add_user' %}">
+        {% csrf_token %}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Username</label>
+            <input type="text" name="username" class="input-mono" style="width: 100%; max-width: 100%;" placeholder="username" required>
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Password</label>
+            <input type="password" name="password" class="input-mono" style="width: 100%; max-width: 100%;" placeholder="Password" required>
+          </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">First Name</label>
+            <input type="text" name="first_name" class="input-mono" style="width: 100%; max-width: 100%;" placeholder="First Name">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Last Name</label>
+            <input type="text" name="last_name" class="input-mono" style="width: 100%; max-width: 100%;" placeholder="Last Name">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Email Address</label>
+          <input type="email" name="email" class="input-mono" style="width: 100%; max-width: 100%;" placeholder="name@jspl.com">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;" x-data="{ userRole: 'USER' }">
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">System Role</label>
+            <select name="role" class="input-mono" style="width: 100%; max-width: 100%;" x-model="userRole">
+              <option value="USER">Department User</option>
+              <option value="ADMIN">Administrator</option>
+            </select>
+          </div>
+          <div x-show="userRole === 'USER'">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Assigned Department</label>
+            <select name="department" class="input-mono" style="width: 100%; max-width: 100%;">
+              <option value="">-- Choose Dept --</option>
+              {% for d in departments %}
+                <option value="{{ d.id }}">🏢 {{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" @click="addModalOpen = false">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- EDIT USER MODAL -->
+  <div x-show="editModalOpen" 
+       style="position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px;"
+       x-transition>
+    <div class="card" style="width: 100%; max-width: 500px; padding: 25px; box-shadow: var(--shadow-lg);" @click.away="editModalOpen = false">
+      <h3 style="margin-bottom: 20px; color: var(--jspl-navy);">✏️ Modify User Account: <span x-text="editUser.username" class="mono"></span></h3>
+      
+      <form method="POST" :action="'/admin-panel/users/' + editUser.id + '/edit/'">
+        {% csrf_token %}
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">First Name</label>
+            <input type="text" name="first_name" x-model="editUser.first_name" class="input-mono" style="width: 100%; max-width: 100%;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Last Name</label>
+            <input type="text" name="last_name" x-model="editUser.last_name" class="input-mono" style="width: 100%; max-width: 100%;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Email Address</label>
+          <input type="email" name="email" x-model="editUser.email" class="input-mono" style="width: 100%; max-width: 100%;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Reset Password (Leave blank to keep current)</label>
+          <input type="password" name="password" class="input-mono" style="width: 100%; max-width: 100%;" placeholder="New Password">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">System Role</label>
+            <select name="role" class="input-mono" style="width: 100%; max-width: 100%;" x-model="editUser.role">
+              <option value="USER">Department User</option>
+              <option value="ADMIN">Administrator</option>
+            </select>
+          </div>
+          <div x-show="editUser.role === 'USER'">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Assigned Department</label>
+            <select name="department" class="input-mono" style="width: 100%; max-width: 100%;" x-model="editUser.department_id">
+              <option value="">-- Choose Dept --</option>
+              {% for d in departments %}
+                <option value="{{ d.id }}">🏢 {{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" name="is_active" id="edit_is_active" x-model="editUser.is_active">
+          <label for="edit_is_active" style="font-weight: 600; font-size: 0.9rem;">User Account Active</label>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" @click="editModalOpen = false">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

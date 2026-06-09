@@ -1,0 +1,6 @@
+{# partials/_toast.html #}
+<div id="toast-container" hx-swap-oob="true">
+  <div class="toast toast-{{ type|default:'success' }}">
+    {{ message }}
+  </div>
+</div>

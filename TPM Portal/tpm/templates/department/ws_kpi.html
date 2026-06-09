@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Workstation KPIs — {{ dept.name }} — JSPL TPM Portal{% endblock %}
+
+{% block breadcrumb %}
+  {% if request.user.is_admin %}
+    <a href="{% url 'plant_dashboard' %}">Plant Dashboard</a>
+  {% endif %}
+  <a href="{% url 'dept_overview' dept.id }}">{{ dept.name }}</a>
+  <span>Workstation KPIs</span>
+{% endblock %}
+
+{% block content %}
+  <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-sm); margin-bottom: 24px;">
+    <!-- Title and Filter Row -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--jspl-border); padding-bottom: 16px; margin-bottom: 20px;">
+      <div>
+        <h2 style="color: var(--jspl-navy);">🔧 Workstation KPIs (9th Pillar)</h2>
+        <span style="font-size: 0.85rem; color: var(--jspl-muted);">Department: <b>{{ dept.name }}</b></span>
+      </div>
+    </div>
+
+    <!-- Reusable Filter Ribbon -->
+    {% include "partials/_date_filter.html" %}
+
+    <!-- TABS CONTROLLER -->
+    <div class="tab-container">
+      <a href="?{{ query_params }}&tab=entry" class="tab-btn {% if tab == 'entry' %}active{% endif %}">
+        📝 Data Entry Tab
+      </a>
+      <a href="?{{ query_params }}&tab=analytics" class="tab-btn {% if tab == 'analytics' %}active{% endif %}">
+        📊 Analytics Tab
+      </a>
+    </div>
+
+    <!-- TAB PANEL CONTENT -->
+    {% if tab == 'entry' %}
+      
+      {% if filter_type == 'range' %}
+        <div class="lock-banner" style="background-color: var(--jspl-light); border-color: var(--jspl-border); color: var(--jspl-navy); margin-bottom: 20px;">
+          <span>ℹ️ You are viewing a summary of data aggregated for the period: <b>{{ period_label }}</b>. Data entry is disabled.</span>
+        </div>
+      {% endif %}
+
+      {% if not ws_list %}
+        <div style="padding: 40px; text-align: center; color: var(--jspl-muted);">
+          <h3>No Workstations Configured</h3>
+          <p>Please register workstations in the administrator panel.</p>
+        </div>
+      {% else %}
+        {% for ws in ws_list %}
+          {% include "partials/_ws_card.html" with ws=ws dept=dept month=month year=year filter_type=filter_type %}
+        {% endfor %}
+      {% endif %}
+      
+    {% else %}
+      
+      <!-- Analytics Tab View -->
+      {% if not workstations.exists %}
+        <div style="padding: 40px; text-align: center; color: var(--jspl-muted);">
+          <h3>No Workstations Configured</h3>
+        </div>
+      {% else %}
+        <div style="margin-bottom: 20px; background-color: var(--jspl-gray); padding: 15px; border-radius: var(--radius); border: 1px solid var(--jspl-border);">
+          <form method="GET" style="display: flex; gap: 15px; align-items: center;">
+            <input type="hidden" name="tab" value="analytics">
+            <input type="hidden" name="filter_type" value="{{ filter_type }}">
+            <input type="hidden" name="month" value="{{ month }}">
+            <input type="hidden" name="year" value="{{ year }}">
+            <input type="hidden" name="from_month" value="{{ from_month }}">
+            <input type="hidden" name="from_year" value="{{ from_year }}">
+            <input type="hidden" name="to_month" value="{{ to_month }}">
+            <input type="hidden" name="to_year" value="{{ to_year }}">
+            <label style="font-weight: 600; color: var(--jspl-navy);">Select Workstation:</label>
+            <select name="workstation_id" class="input-mono" style="width: 250px; max-width: 100%;" onchange="this.form.submit()">
+              {% for w in workstations %}
+                <option value="{{ w.id }}" {% if w.id == analytics_data.selected_ws_id %}selected{% endif %}>
+                  {{ w.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </form>
+        </div>
+
+        <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); margin-bottom: 24px;">
+          <h3 style="margin-bottom: 15px;">{{ analytics_data.selected_ws_name }} — KPI Trends</h3>
+          <div id="charts-wrapper" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); gap: 24px;">
+            <!-- Canvas tags dynamically injected by Chart.js init -->
+          </div>
+        </div>
+
+        <script>
+          (function() {
+            const trends = JSON.parse('{{ analytics_data.ws_trends_json|escapejs }}');
+            const monthsLabels = JSON.parse('{{ analytics_data.months_labels_json|escapejs }}');
+            const wrapper = document.getElementById('charts-wrapper');
+            
+            for (const kpiId in trends) {
+              const kpi = trends[kpiId];
+              
+              // Create canvas container
+              const cardDiv = document.createElement('div');
+              cardDiv.style.border = '1px solid var(--jspl-border)';
+              cardDiv.style.borderRadius = 'var(--radius)';
+              cardDiv.style.padding = '15px';
+              cardDiv.style.backgroundColor = 'var(--jspl-white)';
+              
+              const title = document.createElement('h4');
+              title.style.marginBottom = '10px';
+              title.innerText = `${kpi.name} (${kpi.uom})`;
+              cardDiv.appendChild(title);
+              
+              const canvasDiv = document.createElement('div');
+              canvasDiv.style.position = 'relative';
+              canvasDiv.style.height = '200px';
+              
+              const canvas = document.createElement('canvas');
+              canvasDiv.appendChild(canvas);
+              cardDiv.appendChild(canvasDiv);
+              wrapper.appendChild(cardDiv);
+              
+              // Build commitment baseline lines
+              const commitmentLine = Array(12).fill(kpi.commitment);
+              const baselineLine = Array(12).fill(kpi.baseline);
+              
+              new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                  labels: monthsLabels,
+                  datasets: [
+                    {
+                      label: 'Actuals',
+                      data: kpi.actuals,
+                      borderColor: '#F47920',
+                      borderWidth: 2.5,
+                      tension: 0.1,
+                      spanGaps: true
+                    },
+                    {
+                      label: 'Commitment',
+                      data: commitmentLine,
+                      borderColor: '#003478',
+                      borderDash: [5, 5],
+                      borderWidth: 1.5,
+                      pointRadius: 0
+                    },
+                    {
+                      label: 'Baseline',
+                      data: baselineLine,
+                      borderColor: '#6B7A99',
+                      borderDash: [2, 2],
+                      borderWidth: 1.5,
+                      pointRadius: 0
+                    }
+                  ]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    y: { beginAtZero: true, grid: { color: '#E8F0FA' } },
+                    x: { grid: { display: false } }
+                  }
+                }
+              });
+            }
+          })();
+        </script>
+      {% endif %}
+      
+    {% endif %}
+
+  </div>
+{% endblock %}

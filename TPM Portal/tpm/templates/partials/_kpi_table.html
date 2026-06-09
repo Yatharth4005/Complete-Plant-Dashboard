@@ -1,0 +1,58 @@
+{# partials/_kpi_table.html #}
+<div id="kpi-table-container">
+  {% if filter_type == 'range' %}
+    <div class="lock-banner" style="background-color: var(--jspl-light); border-color: var(--jspl-border); color: var(--jspl-navy);">
+      <span>ℹ️ You are viewing a summary of data aggregated for the period: <b>{{ period_label }}</b>. Data entry is disabled.</span>
+    </div>
+  {% elif is_locked %}
+    <div class="lock-banner">
+      <span>🔒 Submitted on {{ entry.submitted_at|date:"d M Y H:i" }} by {{ entry.submitted_by.get_full_name|default:entry.submitted_by.username }}</span>
+      {% if request.user.is_admin %}
+        <button hx-post="{% url 'unlock_entry' entry.id %}"
+                hx-target="#kpi-table-container"
+                hx-confirm="Are you sure you want to unlock this entry for editing?">
+          Unlock Editing
+        </button>
+      {% else %}
+        <span style="font-size: 0.8rem; color: var(--jspl-muted);">Contact administrator to modify data</span>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="table-container">
+    <table class="kpi-table">
+      <thead>
+        <tr>
+          <th style="width: 60px;">Sl No</th>
+          <th>KPI Name (UOM)</th>
+          <th style="width: 100px;">Benchmark</th>
+          <th style="width: 110px;">Target</th>
+          <th style="width: 120px;">Actual</th>
+          {% if pillar_id == 'KK' %}
+            <th style="width: 90px;">Avail. (%)</th>
+            <th style="width: 90px;">Perf. (%)</th>
+            <th style="width: 90px;">Quality (%)</th>
+          {% endif %}
+          <th style="width: 110px;">Achievement</th>
+          <th>Remarks / Explanations</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in kpi_rows %}
+          {% include "partials/_kpi_row.html" with row=row is_locked=is_locked pillar_id=pillar_id filter_type=filter_type %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if filter_type != 'range' and not is_locked %}
+    <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+      <button class="btn btn-primary"
+              hx-post="{% url 'submit_pillar_entry' dept.id pillar_id %}?month={{ month }}&year={{ year }}"
+              hx-target="#kpi-table-container"
+              hx-confirm="Submit and lock all inputs for {{ month_label }} {{ year }}?">
+        Submit & Lock Entry
+      </button>
+    </div>
+  {% endif %}
+</div>

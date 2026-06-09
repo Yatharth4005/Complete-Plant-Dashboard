@@ -1,0 +1,86 @@
+{# partials/_ws_card.html #}
+<div class="card" id="ws-card-{{ ws.id }}" style="margin-bottom: 24px; padding: 24px;">
+  <form hx-post="{% url 'save_workstation' dept.id ws.id %}?month={{ month }}&year={{ year }}"
+        hx-target="#ws-card-{{ ws.id }}"
+        hx-swap="outerHTML"
+        hx-trigger="submit">
+        
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--jspl-border); padding-bottom: 12px; margin-bottom: 16px;">
+      <div>
+        <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">🏭 {{ ws.name }}</h3>
+        <span style="font-size: 0.85rem; color: var(--jspl-muted);">Inception Date: <b>{{ ws.inception_date|date:"d M Y"|default:"N/A" }}</b></span>
+      </div>
+      <div style="text-align: right;">
+        <span style="font-size: 0.9rem; font-weight: 600; color: var(--jspl-text);">Leader: {{ ws.leader }}</span>
+      </div>
+    </div>
+    
+    <div class="table-container" style="box-shadow: none; border-radius: 4px; margin-bottom: 16px;">
+      <table class="kpi-table" style="font-size: 0.85rem;">
+        <thead>
+          <tr style="background-color: var(--jspl-blue);">
+            <th>KPI Name</th>
+            <th style="width: 80px; text-align: center;">UOM</th>
+            <th style="width: 100px; text-align: right;">Baseline</th>
+            <th style="width: 100px; text-align: right;">Commitment</th>
+            <th style="width: 120px; text-align: right;">Actual</th>
+            <th style="width: 110px; text-align: center;">Achievement</th>
+            <th>Remarks / Action Items</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for kpi in ws.kpis %}
+            <tr>
+              <td style="font-weight: 600;">
+                {{ kpi.kpi_name }} 
+                {% if kpi.goodness_indicator == 'LOWER' %}
+                  <span style="color: var(--status-blue); font-size: 0.8rem;" title="Lower is Better">↓</span>
+                {% else %}
+                  <span style="color: var(--jspl-orange); font-size: 0.8rem;" title="Higher is Better">↑</span>
+                {% endif %}
+              </td>
+              <td style="text-align: center;"><span class="badge badge-muted">{{ kpi.uom }}</span></td>
+              <td class="mono" style="text-align: right;">{{ kpi.baseline|default:"—" }}</td>
+              <td class="mono" style="text-align: right; font-weight: 600;">{{ kpi.commitment|default:"—" }}</td>
+              <td class="mono" style="text-align: right;">
+                {% if filter_type == 'range' %}
+                  <span>{{ kpi.actual|default:"—" }}</span>
+                {% else %}
+                  <input type="number" name="actual_{{ kpi.id }}" step="any"
+                         value="{{ kpi.actual|default:'' }}"
+                         class="input-mono" style="text-align: right; width: 100%; max-width: 100px;"
+                         placeholder="Enter actual">
+                {% endif %}
+              </td>
+              <td style="text-align: center;">
+                {% if kpi.achievement is not None %}
+                  <span class="badge {% if kpi.achievement >= 90 %}badge-green{% elif kpi.achievement >= 75 %}badge-amber{% else %}badge-red{% endif %}">
+                    {{ kpi.achievement|floatformat:1 }}%
+                  </span>
+                {% else %}
+                  <span class="badge badge-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if filter_type == 'range' %}
+                  <span style="font-size: 0.85rem; color: var(--jspl-muted);">{{ kpi.remarks }}</span>
+                {% else %}
+                  <input type="text" name="remarks_{{ kpi.id }}" value="{{ kpi.remarks }}"
+                         class="input-remarks" style="width: 100%;" placeholder="Add comment...">
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    
+    {% if filter_type != 'range' %}
+      <div style="display: flex; justify-content: flex-end;">
+        <button type="submit" class="btn btn-primary" style="padding: 6px 16px;">
+          💾 Save Workstation
+        </button>
+      </div>
+    {% endif %}
+  </form>
+</div>

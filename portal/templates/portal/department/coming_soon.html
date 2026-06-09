@@ -1,0 +1,32 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{{ module.label }} — Coming Soon — JSPL Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <a href="{% url 'portal:dept_hub' department.id %}">{{ department.name }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">{{ module.key }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="card" style="text-align: center; padding: 60px 40px; margin-top: 40px; max-width: 600px; margin-left: auto; margin-right: auto;">
+    <div style="font-size: 4rem; margin-bottom: 20px;">🚧</div>
+    <h1 style="color: var(--jspl-navy); margin-bottom: 12px; font-weight: 700;">{{ module.label }} ({{ module.key }})</h1>
+    <p style="color: var(--jspl-muted); font-size: 1.05rem; line-height: 1.6; margin-bottom: 30px;">
+      The <b>{{ module.label }}</b> operations dashboard for <b>{{ department.name }}</b> is currently under active development and will be available shortly.<br><br>
+      Access rules and SSO pathways have been successfully established. Once deployed, you will be directed here automatically.
+    </p>
+    
+    <div style="display: flex; justify-content: center; gap: 15px;">
+      <a href="{% url 'portal:dept_hub' department.id %}" class="user-menu-trigger" style="text-decoration: none; padding: 10px 20px;">
+        ← Back to Department Hub
+      </a>
+      <a href="{% url 'portal:plant_dashboard' %}" class="user-menu-trigger" style="text-decoration: none; padding: 10px 20px; background: var(--jspl-light-blue); border-color: var(--jspl-blue);">
+        🏭 Go to Plant Overview
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

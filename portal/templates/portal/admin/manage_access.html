@@ -1,0 +1,256 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Access Control Management — JSPL Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">Access Control</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  
+  <div class="dashboard-header-row">
+    <div>
+      <h1 class="portal-page-title">🔑 Access Control Matrix</h1>
+      <p class="portal-page-subtitle">Configure module permissions per user per department in real time.</p>
+    </div>
+  </div>
+
+  <div class="card matrix-card">
+    <div class="table-responsive">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th class="matrix-user-col">User</th>
+            <th class="matrix-dept-col">Department</th>
+            {% for m in modules %}
+              <th class="matrix-module-col text-center">{{ m.key }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for u_data in users_data %}
+            {% for row in u_data.departments %}
+              <tr class="{% if forloop.parentloop.counter|divisibleby:2 %}stripe-row{% endif %}">
+                {% if forloop.first %}
+                  <td class="matrix-user-cell text-bold" rowspan="{{ u_data.departments|length }}">
+                    {{ u_data.user.get_display_name }}
+                    <div class="matrix-user-email">{{ u_data.user.email }}</div>
+                    {% if u_data.user.is_plant_admin %}
+                      <span class="badge admin" style="margin-top:5px;display:inline-block;">PLANT ADMIN</span>
+                    {% endif %}
+
+                    <!-- Admin action buttons -->
+                    <div class="admin-action-btns" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+                      {% if u_data.user.is_plant_admin %}
+                        <!-- Admin: only Revoke -->
+                        <button type="button"
+                          class="btn-admin-action btn-revoke"
+                          onclick="openAdminConfirm('revoke', '{{ u_data.user.id }}', '{{ u_data.user.get_display_name }}')">
+                          Revoke
+                        </button>
+                      {% else %}
+                        <!-- Not admin: both buttons -->
+                        <button type="button"
+                          class="btn-admin-action btn-make-admin"
+                          onclick="openAdminConfirm('promote', '{{ u_data.user.id }}', '{{ u_data.user.get_display_name }}')">
+                          Make Admin
+                        </button>
+                        <button type="button"
+                          class="btn-admin-action btn-revoke"
+                          onclick="openAdminConfirm('revoke', '{{ u_data.user.id }}', '{{ u_data.user.get_display_name }}')">
+                          Revoke
+                        </button>
+                      {% endif %}
+                    </div>
+                  </td>
+                {% endif %}
+                <td class="matrix-dept-cell text-bold">
+                  {{ row.dept.name }} ({{ row.dept.code }})
+                </td>
+                
+                {% for col in row.modules %}
+                  <td class="matrix-cell text-center" 
+                      id="cell-{{ u_data.user.id }}-{{ row.dept.id }}-{{ col.module.key }}">
+                    
+                    {% if u_data.user.is_plant_admin %}
+                      <span class="text-success text-bold">Full Access</span>
+                    {% else %}
+                      {% include "portal/admin/partials/_access_cell.html" with u=u_data.user d=row.dept m=col.module access=col.access %}
+                    {% endif %}
+                    
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Confirmation Modal ────────────────────────────────────────────── -->
+<div id="adminConfirmOverlay" class="confirm-overlay" onclick="closeAdminConfirm(event)">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirmIcon"></div>
+    <h2 class="confirm-title" id="confirmTitle">Confirm Action</h2>
+    <p class="confirm-msg" id="confirmMsg">Are you sure?</p>
+
+    <div class="confirm-actions">
+      <button type="button" class="btn-confirm-cancel" onclick="closeAdminConfirm(null)">Cancel</button>
+      <form id="adminActionForm" method="post" action="{% url 'portal:toggle_admin' %}">
+        {% csrf_token %}
+        <input type="hidden" name="user_id" id="confirmUserId">
+        <input type="hidden" name="action" id="confirmAction">
+        <button type="submit" class="btn-confirm-proceed" id="confirmProceedBtn">Confirm</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal styles (scoped) ──────────────────────────────────────────── -->
+<style>
+  /* Buttons inside user cell */
+  .btn-admin-action {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-make-admin {
+    background-color: var(--jspl-light-blue);
+    color: var(--jspl-blue);
+    border-color: var(--jspl-border);
+  }
+  .btn-make-admin:hover {
+    background-color: var(--jspl-blue);
+    color: var(--jspl-white);
+    border-color: var(--jspl-blue);
+  }
+  .btn-revoke {
+    background-color: #fee2e2;
+    color: var(--status-red);
+    border-color: rgba(220, 38, 38, 0.15);
+  }
+  .btn-revoke:hover {
+    background-color: var(--status-red);
+    color: var(--jspl-white);
+    border-color: var(--status-red);
+  }
+
+  /* Overlay — hidden by default, shown via .is-open */
+  .confirm-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+  .confirm-overlay.is-open {
+    display: flex;
+    animation: fadeOverlay .18s ease;
+  }
+  @keyframes fadeOverlay { from{opacity:0} to{opacity:1} }
+
+  /* Box */
+  .confirm-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 36px 40px 30px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    animation: popIn .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn { from{transform:scale(.85);opacity:0} to{transform:scale(1);opacity:1} }
+
+  .confirm-icon { font-size: 42px; margin-bottom: 12px; }
+  .confirm-title { font-size: 20px; font-weight: 700; color: #1e293b; margin: 0 0 8px; }
+  .confirm-msg   { font-size: 14px; color: #475569; margin: 0 0 28px; line-height: 1.55; }
+
+  .confirm-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn-confirm-cancel {
+    padding: 10px 24px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .btn-confirm-cancel:hover { border-color: #94a3b8; }
+
+  .btn-confirm-proceed {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity .15s;
+    color: #fff;
+  }
+  .btn-confirm-proceed:hover { opacity: .88; }
+  .btn-confirm-proceed.is-promote { background: var(--jspl-blue); }
+  .btn-confirm-proceed.is-revoke  { background: var(--status-red); }
+</style>
+
+<!-- ── Modal JS ───────────────────────────────────────────────────────── -->
+<script>
+  function openAdminConfirm(action, userId, userName) {
+    const overlay = document.getElementById('adminConfirmOverlay');
+    const icon    = document.getElementById('confirmIcon');
+    const title   = document.getElementById('confirmTitle');
+    const msg     = document.getElementById('confirmMsg');
+    const btn     = document.getElementById('confirmProceedBtn');
+
+    document.getElementById('confirmUserId').value = userId;
+    document.getElementById('confirmAction').value  = action;
+
+    if (action === 'promote') {
+      icon.textContent  = '';
+      title.textContent = 'Make Plant Admin?';
+      msg.textContent   = `Grant "${userName}" full Plant Admin privileges? They will get Full Access to all departments and modules.`;
+      btn.textContent   = 'Yes, Make Admin';
+      btn.className     = 'btn-confirm-proceed is-promote';
+    } else {
+      icon.textContent  = '';
+      title.textContent = 'Revoke Admin?';
+      msg.textContent   = `Remove Plant Admin privileges from "${userName}"? Their individual module permissions will be restored.`;
+      btn.textContent   = 'Yes, Revoke';
+      btn.className     = 'btn-confirm-proceed is-revoke';
+    }
+
+    overlay.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeAdminConfirm(event) {
+    // Close only if clicking on backdrop or cancel button (event === null)
+    if (event && event.target !== document.getElementById('adminConfirmOverlay')) return;
+    document.getElementById('adminConfirmOverlay').classList.remove('is-open');
+    document.body.style.overflow = '';
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}{{ department.name }} Hub — JSPL Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">{{ department.name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  
+  <!-- Department Hub Header -->
+  <div class="dept-hub-header card">
+    <div class="dept-badge-large">{{ department.code }}</div>
+    <div class="dept-header-info">
+      <h1>{{ department.name }} Hub</h1>
+      <p>Select an operations module below to launch its interface. Only approved modules are accessible.</p>
+    </div>
+  </div>
+
+  <!-- Module Cards Grid -->
+  <div class="module-cards-grid">
+    {% for item in module_cards %}
+      {% if item.accessible %}
+        <!-- ACCESSIBLE CARD -->
+        <a href="{% url 'portal:enter_module' department.id item.module.key %}" 
+           class="module-card card {{ item.module.color_class }} accessible-module-card">
+          <div class="module-card-top">
+            <span class="module-large-icon">
+              {% include "portal/partials/_module_icon.html" with key=item.module.key %}
+            </span>
+            <span class="access-badge {{ item.access_level|lower }}">VIEW</span>
+          </div>
+          <div class="module-card-middle">
+            <h3>{{ item.module.label }}</h3>
+            <p>{{ item.module.description }}</p>
+          </div>
+          <div class="module-card-bottom">
+            <span class="launch-label">Open Dashboard →</span>
+          </div>
+        </a>
+      {% else %}
+        <!-- LOCKED CARD -->
+        <div class="module-card card locked-module-card" x-data="{ showTooltip: false }"
+             @mouseenter="showTooltip = true" @mouseleave="showTooltip = false">
+          <div class="module-card-top">
+            <span class="module-large-icon">🔒</span>
+            <span class="access-badge locked">RESTRICTED</span>
+          </div>
+          <div class="module-card-middle">
+            <h3>{{ item.module.label }}</h3>
+            <p>{{ item.module.description }}</p>
+          </div>
+          <div class="module-card-bottom">
+            <span class="locked-label">Access Restricted</span>
+          </div>
+          
+          <!-- Access Denied Tooltip -->
+          <div class="access-tooltip" x-show="showTooltip" x-transition x-cloak>
+            🔒 You do not have permissions for {{ item.module.key }}. Please contact your Plant System Administrator.
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <!-- Recent Activity for Department -->
+  {% if recent_activity %}
+    <div class="card recent-activity-card">
+      <h3 class="card-section-title">🕒 Recent Activity inside {{ department.code }}</h3>
+      <div class="table-responsive">
+        <table class="dashboard-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Action</th>
+              <th>Module</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in recent_activity %}
+              <tr>
+                <td><b>{{ log.user.get_display_name }}</b> ({{ log.user.email }})</td>
+                <td><span class="action-tag">{{ log.action }}</span></td>
+                <td>{{ log.module.key|default:"Portal" }}</td>
+                <td class="mono">{{ log.timestamp|date:"d M Y, H:i" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

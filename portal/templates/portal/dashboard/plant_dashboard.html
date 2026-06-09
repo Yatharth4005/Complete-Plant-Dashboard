@@ -1,0 +1,69 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Departments Directory — JSPL Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">Departments</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  
+  <!-- Header Row -->
+  <div class="dashboard-header-row" style="margin-bottom: 30px;">
+    <div>
+      <h1 class="portal-page-title">🏭 JSPL Departments &amp; Modules Hub</h1>
+      <p class="portal-page-subtitle">RGH Plant — Select any unlocked module card under a department to launch its dashboard</p>
+    </div>
+  </div>
+
+  <!-- Department Hub Grid -->
+  <div class="dept-hub-grid">
+    {% for card in departments_data %}
+      <div class="dept-hub-card card" x-data="{ open: {% if request.user.department_id == card.dept.id %}true{% else %}false{% endif %} }">
+        <div class="dept-hub-card-header" @click="open = !open" :class="{ 'is-collapsed': !open }">
+          <span class="dept-hub-card-code">{{ card.dept.code }}</span>
+          <h3 class="dept-hub-card-title">{{ card.dept.name }}</h3>
+          <span class="dept-hub-chevron" :class="{ 'rotated': open }">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </span>
+        </div>
+        
+        <div class="dept-hub-modules-list" x-show="open" x-transition x-cloak>
+          {% for item in card.modules %}
+            {% if item.accessible %}
+              <!-- Unlocked Module Button -->
+              <a href="{% url 'portal:enter_module' card.dept.id item.module.key %}" 
+                 class="dept-hub-module-btn {{ item.module.color_class }} accessible"
+                 title="{{ item.module.label }} (View Access)">
+                <span class="module-btn-icon">
+                  {% include "portal/partials/_module_icon.html" with key=item.module.key %}
+                </span>
+                <div class="module-btn-text">
+                  <span class="module-btn-name">{{ item.module.key }}</span>
+                  <span class="module-btn-desc">{{ item.module.label }}</span>
+                </div>
+                <span class="module-btn-badge {{ item.access_level|lower }}">VIEW</span>
+              </a>
+            {% else %}
+              <!-- Locked Module Button -->
+              <div class="dept-hub-module-btn locked" 
+                   title="{{ item.module.label }} (Access Restricted)">
+                <span class="module-btn-icon">🔒</span>
+                <div class="module-btn-text">
+                  <span class="module-btn-name">{{ item.module.key }}</span>
+                  <span class="module-btn-desc" style="color: rgba(255, 255, 255, 0.35);">{{ item.module.label }}</span>
+                </div>
+                <span class="module-btn-badge locked">LOCKED</span>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+bin/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Django files
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# IDE and OS files
+.vscode/
+.idea/
+.project
+.pydevproject
+.settings/
+.DS_Store
+Thumbs.db
+*.bak
+*.swp
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Project specific ignores
+*.webp
+*.png
+.gemini/

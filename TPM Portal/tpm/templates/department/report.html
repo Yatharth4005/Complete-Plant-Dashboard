@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Report Generator — {{ dept.name }} — JSPL TPM Portal{% endblock %}
+
+{% block breadcrumb %}
+  {% if request.user.is_admin %}
+    <a href="{% url 'plant_dashboard' %}">Plant Dashboard</a>
+  {% endif %}
+  <a href="{% url 'dept_overview' dept.id %}">{{ dept.name }}</a>
+  <span>Reports</span>
+{% endblock %}
+
+{% block content %}
+  <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-sm); margin-bottom: 24px;">
+        <!-- Title & Controls (hidden in print) -->
+    <div class="no-print" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--jspl-border); padding-bottom: 16px; margin-bottom: 20px;">
+        <div>
+          <h2 style="color: var(--jspl-navy);">📜 Department TPM Report Generator</h2>
+          <span style="font-size: 0.85rem; color: var(--jspl-muted);">Periodically exported PDF / Excel documents</span>
+        </div>
+        
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <a href="{% url 'export_pdf' dept.id %}?{{ query_params }}" class="btn btn-primary">
+            📥 Export PDF
+          </a>
+          <a href="{% url 'export_excel' dept.id %}?{{ query_params }}" class="btn btn-secondary">
+            📊 Export Excel
+          </a>
+          <button onclick="window.print()" class="btn btn-secondary">
+            🖨️ Print
+          </button>
+        </div>
+      </div>
+      {% include "partials/_date_filter.html" %}
+    </div>
+
+    <!-- Printable Area Wrapper -->
+    <div id="printable-report">
+      
+      <!-- Report Letterhead Header -->
+      <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double var(--jspl-navy); padding-bottom: 15px;">
+        <img src="{% static 'images/logo.png' %}" alt="JSPL Logo" style="max-height: 60px; width: auto; margin-bottom: 10px;">
+        <h3 style="color: var(--jspl-blue); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px;">
+          Monthly TPM Performance Report — {{ dept.name }} ({{ dept.code }})
+        </h3>
+        <span style="font-size: 0.95rem; font-weight: 600; color: var(--jspl-muted);">Report Period: <b>{{ month_label }}</b></span>
+      </div>
+            <!-- Overview Cards -->
+      <div class="card-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 30px;">
+        {% for p_data in report_data %}
+          {% if p_data.code == 'KK' or p_data.code == 'JH' or p_data.code == 'PM' or p_data.code == 'SHE' %}
+            <div class="card" style="box-shadow: none; border-color: var(--jspl-border); border-width: 1.5px;">
+              <div class="card-title">{{ p_data.name }} Score</div>
+              <div class="card-value">{{ p_data.achievement }}%</div>
+              <div class="card-subtext">
+                Status: 
+                {% if p_data.submitted %}
+                  <span style="color: var(--status-green); font-weight: bold;">Locked</span>
+                {% else %}
+                  <span style="color: var(--status-red); font-weight: bold;">Pending</span>
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- Action Items Section (Critical issues list: achievement < 80%) -->
+      <div style="margin-bottom: 35px; background-color: #FEF2F2; border: 1.5px solid #FCA5A5; padding: 20px; border-radius: var(--radius);">
+        <h3 style="color: var(--status-red); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+          ⚠️ Action Required KPI List (Achievement &lt; 80%)
+        </h3>
+        <table class="kpi-table" style="font-size: 0.85rem; background-color: transparent;">
+          <thead>
+            <tr style="background-color: var(--status-red);">
+              <th style="color: white; width: 60px;">Pillar</th>
+              <th style="color: white; width: 60px;">Sl No</th>
+              <th style="color: white;">KPI Name</th>
+              <th style="color: white; text-align: right; width: 90px;">Target</th>
+              <th style="color: white; text-align: right; width: 90px;">Actual</th>
+              <th style="color: white; text-align: right; width: 90px;">Achievement</th>
+              <th style="color: white;">Remarks / Mitigation Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p_data in report_data %}
+              {% for k in p_data.kpis %}
+                {% if k.achievement is not None and k.achievement < 80.0 %}
+                  <tr>
+                    <td><b>{{ p_data.code }}</b></td>
+                    <td class="mono">{{ k.sl_no }}</td>
+                    <td>{{ k.name }} ({{ k.uom }})</td>
+                    <td class="mono" style="text-align: right;">{{ k.target }}</td>
+                    <td class="mono" style="text-align: right;">{{ k.actual }}</td>
+                    <td class="mono" style="text-align: right; color: var(--status-red); font-weight: bold;">{{ k.achievement|floatformat:1 }}%</td>
+                    <td style="color: var(--status-red); font-weight: 500;">{{ k.remarks|default:"No explanation provided" }}</td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Detailed Pillar breakdown tables -->
+      {% for p_data in report_data %}
+        <div style="margin-bottom: 35px; page-break-inside: avoid;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--jspl-blue); padding-bottom: 6px; margin-bottom: 12px;">
+            <h3 style="color: var(--jspl-navy);">📁 {{ p_data.name }} ({{ p_data.code }})</h3>
+            <span style="font-size: 0.9rem; font-weight: bold; color: var(--jspl-blue);">Pillar Score: {{ p_data.achievement }}%</span>
+          </div>
+          
+          <table class="kpi-table" style="font-size: 0.85rem;">
+            <thead>
+              <tr style="background-color: var(--jspl-blue);">
+                <th style="width: 50px; text-align: center;">Sl</th>
+                <th>KPI Description</th>
+                <th style="width: 60px; text-align: center;">UOM</th>
+                <th style="width: 80px; text-align: right;">Benchmark</th>
+                <th style="width: 80px; text-align: right;">Target</th>
+                <th style="width: 80px; text-align: right;">Actual</th>
+                <th style="width: 100px; text-align: center;">Achievement</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for k in p_data.kpis %}
+                <tr class="{% if k.achievement is not None and k.achievement < 80.0 %}row-danger{% endif %}">
+                  <td class="mono" style="text-align: center;">{{ k.sl_no }}</td>
+                  <td>{{ k.name }}</td>
+                  <td style="text-align: center;"><span class="badge badge-muted">{{ k.uom }}</span></td>
+                  <td class="mono" style="text-align: right;">{{ k.benchmark|default:"—" }}</td>
+                  <td class="mono" style="text-align: right;">{{ k.target|default:"—" }}</td>
+                  <td class="mono" style="text-align: right; font-weight: 600;">{{ k.actual|default:"—" }}</td>
+                  <td style="text-align: center;">
+                    {% if k.achievement is not None %}
+                      <span class="badge {% if k.achievement >= 90 %}badge-green{% elif k.achievement >= 75 %}badge-amber{% else %}badge-red{% endif %}">
+                        {{ k.achievement|floatformat:1 }}%
+                      </span>
+                    {% else %}
+                      <span class="badge badge-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td style="font-size: 0.8rem; color: var(--jspl-muted);">{{ k.remarks }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endfor %}
+      
+      <!-- Signature Block -->
+      <div style="margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; page-break-inside: avoid;">
+        <div style="border-top: 1.5px solid var(--jspl-muted); padding-top: 8px; text-align: center; font-size: 0.9rem;">
+          <b>Department TPM Coordinator</b><br>
+          <span style="font-size: 0.8rem; color: var(--jspl-muted);">Sign / Date</span>
+        </div>
+        <div style="border-top: 1.5px solid var(--jspl-muted); padding-top: 8px; text-align: center; font-size: 0.9rem;">
+          <b>Plant TPM Administrator / Head</b><br>
+          <span style="font-size: 0.8rem; color: var(--jspl-muted);">Sign / Date</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { background-color: white !important; }
+      #printable-report { margin: 0 !important; padding: 0 !important; }
+    }
+  </style>
+{% endblock %}

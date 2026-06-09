@@ -1,0 +1,67 @@
+<div style="background-color: var(--jspl-white); padding: 12px 18px; border-radius: var(--radius); border: 1px solid var(--jspl-border); margin-bottom: 20px; box-shadow: var(--shadow-sm);">
+  <form method="GET" id="date-filter-form" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+    <!-- Preserve tab/workstation context if present -->
+    {% if tab %}
+      <input type="hidden" name="tab" value="{{ tab }}">
+    {% elif active_tab %}
+      <input type="hidden" name="tab" value="{{ active_tab }}">
+    {% endif %}
+    {% if analytics_data.selected_ws_id %}
+      <input type="hidden" name="workstation_id" value="{{ analytics_data.selected_ws_id }}">
+    {% endif %}
+
+    <div style="display: flex; flex-direction: column;">
+      <label style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-muted); margin-bottom: 4px;">Filter Type</label>
+      <select name="filter_type" id="filter-type-select" class="input-mono" style="width: 160px; max-width: 160px; height: 36px; padding: 6px 12px;" onchange="toggleFilterTypeView()">
+        <option value="single" {% if filter_type == 'single' or not filter_type %}selected{% endif %}>Single Month</option>
+        <option value="range" {% if filter_type == 'range' %}selected{% endif %}>Date Range</option>
+      </select>
+    </div>
+
+    <!-- Single Month Selectors -->
+    <div id="single-selectors-container" class="{% if filter_type == 'range' %}d-none{% else %}d-flex{% endif %}" style="gap: 10px; align-items: flex-end;">
+      <div style="display: flex; flex-direction: column;">
+        <label style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-muted); margin-bottom: 4px;">Month</label>
+        <input type="month" name="period_month" value="{{ year }}-{% if month < 10 %}0{% endif %}{{ month }}" class="input-mono" style="width: 160px; max-width: 160px; height: 36px; padding: 6px 12px; border: 1px solid var(--jspl-border); border-radius: 4px; outline: none; font-family: inherit;" onchange="submitPeriodFilter()">
+      </div>
+    </div>
+
+    <!-- Date Range Selectors -->
+    <div id="range-selectors-container" class="{% if filter_type == 'range' %}d-flex{% else %}d-none{% endif %}" style="gap: 10px; align-items: flex-end;">
+      <div style="display: flex; flex-direction: column;">
+        <label style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-muted); margin-bottom: 4px;">From</label>
+        <input type="month" name="from_period_month" value="{{ from_year }}-{% if from_month < 10 %}0{% endif %}{{ from_month }}" class="input-mono" style="width: 160px; max-width: 160px; height: 36px; padding: 6px 12px; border: 1px solid var(--jspl-border); border-radius: 4px; outline: none; font-family: inherit;" onchange="submitPeriodFilter()">
+      </div>
+      <span style="align-self: center; margin-bottom: 8px; font-weight: bold; color: var(--jspl-muted); font-size: 0.85rem;">to</span>
+      <div style="display: flex; flex-direction: column;">
+        <label style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-muted); margin-bottom: 4px;">To</label>
+        <input type="month" name="to_period_month" value="{{ to_year }}-{% if to_month < 10 %}0{% endif %}{{ to_month }}" class="input-mono" style="width: 160px; max-width: 160px; height: 36px; padding: 6px 12px; border: 1px solid var(--jspl-border); border-radius: 4px; outline: none; font-family: inherit;" onchange="submitPeriodFilter()">
+      </div>
+    </div>
+
+    <noscript>
+      <button type="submit" class="btn btn-secondary" style="height: 36px; padding: 6px 16px;">Apply</button>
+    </noscript>
+  </form>
+</div>
+
+<script>
+  function toggleFilterTypeView() {
+    const typeSelect = document.getElementById('filter-type-select');
+    const singleContainer = document.getElementById('single-selectors-container');
+    const rangeContainer = document.getElementById('range-selectors-container');
+    
+    if (typeSelect.value === 'range') {
+      singleContainer.className = 'd-none';
+      rangeContainer.className = 'd-flex';
+    } else {
+      singleContainer.className = 'd-flex';
+      rangeContainer.className = 'd-none';
+    }
+    submitPeriodFilter();
+  }
+
+  function submitPeriodFilter() {
+    document.getElementById('date-filter-form').submit();
+  }
+</script>

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Department Management — JSPL TPM Portal{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{% url 'plant_dashboard' %}">Plant Dashboard</a>
+  <span>Departments List</span>
+{% endblock %}
+
+<div style="display: block; max-width: 800px; margin: 0 auto;">
+  
+  <!-- Department list Card -->
+  <div class="card" style="padding: 20px;">
+    <h3 style="margin-bottom: 15px; color: var(--jspl-navy);">🏢 Registered Departments</h3>
+    <table class="kpi-table" style="font-size: 0.9rem;">
+      <thead>
+        <tr style="background-color: var(--jspl-navy);">
+          <th>Code</th>
+          <th>Department Name</th>
+          <th style="text-align: center; width: 100px;">ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in departments %}
+          <tr>
+            <td class="mono"><b>{{ d.code }}</b></td>
+            <td>{{ d.name }}</td>
+            <td class="mono" style="text-align: center; color: var(--jspl-muted);">{{ d.id }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

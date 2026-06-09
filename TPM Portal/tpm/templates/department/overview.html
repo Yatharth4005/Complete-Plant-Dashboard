@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ dept.name }} Dashboard — JSPL TPM Portal{% endblock %}
+
+{% block breadcrumb %}
+{% if request.user.is_admin %}
+<a href="{% url 'plant_dashboard' %}">Plant Dashboard</a>
+{% endif %}
+<span>{{ dept.name }} Dashboard</span>
+{% endblock %}
+
+{% block content %}
+<!-- Header with Month/Year Filters -->
+<div style="margin-bottom: 24px;">
+  <h2>📊 {{ dept.name }} Overview Dashboard</h2>
+  <span style="font-size: 0.9rem; color: var(--jspl-muted);">Period: <b>{{ period_label }}</b></span>
+</div>
+
+<!-- Reusable Filter Ribbon -->
+{% include "partials/_date_filter.html" %}
+
+<!-- Pillar Score Cards (9 cards) -->
+<div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+  {% for card in pillar_cards %}
+  {% if card.id == 'ws-kpi' %}
+  <div class="card" onclick="window.location.href='{% url 'ws_kpi_page' dept.id %}?{{ query_params }}'"
+    style="cursor: pointer;">
+    {% else %}
+    <div class="card" onclick="window.location.href='{% url 'pillar_page' dept.id card.id %}?{{ query_params }}'"
+      style="cursor: pointer;">
+      {% endif %}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span style="font-size: 1.5rem;">{{ card.icon }}</span>
+        <span class="badge {{ card.status_class }}">{{ card.status }}</span>
+      </div>
+      <h4 style="font-size: 0.95rem; margin-bottom: 5px; color: var(--jspl-navy);">{{ card.label }}</h4>
+      <div style="font-size: 1.8rem; font-weight: 700; color: var(--jspl-text);">{{ card.achievement }}%</div>
+      <div style="font-size: 0.75rem; color: var(--jspl-muted);">Achievement Score</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Charts Row -->
+  <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 24px; margin-bottom: 24px;">
+    <div class="card" style="padding: 20px;">
+      <h3 style="margin-bottom: 15px;">Monthly Department PRODUCTION Trend</h3>
+      <div style="position: relative; height: 320px;">
+        <canvas id="deptPRODUCTIONTrendChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 20px;">
+      <h3 style="margin-bottom: 15px;">Pillar Achievement Comparison</h3>
+      <div style="position: relative; height: 320px;">
+        <canvas id="deptRadarChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submissions Log Matrix -->
+  <div class="card" style="padding: 24px; margin-bottom: 24px; overflow-x: auto;">
+    <h3 style="margin-bottom: 15px;">Pillar Submission Log (Last 6 Months)</h3>
+    <table class="kpi-table">
+      <thead>
+        <tr style="background-color: var(--jspl-navy);">
+          <th>Pillar / Category</th>
+          {% for rm in recent_months %}
+          <th style="text-align: center; width: 120px;">{{ rm.label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in submission_rows %}
+        <tr>
+          <td>
+            {% if row.pillar_id == 'ws-kpi' %}
+            <a href="{% url 'ws_kpi_page' dept.id %}?{{ query_params }}"
+              style="color: var(--jspl-blue); text-decoration: none; font-weight: bold;">
+              🔧 {{ row.pillar_label }}
+            </a>
+            {% else %}
+            <a href="{% url 'pillar_page' dept.id row.pillar_id %}?{{ query_params }}"
+              style="color: var(--jspl-blue); text-decoration: none; font-weight: bold;">
+              📁 {{ row.pillar_label }}
+            </a>
+            {% endif %}
+          </td>
+          {% for m in row.months %}
+          <td style="text-align: center;">
+            <span class="{{ m.class }} mono" style="font-size: 0.85rem;">{{ m.status }}</span>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endblock %}
+
+  {% block extra_js %}
+  <script>
+    (function () {
+      // 1. Line Chart: Department PRODUCTION Trend
+      const PRODUCTIONTrendActuals = JSON.parse('{{ PRODUCTION_trend_actuals_json|escapejs }}');
+      const PRODUCTIONTrendTargets = JSON.parse('{{ PRODUCTION_trend_targets_json|escapejs }}');
+      const monthsLabels = JSON.parse('{{ months_labels_json|escapejs }}');
+
+      const ctxPRODUCTION = document.getElementById('deptPRODUCTIONTrendChart').getContext('2d');
+      new Chart(ctxPRODUCTION, {
+        type: 'line',
+        data: {
+          labels: monthsLabels,
+          datasets: [
+            {
+              label: 'PRODUCTION Actual (%)',
+              data: PRODUCTIONTrendActuals,
+              borderColor: '#F47920',
+              backgroundColor: 'rgba(244, 121, 32, 0.05)',
+              borderWidth: 3,
+              tension: 0.15,
+              fill: true,
+              spanGaps: true
+            },
+            {
+              label: 'Target Limit (%)',
+              data: PRODUCTIONTrendTargets,
+              borderColor: '#003478',
+              borderDash: [5, 5],
+              backgroundColor: 'transparent',
+              borderWidth: 1.5,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: {
+            y: { beginAtZero: false, min: 40, max: 100, grid: { color: '#E8F0FA' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 2. Radar Chart: Pillar average achievement
+      const radarLabels = JSON.parse('{{ radar_labels_json|escapejs }}');
+      const radarData = JSON.parse('{{ radar_data_json|escapejs }}');
+
+      const ctxRadar = document.getElementById('deptRadarChart').getContext('2d');
+      new Chart(ctxRadar, {
+        type: 'radar',
+        data: {
+          labels: radarLabels,
+          datasets: [{
+            label: 'Score %',
+            data: radarData,
+            backgroundColor: 'rgba(0, 87, 168, 0.2)',
+            borderColor: '#0057A8',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#003478'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              angleLines: { display: true, color: '#E8F0FA' },
+              suggestedMin: 0,
+              suggestedMax: 100,
+              ticks: { display: false }
+            }
+          }
+        }
+      });
+    })();
+  </script>
+  {% endblock %}
