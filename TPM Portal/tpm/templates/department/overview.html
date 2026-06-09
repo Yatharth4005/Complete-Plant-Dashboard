@@ -5,7 +5,7 @@
 
 {% block breadcrumb %}
 {% if request.user.is_admin %}
-<a href="{% url 'plant_dashboard' %}">Plant Dashboard</a>
+<a href="{% url 'tpm_dashboard' %}">Plant Dashboard</a>
 {% endif %}
 <span>{{ dept.name }} Dashboard</span>
 {% endblock %}

@@ -3,7 +3,7 @@
 {% block title %}User Management — JSPL TPM Portal{% endblock %}
 
 {% block breadcrumb %}
-  <a href="{% url 'plant_dashboard' %}">Plant Dashboard</a>
+  <a href="{% url 'tpm_dashboard' %}">Plant Dashboard</a>
   <span>User Management</span>
 {% endblock %}
 
@@ -152,7 +152,7 @@
     <div class="card" style="width: 100%; max-width: 500px; padding: 25px; box-shadow: var(--shadow-lg);" @click.away="editModalOpen = false">
       <h3 style="margin-bottom: 20px; color: var(--jspl-navy);">✏️ Modify User Account: <span x-text="editUser.username" class="mono"></span></h3>
       
-      <form method="POST" :action="'/admin-panel/users/' + editUser.id + '/edit/'">
+      <form method="POST" :action="'{% url 'admin_edit_user' 99999 %}'.replace('99999', editUser.id)">
         {% csrf_token %}
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
@@ -168,12 +168,12 @@
 
         <div style="margin-bottom: 15px;">
           <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Email Address</label>
-          <input type="email" name="email" x-model="editUser.email" class="input-mono" style="width: 100%; max-width: 100%;">
+          <input type="email" name="email" x-model="editUser.email" autocomplete="off" class="input-mono" style="width: 100%; max-width: 100%;">
         </div>
 
         <div style="margin-bottom: 15px;">
           <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Reset Password (Leave blank to keep current)</label>
-          <input type="password" name="password" class="input-mono" style="width: 100%; max-width: 100%;" placeholder="New Password">
+          <input type="password" name="password" autocomplete="new-password" class="input-mono" style="width: 100%; max-width: 100%;" placeholder="New Password">
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">

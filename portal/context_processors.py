@@ -62,10 +62,22 @@ def sidebar_context(request):
         except Department.DoesNotExist:
             pass
 
+    pillars = [
+        {'id': 'KK', 'label': 'KK (Kobetsu Kaizen)'},
+        {'id': 'JH', 'label': 'JH (Jishu Hozen)'},
+        {'id': 'PM', 'label': 'PM (Planned Maintenance)'},
+        {'id': 'QM', 'label': 'QM (Quality Maintenance)'},
+        {'id': 'ET', 'label': 'ET (Education & Training)'},
+        {'id': 'DM', 'label': 'DM (Initial Flow/Design)'},
+        {'id': 'SHE', 'label': 'SHE (Safety & Health)'},
+        {'id': 'OTPM', 'label': 'OTPM (Office TPM)'},
+    ]
+
     return {
         'sidebar_departments': depts,
         'sidebar_modules': Module.objects.all().order_by('sort_order'),
         'active_dept_id': active_dept_id,
         'active_module': active_module,
         'user_modules_map': user_modules_map,
+        'pillars': pillars,
     }

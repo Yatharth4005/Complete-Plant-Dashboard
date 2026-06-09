@@ -10,7 +10,7 @@ urlpatterns = [
     path('logout/',      auth_views.logout_view,      name='logout'),
 
     # Admin plant-wide dashboard
-    path('dashboard/',   dashboard_views.plant_dashboard, name='plant_dashboard'),
+    path('dashboard/',   dashboard_views.plant_dashboard, name='tpm_dashboard'),
 
     # Department
     path('department/<int:dept_id>/',

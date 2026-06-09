@@ -68,7 +68,7 @@ def edit_user(request, user_id):
         if password:
             user.password = make_password(password)
             
-        user.is_active = request.POST.get('is_active') == 'on'
+        user.is_active = 'is_active' in request.POST
         user.save()
         messages.success(request, f"User '{user.username}' updated successfully.")
     return redirect('admin_users')

@@ -23,4 +23,8 @@ urlpatterns = [
 
     # Profile Update
     path('profile/update/', auth_views.update_profile, name='update_profile'),
+
+    # Password Reset
+    path('forgot-password/', auth_views.forgot_password_view, name='forgot_password'),
+    path('reset-password/<str:uidb64>/<str:token>/', auth_views.reset_password_view, name='reset_password'),
 ]

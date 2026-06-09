@@ -61,7 +61,7 @@ class Command(BaseCommand):
                 'description': 'KPI tracking across 8 pillars + Workstation KPIs',
                 'icon': 'gear',
                 'color_class': 'module-tpm',
-                'redirect_url_template': 'http://localhost:8001/department/{dept_id}/',
+                'redirect_url_template': '/tpm/department/{dept_id}/',
                 'sort_order': 1,
             },
             {
@@ -70,7 +70,7 @@ class Command(BaseCommand):
                 'description': 'Machinery health: vibration monitoring, oil testing, and wear debris analysis (WDA)',
                 'icon': 'file-contract',
                 'color_class': 'module-cmc',
-                'redirect_url_template': 'http://localhost:8002/department/{dept_id}/',
+                'redirect_url_template': '/cmc/department/{dept_id}/',
                 'sort_order': 2,
             },
             {
@@ -130,6 +130,7 @@ class Command(BaseCommand):
                 'is_staff': True,
                 'is_superuser': True,
                 'password': admin_pass,
+                'is_active': True,
             }
         )
         self.stdout.write('  [OK] Seeded Plant Admin: saurabh.agrawal@jindalsteel.in')
@@ -146,6 +147,7 @@ class Command(BaseCommand):
                 'role': User.ROLE_USER,
                 'department': sms2_dept,
                 'password': user_pass,
+                'is_active': True,
             }
         )
         self.stdout.write('  [OK] Seeded Department User: lalit.goyal@jindalsteel.in')

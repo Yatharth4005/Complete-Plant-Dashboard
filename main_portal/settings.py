@@ -5,8 +5,9 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Add TPM Portal to path to allow importing tpm
+# Add TPM Portal and CMC Portal to path to allow importing tpm and cmc
 sys.path.append(str(BASE_DIR / 'TPM Portal'))
+sys.path.append(str(BASE_DIR / 'CMC Portal'))
 
 # Security Settings (MUST match TPM Portal's SECRET_KEY for session sharing)
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-jspl-tpm-portal-secret-key-1029384756')
@@ -23,8 +24,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_htmx',
+    'crispy_forms',
+    'crispy_bootstrap5',
     'portal',
     'tpm',
+    'cmc',
 ]
 
 MIDDLEWARE = [
@@ -114,3 +118,10 @@ SESSION_COOKIE_AGE = 28800  # 8 hours
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
+
+# Crispy Forms Configuration
+CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
+CRISPY_TEMPLATE_PACK = 'bootstrap5'
+
+# Email Configuration (for local testing, prints to console)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

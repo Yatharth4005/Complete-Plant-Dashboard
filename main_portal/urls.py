@@ -5,6 +5,8 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('', include('portal.urls')),
+    path('tpm/', include('tpm.urls')),
+    path('cmc/', include('cmc.urls', namespace='cmc')),
     path('admin/', admin.site.urls),
 ]
 
