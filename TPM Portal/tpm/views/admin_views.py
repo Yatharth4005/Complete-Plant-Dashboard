@@ -10,8 +10,14 @@ from tpm.utils.calculations import compute_achievement
 
 @admin_required
 def users_list(request):
+    STANDARD_DEPTS = [
+        'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
+        'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
+        'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
+        'SINT', 'SPM'
+    ]
     users = User.objects.all().order_by('username')
-    departments = Department.objects.all().order_by('name')
+    departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
     return render(request, 'admin/users.html', {'users': users, 'departments': departments})
 
 @admin_required
@@ -75,7 +81,13 @@ def edit_user(request, user_id):
 
 @admin_required
 def departments(request):
-    depts = Department.objects.all().order_by('name')
+    STANDARD_DEPTS = [
+        'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
+        'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
+        'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
+        'SINT', 'SPM'
+    ]
+    depts = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         code = request.POST.get('code', '').strip()

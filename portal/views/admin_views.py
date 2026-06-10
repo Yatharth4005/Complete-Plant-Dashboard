@@ -13,8 +13,14 @@ def manage_access(request):
     Matrix interface for administrators to view and configure user permissions
     across modules and departments.
     """
+    STANDARD_DEPTS = [
+        'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
+        'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
+        'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
+        'SINT', 'SPM'
+    ]
     users = User.objects.filter(is_active=True).order_by('username')
-    departments = Department.objects.all().order_by('name')
+    departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
     modules = Module.objects.filter(is_active=True).order_by('sort_order')
     
     if request.method == 'POST':
@@ -127,8 +133,14 @@ def user_informations(request):
     """
     Renders user information management table.
     """
+    STANDARD_DEPTS = [
+        'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
+        'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
+        'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
+        'SINT', 'SPM'
+    ]
     users = User.objects.all().select_related('department').order_by('username')
-    departments = Department.objects.all().order_by('name')
+    departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
     context = {
         'users': users,
         'departments': departments,

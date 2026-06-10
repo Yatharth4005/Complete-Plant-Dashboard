@@ -9,8 +9,15 @@ def sidebar_context(request):
     if not request.user.is_authenticated:
         return {}
         
+    STANDARD_DEPTS = [
+        'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
+        'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
+        'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
+        'SINT', 'SPM'
+    ]
+
     if request.user.is_admin():
-        depts = Department.objects.all().order_by('name')
+        depts = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
     else:
         # Resolve user's primary department + any cross-dept access depts
         dept_ids = set()
@@ -22,7 +29,7 @@ def sidebar_context(request):
         for access in permitted_accesses:
             dept_ids.add(access.department_id)
             
-        depts = Department.objects.filter(id__in=dept_ids).order_by('name')
+        depts = Department.objects.filter(id__in=dept_ids, code__in=STANDARD_DEPTS).order_by('name')
 
     # Automatically identify active department ID and active module from URL
     path = request.path

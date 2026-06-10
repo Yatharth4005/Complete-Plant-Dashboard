@@ -10,7 +10,13 @@ def plant_dashboard(request):
     Landing dashboard listing all 28 departments as cards.
     Each card displays its subparts/modules (TPM, CMC, etc.) with lock/unlock status.
     """
-    departments = Department.objects.all().order_by('name')
+    STANDARD_DEPTS = [
+        'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
+        'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
+        'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
+        'SINT', 'SPM'
+    ]
+    departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
     active_modules = Module.objects.filter(is_active=True).order_by('sort_order')
     
     departments_data = []
