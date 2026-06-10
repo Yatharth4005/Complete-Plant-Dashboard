@@ -30,6 +30,7 @@ def add_user(request):
         role = request.POST.get('role', 'USER')
         dept_id = request.POST.get('department')
         password = request.POST.get('password', '').strip()
+        designation = request.POST.get('designation', '').strip()
         
         if not username or not password:
             messages.error(request, "Username and password are required.")
@@ -50,7 +51,8 @@ def add_user(request):
             last_name=last_name,
             role=role,
             department=dept,
-            password=make_password(password)
+            password=make_password(password),
+            designation=designation
         )
         messages.success(request, f"User '{username}' created successfully.")
     return redirect('admin_users')
@@ -63,6 +65,7 @@ def edit_user(request, user_id):
         user.first_name = request.POST.get('first_name', '').strip()
         user.last_name = request.POST.get('last_name', '').strip()
         user.role = request.POST.get('role', 'USER')
+        user.designation = request.POST.get('designation', '').strip()
         
         dept_id = request.POST.get('department')
         if user.role == 'USER' and dept_id:

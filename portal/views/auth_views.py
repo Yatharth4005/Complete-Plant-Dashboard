@@ -87,6 +87,10 @@ def update_profile(request):
         # Phone
         user.phone = request.POST.get('phone', '').strip()
         
+        # Designation
+        if 'designation' in request.POST:
+            user.designation = request.POST.get('designation', '').strip()
+        
         # Department
         dept_id = request.POST.get('department')
         if dept_id:

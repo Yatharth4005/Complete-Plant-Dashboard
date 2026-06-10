@@ -187,6 +187,18 @@
           <input type="text" name="phone" value="{{ request.user.phone }}" class="input-mono" style="width: 100%; height: 38px;">
         </div>
 
+        <!-- Designation -->
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Designation</label>
+          <select name="designation" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
+            <option value="" {% if not request.user.designation %}selected{% endif %}>No Designation</option>
+            <option value="HOD" {% if request.user.designation == 'HOD' %}selected{% endif %}>HOD</option>
+            <option value="SPOC" {% if request.user.designation == 'SPOC' %}selected{% endif %}>SPOC</option>
+            <option value="Engineer" {% if request.user.designation == 'Engineer' %}selected{% endif %}>Engineer</option>
+            <option value="Operator" {% if request.user.designation == 'Operator' %}selected{% endif %}>Operator</option>
+          </select>
+        </div>
+
         <!-- Department select -->
         <div style="margin-bottom: 16px;">
           <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Department</label>

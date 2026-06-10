@@ -174,3 +174,81 @@ def admin_reset_password(request):
             messages.error(request, 'Passwords do not match or are empty.')
             
     return redirect('portal:user_informations')
+
+
+@login_required
+@admin_required
+def admin_create_user(request):
+    """
+    Creates a new user account with designation, role, department, etc.
+    """
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        designation = request.POST.get('designation', '').strip()
+        dept_id = request.POST.get('department')
+        role = request.POST.get('role', 'USER')
+        
+        if not username or not password:
+            messages.error(request, "Username and password are required.")
+            return redirect('portal:user_informations')
+            
+        if User.objects.filter(username=username).exists():
+            messages.error(request, f"Username '{username}' already exists.")
+            return redirect('portal:user_informations')
+            
+        from django.contrib.auth.hashers import make_password
+        
+        dept = None
+        if role == 'USER' and dept_id:
+            dept = Department.objects.filter(id=dept_id).first()
+            
+        User.objects.create(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            role=role,
+            department=dept,
+            phone=phone,
+            password=make_password(password),
+            designation=designation
+        )
+        messages.success(request, f"User '{username}' created successfully.")
+        
+    return redirect('portal:user_informations')
+
+
+@login_required
+@admin_required
+def admin_edit_user(request, user_id):
+    """
+    Allows editing an existing user's details.
+    """
+    from django.shortcuts import get_object_or_404
+    user = get_object_or_404(User, id=user_id)
+    
+    if request.method == 'POST':
+        user.first_name = request.POST.get('first_name', '').strip()
+        user.last_name = request.POST.get('last_name', '').strip()
+        user.email = request.POST.get('email', '').strip()
+        user.phone = request.POST.get('phone', '').strip()
+        user.designation = request.POST.get('designation', '').strip()
+        
+        role = request.POST.get('role', 'USER')
+        user.role = role
+        
+        dept_id = request.POST.get('department')
+        if role == 'USER' and dept_id:
+            user.department = Department.objects.filter(id=dept_id).first()
+        else:
+            user.department = None
+            
+        user.save()
+        messages.success(request, f"User '{user.username}' updated successfully.")
+        
+    return redirect('portal:user_informations')
