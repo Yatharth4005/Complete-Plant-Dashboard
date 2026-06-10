@@ -1,0 +1,147 @@
+{% extends 'delays/base_delays.html' %}
+{% load static %}
+
+{% block delays_breadcrumb %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">
+    {% if is_edit %}Edit Entry{% else %}New Delay Log{% endif %}
+  </span>
+{% endblock %}
+
+{% block delays_content %}
+<div class="log-entry-container">
+  <div style="margin-bottom: 24px;">
+    <h3 style="color: var(--jspl-navy); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+      📝 {% if is_edit %}Modify Delay Log Record{% else %}New Delay Log Entry{% endif %}
+    </h3>
+    <p style="color: var(--jspl-muted); font-size: 0.85rem;">
+      Fill downtime and breakdown details below matching the report headers.
+    </p>
+  </div>
+
+  <form method="POST" class="log-entry-form">
+    {% csrf_token %}
+    
+    <div class="form-columns-grid">
+      <!-- Left Column: Dates & Times -->
+      <div class="form-column">
+        <h4 class="form-sec-title">⏰ Schedule & Duration</h4>
+        
+        <div class="form-field-group">
+          <label class="field-label">Date *</label>
+          {{ form.date }}
+        </div>
+        
+        <div class="form-field-group">
+          <label class="field-label">Duration (Minutes) *</label>
+          {{ form.duration_mins }}
+        </div>
+
+        <div class="field-row">
+          <div class="form-field-group">
+            <label class="field-label">Time Slot / Hour</label>
+            {{ form.time_slot }}
+          </div>
+        </div>
+
+        <div class="field-row-2">
+          <div class="form-field-group">
+            <label class="field-label">From Time</label>
+            {{ form.start_time }}
+          </div>
+          <div class="form-field-group">
+            <label class="field-label">To Time</label>
+            {{ form.end_time }}
+          </div>
+        </div>
+        
+        <div class="form-field-group" style="margin-top: 15px;">
+          <label class="field-label">Shift Incharge</label>
+          {{ form.shift_incharge }}
+        </div>
+      </div>
+
+      <!-- Right Column: Classification & Root Cause -->
+      <div class="form-column">
+        <h4 class="form-sec-title">🏷️ Categorization & Asset</h4>
+
+        <div class="form-field-group">
+          <label class="field-label">Responsible Agency *</label>
+          {{ form.agency }}
+        </div>
+        
+        <div class="form-field-group">
+          <label class="field-label">Sub-Agency</label>
+          {{ form.sub_agency }}
+        </div>
+
+        <div class="form-field-group">
+          <label class="field-label">Rolled Section</label>
+          {{ form.section }}
+        </div>
+
+        <div class="field-row-2">
+          <div class="form-field-group">
+            <label class="field-label">Equipment</label>
+            {{ form.equipment }}
+          </div>
+          <div class="form-field-group">
+            <label class="field-label">Sub-Equipment</label>
+            {{ form.sub_equipment }}
+          </div>
+        </div>
+
+        <div class="form-field-group" style="margin-top: 15px;">
+          <label class="field-label">Root Cause (Why-Why Analysis)</label>
+          {{ form.why }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Description (Full Width) -->
+    <div class="form-full-width-field">
+      <h4 class="form-sec-title">📝 Breakdown Description *</h4>
+      {{ form.description }}
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="form-actions-panel">
+      <a href="{% url 'delays:dept_overview' department.id %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary-gradient">
+        {% if is_edit %}Update Log Entry{% else %}Submit Delay Log{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Autocomplete Datalists -->
+<datalist id="agency_list">
+  {% for x in agencies %}
+    <option value="{{ x }}"></option>
+  {% endfor %}
+</datalist>
+
+<datalist id="sub_agency_list">
+  {% for x in sub_agencies %}
+    <option value="{{ x }}"></option>
+  {% endfor %}
+</datalist>
+
+<datalist id="section_list">
+  {% for x in sections %}
+    <option value="{{ x }}"></option>
+  {% endfor %}
+</datalist>
+
+<datalist id="equipment_list">
+  {% for x in equipments %}
+    <option value="{{ x }}"></option>
+  {% endfor %}
+</datalist>
+
+<datalist id="incharge_list">
+  {% for x in incharges %}
+    <option value="{{ x }}"></option>
+  {% endfor %}
+</datalist>
+{% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Report Generator — {{ dept.name }} — JSPL TPM Portal{% endblock %}
+{% block title %}Report Generator — {{ dept.name }} — Jindal Steels Operations Portal TPM Portal{% endblock %}
 
 {% block breadcrumb %}
   {% if request.user.is_admin %}
@@ -41,7 +41,7 @@
       
       <!-- Report Letterhead Header -->
       <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double var(--jspl-navy); padding-bottom: 15px;">
-        <img src="{% static 'images/logo.png' %}" alt="JSPL Logo" style="max-height: 60px; width: auto; margin-bottom: 10px;">
+        <img src="{% static 'images/logo.png' %}" alt="Jindal Steels Operations Portal Logo" style="max-height: 60px; width: auto; margin-bottom: 10px;">
         <h3 style="color: var(--jspl-blue); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px;">
           Monthly TPM Performance Report — {{ dept.name }} ({{ dept.code }})
         </h3>

@@ -1,6 +1,6 @@
-# JSPL Unified Departments & Modules Hub (RGH Plant)
+# Jindal Steels Operations Portal Unified Departments & Modules Hub (RGH Plant)
 
-This repository contains the **JSPL Unified Operations Portal** for the RGH Plant. It acts as a Single Sign-On (SSO) central gateway, linking **28 departments** and **5 operational sub-departments/modules** (TPM, CMC, Production, Safety, HR) through a secure, permission-controlled landing hub.
+This repository contains the **Jindal Steels Operations Portal** for the RGH Plant. It acts as a Single Sign-On (SSO) central gateway, linking **28 departments** and **5 operational sub-departments/modules** (TPM, CMC, Production, Safety, HR) through a secure, permission-controlled landing hub.
 
 ---
 

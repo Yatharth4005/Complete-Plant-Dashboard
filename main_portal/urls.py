@@ -7,6 +7,7 @@ urlpatterns = [
     path('', include('portal.urls')),
     path('tpm/', include('tpm.urls')),
     path('cmc/', include('cmc.urls', namespace='cmc')),
+    path('delays/', include('delays.urls', namespace='delays')),
     path('admin/', admin.site.urls),
 ]
 

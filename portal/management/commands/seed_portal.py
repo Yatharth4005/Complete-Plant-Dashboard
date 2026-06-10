@@ -88,7 +88,7 @@ class Command(BaseCommand):
                 'description': 'Production line downtime, log summaries, and breakdown analysis',
                 'icon': 'clock',
                 'color_class': 'module-delays',
-                'redirect_url_template': '/department/{dept_id}/coming-soon/delays/',
+                'redirect_url_template': '/delays/department/{dept_id}/',
                 'sort_order': 4,
             },
             {

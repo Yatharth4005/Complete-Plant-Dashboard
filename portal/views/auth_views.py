@@ -145,15 +145,15 @@ def forgot_password_view(request):
             reverse('portal:reset_password', kwargs={'uidb64': uid, 'token': token})
         )
         
-        subject = "Password Reset Request — JSPL Unified Portal"
+        subject = "Password Reset Request — Jindal Steels Operations Portal"
         message = (
             f"Hello {user.get_display_name()},\n\n"
-            f"You requested a password reset for your JSPL Plant Portal account.\n"
+            f"You requested a password reset for your Jindal Steels Operations Portal account.\n"
             f"Please click the link below to reset your password:\n\n"
             f"{reset_link}\n\n"
             f"If you did not request this, please ignore this email.\n\n"
             f"Regards,\n"
-            f"JSPL IT Support Services"
+            f"Jindal Steels Operations Portal IT Support Services"
         )
         try:
             send_mail(

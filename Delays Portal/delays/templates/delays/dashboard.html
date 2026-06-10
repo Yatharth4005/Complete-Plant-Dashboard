@@ -1,0 +1,527 @@
+{% extends 'delays/base_delays.html' %}
+{% load static %}
+
+{% block delays_content %}
+<div x-data="{ uploadOpen: false, activeTab: 'logs' }">
+
+  <!-- TOP ACTIONS & KPI GRID -->
+  <div class="delays-dashboard-top">
+    <!-- KPI cards -->
+    <div class="kpi-grid">
+      <!-- KPI 1 -->
+      <div class="kpi-card orange-glow">
+        <div class="kpi-icon">⏳</div>
+        <div class="kpi-info">
+          <span class="kpi-label">Total Downtime</span>
+          <span class="kpi-value font-mono">{{ total_hrs }} <small>hrs</small></span>
+          <span class="kpi-subtext">({{ total_mins }} mins total)</span>
+        </div>
+      </div>
+      
+      <!-- KPI 2 -->
+      <div class="kpi-card navy-glow">
+        <div class="kpi-icon">📊</div>
+        <div class="kpi-info">
+          <span class="kpi-label">Downtime Events</span>
+          <span class="kpi-value font-mono">{{ total_events }}</span>
+          <span class="kpi-subtext">Logged delays</span>
+        </div>
+      </div>
+      
+      <!-- KPI 3 -->
+      <div class="kpi-card red-glow">
+        <div class="kpi-icon">⚡</div>
+        <div class="kpi-info">
+          <span class="kpi-label">Top Bottleneck</span>
+          <span class="kpi-value truncate" title="{{ top_agency }}">{{ top_agency }}</span>
+          <span class="kpi-subtext">{{ top_agency_mins }} mins downtime</span>
+        </div>
+      </div>
+      
+      <!-- KPI 4 -->
+      <div class="kpi-card green-glow">
+        <div class="kpi-icon">📈</div>
+        <div class="kpi-info">
+          <span class="kpi-label">Avg. Delay Duration</span>
+          <span class="kpi-value font-mono">{{ avg_duration }} <small>min</small></span>
+          <span class="kpi-subtext">Per recorded incident</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-buttons-panel">
+      {% if can_edit %}
+        <button class="btn-dashboard btn-primary-gradient" @click="uploadOpen = true">
+          📁 Upload Excel Report
+        </button>
+        <a href="{% url 'delays:new_record' department.id %}" class="btn-dashboard btn-secondary-gradient">
+          📝 Manual Delay Entry
+        </a>
+      {% endif %}
+      <a href="{% url 'delays:download_pdf_report' department.id %}" class="btn-dashboard btn-pdf-gradient">
+        📄 Download PDF Report
+      </a>
+    </div>
+  </div>
+
+  <!-- ANALYTICS CHARTS SECTION -->
+  <div class="analytics-charts-grid">
+    <!-- Chart 1: Daily Trend -->
+    <div class="chart-card">
+      <h3 class="chart-title">📈 Daily Downtime Trend (Mins)</h3>
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Chart 2: Agency Share -->
+    <div class="chart-card">
+      <h3 class="chart-title">🍕 Downtime Share by Agency</h3>
+      <div class="chart-container">
+        <canvas id="agencyChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Chart 3: Top Bottlenecks -->
+    <div class="chart-card">
+      <h3 class="chart-title">🔥 Top 5 Bottleneck Equipments</h3>
+      <div class="chart-container">
+        <canvas id="equipmentChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH, FILTER, AND LOGS TABS -->
+  <div class="data-section-card">
+    <div class="tabs-header">
+      <button class="tab-btn" :class="{ 'active': activeTab === 'logs' }" @click="activeTab = 'logs'">
+        📋 Detailed Delay Logs
+      </button>
+      <button class="tab-btn" :class="{ 'active': activeTab === 'pareto' }" @click="activeTab = 'pareto'">
+        📊 Pareto Analysis (80/20)
+      </button>
+      <button class="tab-btn" :class="{ 'active': activeTab === 'mitigation' }" @click="activeTab = 'mitigation'">
+        💡 Delay Reduction &amp; Mitigation
+      </button>
+      <button class="tab-btn" :class="{ 'active': activeTab === 'uploads' }" @click="activeTab = 'uploads'">
+        📂 Upload History
+      </button>
+    </div>
+
+    <!-- TAB 1: LOGS TABLE & FILTERS -->
+    <div x-show="activeTab === 'logs'" x-transition>
+      
+      <!-- Filters Form -->
+      <form id="filter-form" 
+            hx-get="{% url 'delays:records_table' department.id %}" 
+            hx-trigger="change, keyup changed delay:300ms" 
+            hx-target="#records-table-container"
+            class="filter-bar">
+        
+        <div class="filter-group col-search">
+          <label class="filter-label">Search Breakdown Details</label>
+          <input type="text" name="q" placeholder="Search description, equipment, incharge..." class="filter-input input-mono">
+        </div>
+        
+        <div class="filter-group">
+          <label class="filter-label">Agency</label>
+          <select name="agency" class="filter-input input-mono">
+            <option value="">All Agencies</option>
+            {% for a in agencies %}
+              <option value="{{ a }}">{{ a }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <label class="filter-label">Sheet/Source</label>
+          <select name="sheet" class="filter-input input-mono">
+            <option value="">All Sources</option>
+            {% for s in sheets_parsed %}
+              <option value="{{ s }}">{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <label class="filter-label">Start Date</label>
+          <input type="date" name="date_start" class="filter-input input-mono">
+        </div>
+        
+        <div class="filter-group">
+          <label class="filter-label">End Date</label>
+          <input type="date" name="date_end" class="filter-input input-mono">
+        </div>
+      </form>
+
+      <!-- Logs Table Container -->
+      <div id="records-table-container">
+        {% include "delays/partials/_records_table.html" %}
+      </div>
+    </div>
+
+    <!-- TAB 2: UPLOAD HISTORY -->
+    <div x-show="activeTab === 'uploads'" x-transition style="display: none;">
+      <div class="table-responsive">
+        <table class="delays-table">
+          <thead>
+            <tr>
+              <th>Uploaded Date</th>
+              <th>Filename</th>
+              <th>Uploaded By</th>
+              <th>Parsing Status</th>
+              <th>Records Imported / Details</th>
+              {% if can_edit %}
+                <th style="width: 100px; text-align: center;">Actions</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for up in uploads %}
+              <tr>
+                <td class="td-date">{{ up.uploaded_at|date:"d-b-Y H:i" }}</td>
+                <td class="font-mono">{{ up.filename }}</td>
+                <td>
+                  {% if up.uploaded_by %}
+                    {{ up.uploaded_by.first_name|default:up.uploaded_by.username }}
+                  {% else %}
+                    System
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="status-badge {% if up.status == 'SUCCESS' %}success{% else %}failed{% endif %}">
+                    {{ up.status }}
+                  </span>
+                </td>
+                <td class="text-muted font-mono">
+                  {{ up.error_message|default:"Parsed successfully." }}
+                </td>
+                {% if can_edit %}
+                  <td style="text-align: center;">
+                    <a href="{% url 'delays:delete_upload' department.id up.id %}" 
+                       class="btn-delete-upload"
+                       onclick="return confirm('Are you sure you want to delete this upload? Doing so will delete all its parsed delay records from analytics.')">
+                      🗑️ Delete Upload
+                    </a>
+                  </td>
+                {% endif %}
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="{% if can_edit %}6{% else %}5{% endif %}" class="table-empty">
+                  No upload history exists. Upload an Excel sheet above to populate delay logs.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      </div>
+
+    <!-- TAB 3: PARETO ANALYSIS -->
+    <div x-show="activeTab === 'pareto'" x-transition style="display: none; padding: 24px;">
+      <div style="margin-bottom: 20px;">
+        <h3 style="color: var(--delays-primary); margin: 0 0 6px 0;">📊 Pareto Analysis (80/20 Rule)</h3>
+        <p style="color: var(--delays-muted); font-size: 0.85rem; margin: 0;">
+          The Pareto principle states that roughly 80% of downtime results from 20% of the causes. Highlighted below are the "Vital Few" bottleneck agencies and equipment that should be prioritized for maintenance.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 24px; align-items: start; margin-bottom: 24px;">
+        <!-- Pareto Chart -->
+        <div class="chart-card" style="box-shadow: none; border-color: var(--delays-border);">
+          <h4 class="chart-title">📈 Agency Pareto Chart (Cumulative Downtime)</h4>
+          <div style="position: relative; height: 320px;">
+            <canvas id="paretoChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Pareto Vital Few summary -->
+        <div style="background: rgba(239, 68, 68, 0.03); border: 1.5px dashed rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); padding: 20px;">
+          <h4 style="color: #DC2626; margin-top: 0; display: flex; align-items: center; gap: 8px;">
+            🚨 Vital Few Priorities (Action Items)
+          </h4>
+          <p style="font-size: 0.85rem; color: #4b5563; line-height: 1.5; margin-bottom: 15px;">
+            The following agencies and equipment account for 80% of your plant delays. Directing engineering focus to these areas yields the highest reduction in downtime.
+          </p>
+          
+          <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Agency Bottleneck</h5>
+          <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; color: #991b1b; display: flex; justify-content: space-between;">
+            <span>{{ top_agency }}</span>
+            <span>{{ top_agency_mins }} mins</span>
+          </div>
+
+          <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Equipment Bottlenecks (Vital Few)</h5>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            {% for eq in equip_pareto %}
+              {% if eq.is_vital %}
+                <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #F47920; padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; display: flex; justify-content: space-between; font-weight: 500;">
+                  <span class="font-mono">{{ eq.equipment }}</span>
+                  <span style="color: var(--delays-muted);">Rank #{{ eq.rank }} ({{ eq.cum_percent }}% cumulative)</span>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <!-- Agency Pareto Table -->
+        <div class="chart-card" style="box-shadow: none; padding: 0;">
+          <h4 class="chart-title" style="padding: 16px 20px; margin-bottom: 0;">🏢 Agency Pareto Cumulative Table</h4>
+          <div class="table-responsive">
+            <table class="delays-table" style="font-size: 0.8rem;">
+              <thead>
+                <tr>
+                  <th style="padding: 10px 14px;">Rank</th>
+                  <th style="padding: 10px 14px;">Agency</th>
+                  <th style="padding: 10px 14px; text-align: right;">Downtime</th>
+                  <th style="padding: 10px 14px; text-align: right;">Share %</th>
+                  <th style="padding: 10px 14px; text-align: right;">Cum %</th>
+                  <th style="padding: 10px 14px; text-align: center;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ap in agency_pareto %}
+                  <tr>
+                    <td class="font-mono" style="padding: 10px 14px;">{{ ap.rank }}</td>
+                    <td style="padding: 10px 14px; font-weight: 600;">{{ ap.agency }}</td>
+                    <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ap.mins }}m</td>
+                    <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ap.percent }}%</td>
+                    <td class="font-mono" style="padding: 10px 14px; text-align: right; font-weight: bold;">{{ ap.cum_percent }}%</td>
+                    <td style="padding: 10px 14px; text-align: center;">
+                      {% if ap.is_vital %}
+                        <span class="status-badge failed" style="font-size: 0.7rem; padding: 2px 6px;">Vital Few</span>
+                      {% else %}
+                        <span class="status-badge success" style="font-size: 0.7rem; padding: 2px 6px;">Useful Many</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Equipment Pareto Table -->
+        <div class="chart-card" style="box-shadow: none; padding: 0;">
+          <h4 class="chart-title" style="padding: 16px 20px; margin-bottom: 0;">⚙️ Equipment Pareto Cumulative Table</h4>
+          <div class="table-responsive">
+            <table class="delays-table" style="font-size: 0.8rem;">
+              <thead>
+                <tr>
+                  <th style="padding: 10px 14px;">Rank</th>
+                  <th style="padding: 10px 14px;">Equipment</th>
+                  <th style="padding: 10px 14px; text-align: right;">Downtime</th>
+                  <th style="padding: 10px 14px; text-align: right;">Share %</th>
+                  <th style="padding: 10px 14px; text-align: right;">Cum %</th>
+                  <th style="padding: 10px 14px; text-align: center;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ep in equip_pareto %}
+                  <tr>
+                    <td class="font-mono" style="padding: 10px 14px;">{{ ep.rank }}</td>
+                    <td style="padding: 10px 14px; font-weight: 600;" class="font-mono">{{ ep.equipment }}</td>
+                    <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ep.mins }}m</td>
+                    <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ep.percent }}%</td>
+                    <td class="font-mono" style="padding: 10px 14px; text-align: right; font-weight: bold;">{{ ep.cum_percent }}%</td>
+                    <td style="padding: 10px 14px; text-align: center;">
+                      {% if ep.is_vital %}
+                        <span class="status-badge failed" style="font-size: 0.7rem; padding: 2px 6px;">Vital Few</span>
+                      {% else %}
+                        <span class="status-badge success" style="font-size: 0.7rem; padding: 2px 6px;">Useful Many</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: REDUCTION & MITIGATION -->
+    <div x-show="activeTab === 'mitigation'" x-transition style="display: none; padding: 24px;">
+      <div style="margin-bottom: 20px;">
+        <h3 style="color: var(--delays-primary); margin: 0 0 6px 0;">💡 Actionable Delay Mitigation &amp; Reduction Plan</h3>
+        <p style="color: var(--delays-muted); font-size: 0.85rem; margin: 0;">
+          Data-driven maintenance recommendations based on keyword extraction and bottlenecks.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 2fr 3fr; gap: 24px; align-items: start;">
+        <!-- Left: Breakdown Categories (Frequency Analysis) -->
+        <div class="chart-card" style="box-shadow: none; border-color: var(--delays-border); padding: 20px;">
+          <h4 style="color: var(--delays-primary); margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px;">
+            🔍 Breakdown Category Frequency
+          </h4>
+          <div style="display: flex; flex-direction: column; gap: 15px;">
+            {% for item in mitigation_categories %}
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px;">
+                  <span>{{ item.category }}</span>
+                  <span style="color: var(--delays-accent);">{{ item.count }} incidents ({{ item.percent }}%)</span>
+                </div>
+                <!-- Simple progress bar -->
+                <div style="width: 100%; height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden;">
+                  <div style="height: 100%; width: {{ item.percent }}%; background: linear-gradient(90deg, #F47920 0%, #E05300 100%); border-radius: 4px;">
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Right: Actions/Mitigation Checklists -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          
+          <!-- Recommendation 1: HOD Agency Plan -->
+          <div class="chart-card" style="box-shadow: none; border-color: var(--delays-border); padding: 20px; border-left: 5px solid var(--delays-accent);">
+            <h4 style="color: var(--delays-primary); margin-top: 0; margin-bottom: 10px;">
+              🏢 Action Plan for {{ top_agency }} (Top Agency)
+            </h4>
+            <p style="font-size: 0.85rem; color: var(--delays-muted); margin-bottom: 15px;">
+              {{ top_agency }} is responsible for {{ top_agency_mins }} minutes of delay. HOD is advised to audit and execute these protocols:
+            </p>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              {% if top_agency == 'Mechanical' or top_agency == 'MECHANICAL' %}
+                <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                  <input type="checkbox" checked style="margin-top: 3px;">
+                  <span><b>Coupling &amp; Alignment Checks:</b> Perform monthly thermography and alignment audits on drive assemblies.</span>
+                </label>
+                <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                  <input type="checkbox" style="margin-top: 3px;">
+                  <span><b>Lubrication Schedule Optimization:</b> Audit grease consumption and inspect oil seal health on high-downtime rolls/stands.</span>
+                </label>
+                <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                  <input type="checkbox" style="margin-top: 3px;">
+                  <span><b>Fasteners Retorque:</b> Include high-vibration foundation bolt retorquing in preventive checklists.</span>
+                </label>
+              {% elif top_agency == 'Electrical' or top_agency == 'ELECTRICAL' %}
+                <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                  <input type="checkbox" checked style="margin-top: 3px;">
+                  <span><b>Cabinet Cleaning &amp; Cooling:</b> Clean panel dust filters monthly to prevent PLC and drive overheating trips.</span>
+                </label>
+                <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                  <input type="checkbox" style="margin-top: 3px;">
+                  <span><b>Cable Insulation Test:</b> Conduct insulation resistance testing on motors exposed to high ambient heat.</span>
+                </label>
+                <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                  <input type="checkbox" style="margin-top: 3px;">
+                  <span><b>Thermography:</b> Run thermal imaging on electrical breakers and distribution switchboards quarterly.</span>
+                </label>
+              {% else %}
+                <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                  <input type="checkbox" checked style="margin-top: 3px;">
+                  <span><b>Standard Operating Procedure (SOP) Audit:</b> Re-verify roll change and transition logs for bottlenecks.</span>
+                </label>
+                <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                  <input type="checkbox" style="margin-top: 3px;">
+                  <span><b>Operator Training:</b> Organize refresher training for shift operators on guide adjustments.</span>
+                </label>
+                <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                  <input type="checkbox" style="margin-top: 3px;">
+                  <span><b>Material Staging:</b> Review crane and transport layouts to prevent waiting delays.</span>
+                </label>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Recommendation 2: High Priority Equipment Plan -->
+          {% if equip_pareto %}
+            <div class="chart-card" style="box-shadow: none; border-color: var(--delays-border); padding: 20px; border-left: 5px solid var(--delays-primary);">
+              {% with top_eq=equip_pareto.0 %}
+                <h4 style="color: var(--delays-primary); margin-top: 0; margin-bottom: 10px;">
+                  ⚙️ Preventive Maintenance for {{ top_eq.equipment }} (Top Equipment Bottleneck)
+                </h4>
+                <p style="font-size: 0.85rem; color: var(--delays-muted); margin-bottom: 15px;">
+                  The asset <b>{{ top_eq.equipment }}</b> accumulated {{ top_eq.mins }} mins of downtime, representing {{ top_eq.percent }}% of equipment-related delays. Action plan:
+                </p>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                    <input type="checkbox" checked style="margin-top: 3px;">
+                    <span><b>Shutdown Inspection:</b> Schedule a deep mechanical audit of {{ top_eq.equipment }}'s internal components during the next planned maintenance.</span>
+                  </label>
+                  <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                    <input type="checkbox" style="margin-top: 3px;">
+                    <span><b>Spares Stock Audit:</b> Verify that spare wear components (gears, bearings, seals) for {{ top_eq.equipment }} are stocked in the central warehouse to minimize repair MTTR.</span>
+                  </label>
+                  <label style="display: flex; gap: 10px; font-size: 0.85rem; cursor: pointer; align-items: flex-start;">
+                    <input type="checkbox" style="margin-top: 3px;">
+                    <span><b>Root Cause Audit:</b> Conduct a dedicated Root Cause Failure Analysis (RCFA) for the last 3 breakdowns on {{ top_eq.equipment }}.</span>
+                  </label>
+                </div>
+              {% endwith %}
+            </div>
+          {% endif %}
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXCEL UPLOAD POPUP MODAL -->
+  <div class="modal-overlay" x-show="uploadOpen" x-transition x-cloak>
+    <div class="modal-card" @click.outside="uploadOpen = false">
+      <div class="modal-header">
+        <h3 class="modal-title">📁 Upload Delay Report Excel</h3>
+        <button class="modal-close" @click="uploadOpen = false">&times;</button>
+      </div>
+      
+      <form action="{% url 'delays:upload_file' department.id %}" method="POST" enctype="multipart/form-data" class="modal-body" x-data="{ dragging: false }">
+        {% csrf_token %}
+        
+        <p class="modal-text">
+          Upload department delay reports. We support SMS-III daily logs, Rail Mill delay reports, and general sheets. Any sheets that represent delay tables will be parsed accurately.
+        </p>
+
+        <!-- Drag & Drop Zone -->
+        <div class="upload-dropzone" 
+             :class="{ 'dragging': dragging }"
+             @dragover.prevent="dragging = true"
+             @dragleave.prevent="dragging = false"
+             @drop.prevent="dragging = false; $refs.fileInput.files = $event.dataTransfer.files">
+          
+          <div class="dropzone-text">
+            <span>Drag &amp; drop Excel file here</span>
+            <span class="divider">or</span>
+            <button type="button" class="btn btn-secondary btn-sm" @click="$refs.fileInput.click()">
+              Browse Files
+            </button>
+          </div>
+          
+          <input type="file" name="delay_file" x-ref="fileInput" accept=".xlsx,.xls" required style="display: none;" @change="$refs.filenameLabel.innerText = $refs.fileInput.files[0].name">
+          <div x-ref="filenameLabel" class="filename-label font-mono">No file chosen</div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-muted" @click="uploadOpen = false">Cancel</button>
+          <button type="submit" class="btn btn-primary-gradient">Process Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<!-- Serialized Chart Data -->
+<script>
+  window.delayChartData = {
+    agencyLabels: {{ agency_labels_json|safe }},
+    agencyData: {{ agency_data_json|safe }},
+    dailyLabels: {{ daily_labels_json|safe }},
+    dailyData: {{ daily_data_json|safe }},
+    equipLabels: {{ equip_labels_json|safe }},
+    equipData: {{ equip_data_json|safe }},
+    
+    // Pareto Chart data
+    paretoLabels: {{ pareto_labels_json|safe }},
+    paretoMins: {{ pareto_mins_json|safe }},
+    paretoCum: {{ pareto_cum_json|safe }}
+  };
+</script>
+{% endblock %}

@@ -42,7 +42,7 @@ def generate_pillar_excel(dept, from_month, from_year, to_month, to_year, filter
     # Title Block
     ws_summary.merge_cells('A1:E2')
     title_cell = ws_summary['A1']
-    title_cell.value = f"JINDAL STEEL & POWER LTD — TPM PORTAL"
+    title_cell.value = f"JINDAL STEEL LTD — TPM PORTAL"
     title_cell.font = Font(name='Segoe UI', size=16, bold=True, color='003478')
     title_cell.alignment = Alignment(horizontal='center', vertical='center')
     
@@ -285,7 +285,7 @@ def generate_pillar_pdf(dept, from_month, from_year, to_month, to_year, filter_t
         period_label = f"{dict(months_full).get(from_month)} {from_year}"
 
     # JSPL Header Block
-    story.append(Paragraph("JINDAL STEEL & POWER LIMITED", title_style))
+    story.append(Paragraph("JINDAL STEEL LIMITED", title_style))
     story.append(Paragraph(f"Monthly TPM Performance Report — {dept.name} ({dept.code})", subtitle_style))
     story.append(Paragraph(f"Report Period: {period_label}", subtitle_style))
     story.append(Spacer(1, 15))

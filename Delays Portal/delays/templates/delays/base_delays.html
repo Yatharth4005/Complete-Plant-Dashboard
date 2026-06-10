@@ -1,0 +1,57 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block title %}Delays — {{ department.name }} — Jindal Steels Operations Portal{% block delays_title_extra %}{% endblock %}{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <a href="{% url 'portal:dept_hub' department.id %}">{{ department.name }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current" style="color: var(--jspl-orange); font-weight: 600;">Delay Logs & Tracking</span>
+  {% block delays_breadcrumb %}{% endblock %}
+{% endblock %}
+
+{% block module_badge %}
+  <span class="badge badge-muted" style="background: rgba(244,121,32,0.1); color: var(--jspl-orange); border: 1px solid rgba(244,121,32,0.3);">
+    ⏱ Delay Module
+  </span>
+{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'delays/css/delays.css' %}">
+  {% block delays_extra_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="delays-container-card">
+  
+  <!-- Department Selector & Header -->
+  <div class="delays-header-bar">
+    <div class="header-left">
+      <h2 class="delays-title">⏱ Delay Portal — {{ department.name }}</h2>
+      <p class="delays-subtitle">Track, upload, and analyze breakdown downtime event history</p>
+    </div>
+    
+    <div class="header-right">
+      <label for="dept-select" class="selector-label">🏢 Change Department:</label>
+      <select id="dept-select" class="dept-dropdown" onchange="window.location.href='/delays/department/' + this.value + '/'">
+        {% for d in departments %}
+          <option value="{{ d.id }}" {% if d.id == department.id %}selected{% endif %}>
+            {{ d.name }} ({{ d.code }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <!-- Main Sub-Content -->
+  <div class="delays-inner-content">
+    {% block delays_content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'delays/js/delays.js' %}"></script>
+  {% block delays_extra_js %}{% endblock %}
+{% endblock %}

@@ -5,9 +5,10 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Add TPM Portal and CMC Portal to path to allow importing tpm and cmc
+# Add TPM Portal, CMC Portal, and Delays Portal to path to allow importing their apps
 sys.path.append(str(BASE_DIR / 'TPM Portal'))
 sys.path.append(str(BASE_DIR / 'CMC Portal'))
+sys.path.append(str(BASE_DIR / 'Delays Portal'))
 
 # Security Settings (MUST match TPM Portal's SECRET_KEY for session sharing)
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-jspl-tpm-portal-secret-key-1029384756')
@@ -29,6 +30,7 @@ INSTALLED_APPS = [
     'portal',
     'tpm',
     'cmc',
+    'delays',
 ]
 
 MIDDLEWARE = [

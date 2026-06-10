@@ -98,7 +98,7 @@ class PMScheduleEntry(models.Model):
 class VibrationLog(models.Model):
     """
     One vibration monitoring session for one piece of equipment.
-    Digitizes the JSPL Form F-520 (Vibration Monitoring Log Sheet).
+    Digitizes the Jindal Steels Operations Portal Form F-520 (Vibration Monitoring Log Sheet).
     """
     class InstrumentType(models.TextChoices):
         ENPAC = 'ENPAC', 'ENPAC'
