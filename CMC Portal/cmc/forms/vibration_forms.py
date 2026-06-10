@@ -6,12 +6,12 @@ class VibrationLogForm(forms.ModelForm):
         model = VibrationLog
         fields = ['equipment', 'date', 'time', 'instrument', 'report_type', 'stored_in', 'reported_through', 'status', 'remarks']
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
-            'instrument': forms.Select(attrs={'class': 'form-select'}),
-            'report_type': forms.Select(attrs={'class': 'form-select'}),
-            'stored_in': forms.TextInput(attrs={'class': 'form-control'}),
-            'reported_through': forms.TextInput(attrs={'class': 'form-control'}),
-            'status': forms.Select(attrs={'class': 'form-select'}),
-            'remarks': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'input-mono'}),
+            'time': forms.TimeInput(attrs={'type': 'time', 'class': 'input-mono'}),
+            'instrument': forms.Select(attrs={'class': 'input-mono'}),
+            'report_type': forms.Select(attrs={'class': 'input-mono'}),
+            'stored_in': forms.TextInput(attrs={'class': 'input-mono'}),
+            'reported_through': forms.TextInput(attrs={'class': 'input-mono'}),
+            'status': forms.Select(attrs={'class': 'input-mono'}),
+            'remarks': forms.Textarea(attrs={'class': 'input-remarks', 'rows': 3}),
         }
