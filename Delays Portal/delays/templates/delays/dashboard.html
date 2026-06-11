@@ -15,7 +15,7 @@
 {% endblock %}
 
 {% block delays_content %}
-<div x-data="{ uploadOpen: false, activeTab: 'logs' }">
+<div x-data="{ uploadOpen: false, deleteOpen: false, deleteUrl: '', activeTab: 'logs' }">
 
   <!-- TOP ACTIONS & KPI GRID -->
   <div class="delays-dashboard-top">
@@ -236,11 +236,11 @@
                 </td>
                 {% if can_edit %}
                   <td style="text-align: center; white-space: nowrap;">
-                    <a href="{% url 'delays:delete_upload' department.id up.id %}" 
+                    <button type="button" 
                        class="btn-delete-upload"
-                       onclick="return confirm('Are you sure you want to delete this upload? Doing so will delete all its parsed delay records from analytics.')">
+                       @click="deleteUrl = '{% url 'delays:delete_upload' department.id up.id %}'; deleteOpen = true;">
                       🗑️ Delete Upload
-                    </a>
+                    </button>
                   </td>
                 {% endif %}
               </tr>
@@ -422,6 +422,33 @@
           <button type="submit" class="btn btn-primary-gradient">Process Upload</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- DELETE CONFIRMATION MODAL -->
+  <div class="modal-overlay" x-show="deleteOpen" x-transition x-cloak style="display: none;">
+    <div class="modal-card" @click.outside="deleteOpen = false" style="border-top: 5px solid #EF4444;">
+      <div class="modal-header" style="background: rgba(239, 68, 68, 0.03);">
+        <h3 class="modal-title" style="color: #EF4444; display: flex; align-items: center; gap: 8px;">
+          ⚠️ Confirm Deletion
+        </h3>
+        <button class="modal-close" @click="deleteOpen = false">&times;</button>
+      </div>
+      
+      <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+        <p class="modal-text" style="font-size: 0.9rem; color: var(--delays-text); line-height: 1.6; margin: 0;">
+          Are you sure you want to delete this upload?
+          <br><br>
+          <strong style="color: #EF4444;">Doing so will permanently delete all its parsed delay records from analytics.</strong>
+        </p>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-muted" @click="deleteOpen = false">Cancel</button>
+        <a :href="deleteUrl" class="btn btn-primary-gradient" style="background: linear-gradient(135deg, #EF4444 0%, #C53030 100%); color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25); text-decoration: none;">
+          🗑️ Delete Permanently
+        </a>
+      </div>
     </div>
   </div>
 

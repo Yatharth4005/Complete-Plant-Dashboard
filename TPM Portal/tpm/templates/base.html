@@ -48,7 +48,7 @@
         style="margin-right: 15px; color: var(--jspl-orange); font-weight: bold; text-decoration: none;">← Dept Hub</a>
       {% endif %}
       <span class="user-name">{{ request.user.first_name }} {{ request.user.last_name }}</span>
-      <span class="badge badge-muted">{{ request.user.role }}</span>
+      <span class="badge badge-muted">{% if request.user.is_admin %}ADMIN{% else %}USER{% endif %}</span>
       <a href="http://localhost:8000/logout/">Logout</a>
     </div>
   </header>

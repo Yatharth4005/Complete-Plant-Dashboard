@@ -50,6 +50,7 @@ def add_user(request):
             first_name=first_name,
             last_name=last_name,
             role=role,
+            is_plant_admin=(role == 'ADMIN'),
             department=dept,
             password=make_password(password),
             designation=designation
@@ -65,6 +66,7 @@ def edit_user(request, user_id):
         user.first_name = request.POST.get('first_name', '').strip()
         user.last_name = request.POST.get('last_name', '').strip()
         user.role = request.POST.get('role', 'USER')
+        user.is_plant_admin = (user.role == 'ADMIN')
         user.designation = request.POST.get('designation', '').strip()
         
         dept_id = request.POST.get('department')

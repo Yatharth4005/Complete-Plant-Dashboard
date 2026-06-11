@@ -115,11 +115,13 @@ def toggle_admin(request):
 
     if action == 'promote':
         target_user.is_plant_admin = True
-        target_user.save(update_fields=['is_plant_admin'])
+        target_user.role = User.ROLE_ADMIN
+        target_user.save(update_fields=['is_plant_admin', 'role'])
         messages.success(request, f'{target_user.get_display_name()} has been made a Plant Admin.')
     elif action == 'revoke':
         target_user.is_plant_admin = False
-        target_user.save(update_fields=['is_plant_admin'])
+        target_user.role = User.ROLE_USER
+        target_user.save(update_fields=['is_plant_admin', 'role'])
         messages.success(request, f'Plant Admin privileges revoked for {target_user.get_display_name()}.')
     else:
         messages.error(request, 'Invalid action.')
@@ -213,6 +215,7 @@ def admin_create_user(request):
             first_name=first_name,
             last_name=last_name,
             role=role,
+            is_plant_admin=(role == 'ADMIN'),
             department=dept,
             phone=phone,
             password=make_password(password),
@@ -241,6 +244,7 @@ def admin_edit_user(request, user_id):
         
         role = request.POST.get('role', 'USER')
         user.role = role
+        user.is_plant_admin = (role == 'ADMIN')
         
         dept_id = request.POST.get('department')
         if role == 'USER' and dept_id:

@@ -31,7 +31,8 @@ class User(AbstractUser):
     last_active = models.DateTimeField(null=True, blank=True)
 
     def is_admin(self):
-        return self.role == self.ROLE_ADMIN or self.is_superuser or self.is_plant_admin
+        return bool(self.is_plant_admin)
+
 
     def get_display_name(self):
         full_name = self.get_full_name().strip()

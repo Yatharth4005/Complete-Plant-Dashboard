@@ -113,6 +113,57 @@
 
 <!-- ── Modal styles (scoped) ──────────────────────────────────────────── -->
 <style>
+  /* Freeze page scroll and scroll only matrix table content */
+  html, body {
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+  
+  #portal-shell {
+    height: calc(100vh - var(--topbar-height)) !important;
+  }
+  
+  #portal-content {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    padding: 20px !important;
+  }
+  
+  .page-container {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    gap: 16px !important;
+  }
+  
+  .dashboard-header-row {
+    flex-shrink: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  .matrix-card {
+    flex-grow: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+  }
+  
+  .matrix-card .table-responsive {
+    flex-grow: 1 !important;
+    overflow: auto !important;
+  }
+  
+  .matrix-table th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+    background: var(--jspl-navy) !important;
+  }
+
   /* Buttons inside user cell */
   .btn-admin-action {
     font-family: inherit;

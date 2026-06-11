@@ -40,8 +40,8 @@
             <td>{{ u.first_name }} {{ u.last_name }}</td>
             <td>{{ u.email }}</td>
             <td>
-              <span class="badge {% if u.role == 'ADMIN' %}badge-green{% else %}badge-muted{% endif %}">
-                {{ u.role }}
+              <span class="badge {% if u.is_admin %}badge-green{% else %}badge-muted{% endif %}">
+                {% if u.is_admin %}ADMIN{% else %}USER{% endif %}
               </span>
             </td>
             <td>
