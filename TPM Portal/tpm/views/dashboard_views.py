@@ -3,6 +3,7 @@ import datetime
 from django.shortcuts import render
 from django.db.models import Avg, Sum
 from tpm.models import Department, PillarEntry, KPIValue, WorkstationValue, WorkstationKPI
+from django.contrib.auth.decorators import login_required
 from tpm.utils.decorators import admin_required
 from tpm.utils.calculations import compute_achievement, parse_period, get_date_range_q
 
@@ -57,8 +58,7 @@ def get_months_in_range(from_month, from_year, to_month, to_year):
     return result
 
 
-@admin_required
-def plant_dashboard(request):
+def _get_plant_dashboard_context(request):
     period = parse_period(request)
     filter_type = period['filter_type']
     selected_month = period['month']
@@ -295,7 +295,7 @@ def plant_dashboard(request):
     else:
         query_params = f"filter_type=single&month={selected_month}&year={selected_year}"
 
-    context = {
+    return {
         'filter_type': filter_type,
         'month': selected_month,
         'year': selected_year,
@@ -322,4 +322,18 @@ def plant_dashboard(request):
         'radar_data_json': json.dumps(radar_data),
         'months_labels_json': json.dumps(chart_labels),
     }
+
+@login_required
+def plant_dashboard(request):
+    context = _get_plant_dashboard_context(request)
+    tab = request.GET.get('tab', 'overview')
+    context['active_tab'] = tab
+    context['active_section'] = 'capa' if tab == 'capa' else 'tpm_dashboard'
+    from tpm.models import CAPAReport
+    context['reports'] = CAPAReport.objects.all().order_by('-created_at')
     return render(request, 'dashboard/plant_dashboard.html', context)
+
+@login_required
+def plant_overview_partial(request):
+    context = _get_plant_dashboard_context(request)
+    return render(request, 'partials/_plant_overview.html', context)

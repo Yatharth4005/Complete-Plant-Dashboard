@@ -15,7 +15,7 @@
     rel="stylesheet">
 
   <!-- Portal Unified CSS -->
-  <link rel="stylesheet" href="{% static 'portal/css/portal.css' %}">
+  <link rel="stylesheet" href="{% static 'portal/css/portal.css' %}?v=2">
 
   <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
@@ -90,6 +90,11 @@
         <a href="{% url 'portal:plant_dashboard' %}"
           class="sidebar-link {% if active_section == 'dashboard' %}active{% endif %}">
           <span class="sidebar-icon">🏭</span> Plant Overview
+        </a>
+
+        <a href="{% url 'portal:capa_reports' %}"
+          class="sidebar-link {% if active_section == 'capa' %}active{% endif %}">
+          <span class="sidebar-icon">📋</span> CAPA Report
         </a>
 
         <div class="sidebar-divider">Departments</div>

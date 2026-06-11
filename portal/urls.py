@@ -11,6 +11,7 @@ urlpatterns = [
 
     # Dashboards & Hubs
     path('dashboard/', dashboard_views.plant_dashboard, name='plant_dashboard'),
+    path('dashboard/capa/', dashboard_views.capa_reports, name='capa_reports'),
     path('department/<int:dept_id>/', department_views.dept_hub, name='dept_hub'),
     path('department/<int:dept_id>/module/<str:module_key>/enter/', department_views.enter_module, name='enter_module'),
     path('department/<int:dept_id>/coming-soon/<str:module_key>/', department_views.coming_soon, name='coming_soon'),

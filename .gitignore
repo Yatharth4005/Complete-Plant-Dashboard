@@ -56,3 +56,7 @@ Thumbs.db
 *.webp
 *.png
 .gemini/
+
+# Excel/PDF Formats and Templates
+CAPA Formate.pdf
+TPM Portal/KAIZEN - Blank Format.xls

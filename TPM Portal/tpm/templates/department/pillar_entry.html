@@ -42,12 +42,21 @@
                 @click="activeTab = 'analytics';">
           📊 Analytics Tab
         </button>
+        <button class="tab-btn" id="btn-kaizen" :class="{ 'active': activeTab === 'kaizen' }"
+                hx-get="{% url 'kaizen_list_partial' dept.id pillar_id %}"
+                hx-target="#tab-content"
+                hx-swap="innerHTML"
+                @click="activeTab = 'kaizen';">
+          📋 Kaizen Sheet
+        </button>
       </div>
       
       <!-- Content Panel -->
       <div id="tab-content">
         {% if active_tab == 'analytics' %}
           {% include "partials/_analytics_charts.html" %}
+        {% elif active_tab == 'kaizen' %}
+          {% include "partials/_kaizen_list.html" %}
         {% else %}
           {% include "partials/_kpi_table.html" %}
         {% endif %}

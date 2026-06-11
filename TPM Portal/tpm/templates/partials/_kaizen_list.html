@@ -1,0 +1,71 @@
+<div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">📋 Kaizen Idea Sheets</h3>
+    <p style="font-size: 0.85rem; color: var(--jspl-muted);">Create and manage Kaizen sheets for the <b>{{ pillar_id }}</b> pillar.</p>
+  </div>
+  <button class="btn btn-primary"
+          hx-get="{% url 'kaizen_new_partial' dept.id pillar_id %}"
+          hx-target="#tab-content"
+          hx-swap="innerHTML">
+    ➕ New Kaizen Sheet
+  </button>
+</div>
+
+<div class="table-container" hx-get="{% url 'kaizen_list_partial' dept.id pillar_id %}" hx-trigger="kaizenListChanged from:body" hx-swap="outerHTML">
+  <table class="kpi-table">
+    <thead>
+      <tr>
+        <th style="width: 120px;">Kaizen No</th>
+        <th>Kaizen Theme</th>
+        <th>Area/Equipment</th>
+        <th>Circle Name</th>
+        <th>Team Leader</th>
+        <th style="width: 140px;">Created Date</th>
+        <th style="width: 250px; text-align: center;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sheet in sheets %}
+        <tr>
+          <td class="mono" style="font-weight: bold; color: var(--jspl-navy);">{{ sheet.kaizen_no|default:"Draft" }}</td>
+          <td><b>{{ sheet.theme|default:"(No Theme)" }}</b></td>
+          <td>{{ sheet.area_equipment|default:"—" }}</td>
+          <td>{{ sheet.circle_name|default:"—" }}</td>
+          <td>{{ sheet.team_leader|default:"—" }}</td>
+          <td style="font-size: 0.8rem; color: var(--jspl-muted);">{{ sheet.created_at|date:"d M Y" }}</td>
+          <td style="text-align: center;">
+            <div style="display: flex; gap: 6px; justify-content: center;">
+              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem;"
+                      hx-get="{% url 'kaizen_edit_partial' dept.id pillar_id sheet.id %}"
+                      hx-target="#tab-content"
+                      hx-swap="innerHTML">
+                ✏️ Edit
+              </button>
+              
+              <a href="{% url 'kaizen_download_excel' sheet.id %}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; background-color: #DEF7EC; color: #03543F; border-color: #31C48D;" target="_blank">
+                📥 Excel
+              </a>
+              
+              <a href="{% url 'kaizen_download_pdf' sheet.id %}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; background-color: #E8F0FA; color: #003478; border-color: #D1DCF0;" target="_blank">
+                📄 PDF
+              </a>
+              
+              <form style="display: inline;" hx-post="{% url 'kaizen_delete' dept.id pillar_id sheet.id %}" hx-target="#tab-content" hx-confirm="Are you sure you want to delete Kaizen Sheet '{{ sheet.kaizen_no }}'?" hx-swap="innerHTML">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; background-color: #FDE8E8; color: #9B1C1C; border-color: #F98080;">
+                  🗑️
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 40px; color: var(--jspl-muted);">
+            📭 No Kaizen Idea Sheets found. Click the button above to create the first one.
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

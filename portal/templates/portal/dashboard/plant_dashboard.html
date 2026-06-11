@@ -22,7 +22,7 @@
   <!-- Department Hub Grid -->
   <div class="dept-hub-grid">
     {% for card in departments_data %}
-      <div class="dept-hub-card card" x-data="{ open: {% if request.user.department_id == card.dept.id %}true{% else %}false{% endif %} }">
+      <div class="dept-hub-card card" x-data="{ open: false }">
         <div class="dept-hub-card-header" @click="open = !open" :class="{ 'is-collapsed': !open }">
           <span class="dept-hub-card-code">{{ card.dept.code }}</span>
           <h3 class="dept-hub-card-title">{{ card.dept.name }}</h3>

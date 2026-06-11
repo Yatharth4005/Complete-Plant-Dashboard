@@ -1,0 +1,74 @@
+<tr id="record-row-{{ r.id }}" class="record-row-editable">
+  <!-- Date input -->
+  <td class="td-date">
+    <input type="date" name="date" value="{{ r.date|date:'Y-m-d' }}" class="table-input-date" {% if not can_edit %}disabled{% endif %}>
+  </td>
+  
+  <!-- Duration input -->
+  <td class="td-duration">
+    <input type="number" step="any" name="duration_mins" value="{{ r.duration_mins }}" class="table-input-duration" {% if not can_edit %}disabled{% endif %}>
+  </td>
+  
+  <!-- Agency dropdown -->
+  <td class="td-agency">
+    {% if can_edit %}
+      <select name="agency" class="table-select-agency">
+        {% for a in agencies %}
+          <option value="{{ a }}" {% if a == r.agency %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    {% else %}
+      <span class="agency-badge">{{ r.agency }}</span>
+    {% endif %}
+  </td>
+  
+  <!-- Equipment dropdown -->
+  <td class="td-equipment">
+    {% if can_edit %}
+      <select name="equipment" class="table-select-equipment">
+        <option value="">Select Equipment</option>
+        {% for eq in equipments %}
+          <option value="{{ eq }}" {% if eq == r.equipment %}selected{% endif %}>{{ eq }}</option>
+        {% endfor %}
+      </select>
+    {% else %}
+      {{ r.equipment|default:"-" }}
+    {% endif %}
+  </td>
+  
+  <!-- WHY-WHY/CAPA dropdown -->
+  <td class="td-why">
+    {% if can_edit %}
+      <select name="why" class="table-select-why">
+        <option value="WHY/WHY" {% if r.why == 'WHY/WHY' %}selected{% endif %}>WHY/WHY</option>
+        <option value="CAPA" {% if r.why == 'CAPA' %}selected{% endif %}>CAPA</option>
+        <option value="NO" {% if r.why == 'NO' or not r.why %}selected{% endif %}>NO</option>
+      </select>
+    {% else %}
+      <span class="status-badge {% if r.why == 'WHY/WHY' %}failed{% elif r.why == 'CAPA' %}warning{% else %}success{% endif %}">
+        {{ r.why|default:"NO" }}
+      </span>
+    {% endif %}
+  </td>
+  
+  {% if can_edit %}
+    <td class="td-actions" style="text-align: center; white-space: nowrap;">
+      <!-- Save button -->
+      <button class="btn-action-save"
+              hx-post="{% url 'delays:update_record_inline' department.id r.id %}"
+              hx-include="#record-row-{{ r.id }} input, #record-row-{{ r.id }} select"
+              hx-target="#record-row-{{ r.id }}"
+              hx-swap="outerHTML"
+              hx-confirm="Are you sure you want to save changes to this record?"
+              title="Save Changes">💾</button>
+      
+      <!-- Delete button -->
+      <button class="btn-action-delete"
+              hx-delete="{% url 'delays:delete_record' department.id r.id %}"
+              hx-confirm="Are you sure you want to delete this delay record?"
+              hx-target="#record-row-{{ r.id }}"
+              hx-swap="outerHTML"
+              title="Delete Entry">🗑️</button>
+    </td>
+  {% endif %}
+</tr>

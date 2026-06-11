@@ -1,0 +1,484 @@
+{% load tpm_tags %}
+<div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">
+      {% if report.id %}✏️ Edit CAPA Report — {{ report.capa_no }}{% else %}➕ New CAPA Report{% endif %}
+    </h3>
+    <p style="font-size: 0.85rem; color: var(--jspl-muted);">Fill in the parameters below. Once saved, you can download it as an Excel or PDF document.</p>
+  </div>
+  <button class="btn btn-secondary"
+          hx-get="{% url 'capa_list_partial' %}"
+          hx-target="#capa-tab-content"
+          hx-swap="innerHTML">
+    🔙 Back to List
+  </button>
+</div>
+
+<form hx-post="{% if report.id %}{% url 'capa_save_id' report.id %}{% else %}{% url 'capa_save' %}{% endif %}"
+      hx-target="#capa-tab-content"
+      hx-swap="innerHTML"
+      style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
+  {% csrf_token %}
+  
+  <style>
+    .capa-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .capa-table td {
+      border: 1px solid #000000;
+      padding: 8px;
+      vertical-align: top;
+      font-size: 0.85rem;
+    }
+    .capa-hdr-label {
+      background-color: var(--jspl-light);
+      font-weight: bold;
+      color: var(--jspl-navy);
+      width: 18%;
+    }
+    .capa-input {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid var(--jspl-border);
+      border-radius: 4px;
+      outline: none;
+      font-size: 0.85rem;
+    }
+    .capa-input:focus {
+      border-color: var(--jspl-orange);
+    }
+    .capa-textarea {
+      width: 100%;
+      height: 60px;
+      padding: 6px;
+      border: 1px solid var(--jspl-border);
+      border-radius: 4px;
+      resize: vertical;
+      outline: none;
+      font-size: 0.85rem;
+    }
+    .capa-textarea:focus {
+      border-color: var(--jspl-orange);
+    }
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .section-title {
+      font-weight: bold;
+      color: #FFFFFF;
+      background-color: var(--jspl-navy);
+      padding: 6px 10px;
+      font-size: 0.95rem;
+    }
+  </style>
+
+  <!-- CAPA GRID SYSTEM FORM -->
+  <table class="capa-table">
+    <!-- Header Block -->
+    <tr>
+      <td colspan="4" style="text-align: center; vertical-align: middle; background-color: var(--jspl-navy); color: #FFFFFF; padding: 12px;">
+        <h2 style="color: #FFFFFF; margin: 0; font-size: 1.4rem; letter-spacing: 1px;">CORRECTIVE AND PREVENTIVE ACTION REPORT (CAPA)</h2>
+        <span style="font-size: 0.75rem; opacity: 0.8;">JINDAL STEEL LIMITED, RAIGARH</span>
+      </td>
+    </tr>
+    
+    <!-- Document Metadata -->
+    <tr>
+      <td style="width: 25%; font-weight: bold; background-color: var(--jspl-light);">Document No:</td>
+      <td style="width: 25%; font-weight: bold;">F-01(10.2.0-01)</td>
+      <td style="width: 25%; font-weight: bold; background-color: var(--jspl-light);">Issue No / Date:</td>
+      <td style="width: 25%; font-weight: bold;">8 / 19.11.2025</td>
+    </tr>
+    
+    <!-- Meta Fields -->
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Department *</td>
+      <td>
+        <select name="department_id" class="capa-input" required>
+          <option value="">-- Select Department --</option>
+          {% for d in depts %}
+            <option value="{{ d.id }}" {% if report and report.department.id == d.id %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Area / Section</td>
+      <td>
+        <input type="text" name="area_section" class="capa-input" value="{{ report.area_section|default:"" }}">
+      </td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Date of Incident</td>
+      <td>
+        <input type="text" name="date_incident" class="capa-input" placeholder="DD.MM.YYYY" value="{{ report.date_incident|default:"" }}">
+      </td>
+      <td class="capa-hdr-label" style="vertical-align: middle;">CAPA No.</td>
+      <td>
+        <input type="text" name="capa_no" class="capa-input mono" style="font-weight: bold;" value="{{ report.capa_no|default:prefills.capa_no }}" required>
+      </td>
+    </tr>
+    
+    <!-- 1. Problem Description -->
+    <tr>
+      <td colspan="4" class="section-title">1. Problem description (what/where/when/how extensive?)</td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">What:</td>
+      <td colspan="3">
+        <textarea name="problem_what" class="capa-textarea" placeholder="What happened?">{{ report.problem_what|default:"" }}</textarea>
+      </td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Where:</td>
+      <td colspan="3">
+        <textarea name="problem_where" class="capa-textarea" placeholder="Where did it happen?">{{ report.problem_where|default:"" }}</textarea>
+      </td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">When:</td>
+      <td colspan="3">
+        <textarea name="problem_when" class="capa-textarea" placeholder="When did it happen?">{{ report.problem_when|default:"" }}</textarea>
+      </td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Extent:</td>
+      <td colspan="3">
+        <textarea name="problem_extent" class="capa-textarea" placeholder="Extent of breakdown/issue?">{{ report.problem_extent|default:"" }}</textarea>
+      </td>
+    </tr>
+    
+    <!-- Breakdown ticks -->
+    <tr>
+      <td colspan="4" style="background-color: var(--jspl-light); font-weight: bold; color: var(--jspl-navy);">In Case of Breakdown:</td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Duration Category (Tick applicable):</td>
+      <td colspan="3">
+        <div style="display: flex; gap: 20px;">
+          {% for cat in "≥ 4 Hrs.,2 – 4 Hrs.,1 – 2 Hrs.,≤ 1 Hrs."|split_str:"," %}
+            <label class="checkbox-label" style="font-weight: normal;">
+              <input type="radio" name="breakdown_applicable" value="{{ cat }}"
+                     {% if report and report.breakdown_applicable == cat %}checked{% endif %}>
+              {{ cat }}
+            </label>
+          {% endfor %}
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Duration Details:</td>
+      <td colspan="3">
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <span>Duration (Hrs):</span>
+          <input type="text" name="breakdown_hrs" class="capa-input" style="width: 80px;" value="{{ report.breakdown_hrs|default:"" }}">
+          
+          <span style="margin-left: 15px;">From (Time):</span>
+          <input type="text" name="breakdown_from" class="capa-input" style="width: 120px;" placeholder="HH:MM" value="{{ report.breakdown_from|default:"" }}">
+          
+          <span style="margin-left: 15px;">To (Time):</span>
+          <input type="text" name="breakdown_to" class="capa-input" style="width: 120px;" placeholder="HH:MM" value="{{ report.breakdown_to|default:"" }}">
+        </div>
+      </td>
+    </tr>
+    
+    <!-- 2. Responsible Team -->
+    <tr>
+      <td colspan="4" class="section-title">2. Responsible Team for Corrective/Preventive Actions</td>
+    </tr>
+    <tr>
+      <td colspan="4" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+          <tr style="background-color: var(--jspl-light); font-weight: bold; color: var(--jspl-navy);">
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 30%; padding: 8px;">Role Designation</td>
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 35%; padding: 8px;">Team Member Name</td>
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 20%; padding: 8px;">Role / Function</td>
+            <td style="border: none; border-bottom: 1px solid #000000; width: 15%; padding: 8px;">Contact No</td>
+          </tr>
+          {% for r_team in prefills.responsible_team %}
+            {% with idx=forloop.counter0 %}
+              {% get_list_item report.responsible_team idx as saved_team %}
+              <tr>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; font-weight: bold; vertical-align: middle; padding: 8px;">
+                  {% if idx == 0 %}Team Leader{% else %}Team Member {{ idx }}{% endif %}
+                </td>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                  <input type="text" name="t_name" class="capa-input" style="font-size: 0.8rem;" placeholder="Name" value="{{ saved_team.name|default:"" }}">
+                  <input type="hidden" name="t_members" value="">
+                </td>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                  <input type="text" name="t_role" class="capa-input" style="font-size: 0.8rem;" placeholder="Role/Function" value="{{ saved_team.role|default:"" }}">
+                </td>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; padding: 4px;">
+                  <input type="text" name="t_contact" class="capa-input" style="font-size: 0.8rem;" placeholder="Contact" value="{{ saved_team.contact|default:"" }}">
+                </td>
+              </tr>
+            {% endwith %}
+          {% endfor %}
+        </table>
+      </td>
+    </tr>
+    
+    <!-- 3. Correction / Immediate Actions -->
+    <tr>
+      <td colspan="4" class="section-title">3. Correction/ Immediate Actions taken</td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Immediate Actions:</td>
+      <td colspan="3">
+        <textarea name="immediate_action" class="capa-textarea" placeholder="Describe correction action...">{{ report.immediate_action|default:"" }}</textarea>
+      </td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Time Frame:</td>
+      <td>
+        <input type="text" name="action_timeframe" class="capa-input" placeholder="e.g. Within 4 Hrs" value="{{ report.action_timeframe|default:"" }}">
+      </td>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Responsibility:</td>
+      <td>
+        <input type="text" name="action_responsibility" class="capa-input" placeholder="Responsibility" value="{{ report.action_responsibility|default:"" }}">
+      </td>
+    </tr>
+    
+    <!-- 4. Root cause analysis - 5 Whys & 5M -->
+    <tr>
+      <td colspan="4" class="section-title">4. Root cause analysis - Analysis finding</td>
+    </tr>
+    <tr>
+      <td colspan="4" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+          <tr>
+            <td style="border: none; border-right: 1px solid #000000; width: 70%; padding: 0;">
+              <table style="width: 100%; border-collapse: collapse; border: none;">
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; width: 20%; font-weight: bold; background-color: var(--jspl-light); padding: 8px;">1st Why?</td>
+                  <td style="border: none; border-bottom: 1px solid #000000; padding: 4px;">
+                    <input type="text" name="why_1" class="capa-input" value="{{ report.why_1|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; font-weight: bold; background-color: var(--jspl-light); padding: 8px;">2nd Why?</td>
+                  <td style="border: none; border-bottom: 1px solid #000000; padding: 4px;">
+                    <input type="text" name="why_2" class="capa-input" value="{{ report.why_2|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; font-weight: bold; background-color: var(--jspl-light); padding: 8px;">3rd Why?</td>
+                  <td style="border: none; border-bottom: 1px solid #000000; padding: 4px;">
+                    <input type="text" name="why_3" class="capa-input" value="{{ report.why_3|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; font-weight: bold; background-color: var(--jspl-light); padding: 8px;">4th Why?</td>
+                  <td style="border: none; border-bottom: 1px solid #000000; padding: 4px;">
+                    <input type="text" name="why_4" class="capa-input" value="{{ report.why_4|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; font-weight: bold; background-color: var(--jspl-light); padding: 8px;">5th Why?</td>
+                  <td style="border: none; padding: 4px;">
+                    <input type="text" name="why_5" class="capa-input" value="{{ report.why_5|default:"" }}">
+                  </td>
+                </tr>
+              </table>
+            </td>
+            <td style="border: none; width: 30%; padding: 8px;">
+              <div style="font-weight: bold; margin-bottom: 8px; color: var(--jspl-navy);">Applicable 5 M's (Tick):</div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                {% for m in "1M Material,2M Man,3M Machine,4M Measure,5M Method"|split_str:"," %}
+                  <label class="checkbox-label" style="font-weight: normal; font-size: 0.8rem;">
+                    <input type="checkbox" name="five_m_applicable" value="{{ m }}"
+                           {% if report and m in report.five_m_applicable %}checked{% endif %}>
+                    {{ m }}
+                  </label>
+                {% endfor %}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">Conclusion (s):</td>
+      <td colspan="3">
+        <textarea name="conclusion" class="capa-textarea" placeholder="Analysis findings conclusion...">{{ report.conclusion|default:"" }}</textarea>
+      </td>
+    </tr>
+    
+    <!-- 5. Recommended Corrective actions -->
+    <tr>
+      <td colspan="4" class="section-title">5. Recommended Corrective action(s)</td>
+    </tr>
+    <tr>
+      <td colspan="4" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+          <tr style="background-color: var(--jspl-light); font-weight: bold; color: var(--jspl-navy); text-align: center;">
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 45%; padding: 8px;">Corrective Action(s)</td>
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 20%; padding: 8px;">Responsibility</td>
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 15%; padding: 8px;">Target Date</td>
+            <td style="border: none; border-bottom: 1px solid #000000; width: 20%; padding: 8px;">Implementation Date</td>
+          </tr>
+          {% for action in prefills.corrective_actions %}
+            {% with idx=forloop.counter0 %}
+              {% get_list_item report.corrective_actions idx as saved_action %}
+              <tr>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                  <input type="text" name="c_action" class="capa-input" style="font-size: 0.8rem;" placeholder="Corrective Action" value="{{ saved_action.action|default:"" }}">
+                </td>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                  <input type="text" name="c_responsibility" class="capa-input" style="font-size: 0.8rem;" placeholder="Resp" value="{{ saved_action.responsibility|default:"" }}">
+                </td>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                  <input type="text" name="c_target_date" class="capa-input" style="font-size: 0.8rem;" placeholder="DD.MM.YYYY" value="{{ saved_action.target_date|default:"" }}">
+                </td>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; padding: 4px;">
+                  <input type="text" name="c_impl_date" class="capa-input" style="font-size: 0.8rem;" placeholder="DD.MM.YYYY" value="{{ saved_action.impl_date|default:"" }}">
+                </td>
+              </tr>
+            {% endwith %}
+          {% endfor %}
+        </table>
+      </td>
+    </tr>
+    
+    <!-- 6. Recommended Preventive actions -->
+    <tr>
+      <td colspan="4" class="section-title">6. Recommended Preventive action(s)</td>
+    </tr>
+    <tr>
+      <td colspan="4" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+          <tr style="background-color: var(--jspl-light); font-weight: bold; color: var(--jspl-navy); text-align: center;">
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 45%; padding: 8px;">Preventive Action(s)</td>
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 20%; padding: 8px;">Responsibility</td>
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 15%; padding: 8px;">Target Date</td>
+            <td style="border: none; border-bottom: 1px solid #000000; width: 20%; padding: 8px;">Implementation Date</td>
+          </tr>
+          {% for action in prefills.preventive_actions %}
+            {% with idx=forloop.counter0 %}
+              {% get_list_item report.preventive_actions idx as saved_action %}
+              <tr>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                  <input type="text" name="p_action" class="capa-input" style="font-size: 0.8rem;" placeholder="Preventive Action" value="{{ saved_action.action|default:"" }}">
+                </td>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                  <input type="text" name="p_responsibility" class="capa-input" style="font-size: 0.8rem;" placeholder="Resp" value="{{ saved_action.responsibility|default:"" }}">
+                </td>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                  <input type="text" name="p_target_date" class="capa-input" style="font-size: 0.8rem;" placeholder="DD.MM.YYYY" value="{{ saved_action.target_date|default:"" }}">
+                </td>
+                <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; padding: 4px;">
+                  <input type="text" name="p_impl_date" class="capa-input" style="font-size: 0.8rem;" placeholder="DD.MM.YYYY" value="{{ saved_action.impl_date|default:"" }}">
+                </td>
+              </tr>
+            {% endwith %}
+          {% endfor %}
+        </table>
+      </td>
+    </tr>
+    
+    <!-- 7. Detailed Implementation Plan -->
+    <tr>
+      <td colspan="4" class="section-title">7. Detailed Implementation Plan</td>
+    </tr>
+    <tr>
+      <td colspan="4">
+        <textarea name="detailed_plan" class="capa-textarea" style="height: 100px;" placeholder="Outline the detailed implementation steps...">{{ report.detailed_plan|default:"" }}</textarea>
+      </td>
+    </tr>
+    
+    <!-- 8. Modified Documents & 9. Training & 10. Date of Impl -->
+    <tr>
+      <td colspan="4" class="section-title">8. Modified documents & 9. Training Details & 10. Date of Implementation</td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">8. Modified documents (Tick applicable):</td>
+      <td colspan="3">
+        <div class="checkbox-group" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 8px;">
+          {% for doc in "MOC,SOP / SMP,Risk and Opportunity Register,Register of Environmental Aspect Impact and OH & S Risks,Training Need Identification"|split_str:"," %}
+            <label class="checkbox-label" style="font-weight: normal; font-size: 0.8rem;">
+              <input type="checkbox" name="modified_documents" value="{{ doc }}"
+                     {% if report and doc in report.modified_documents %}checked{% endif %}>
+              {{ doc }}
+            </label>
+          {% endfor %}
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span>Others (Please mention):</span>
+          <input type="text" name="modified_documents_other" class="capa-input" style="flex: 1;" value="{{ report.modified_documents_other|default:"" }}">
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">9. Training Details (If any):</td>
+      <td colspan="3">
+        <textarea name="training_details" class="capa-textarea" placeholder="Training need/implementation details...">{{ report.training_details|default:"" }}</textarea>
+      </td>
+    </tr>
+    <tr>
+      <td class="capa-hdr-label" style="vertical-align: middle;">10. Date of Implementation:</td>
+      <td colspan="3">
+        <input type="text" name="date_implementation" class="capa-input" placeholder="DD.MM.YYYY" value="{{ report.date_implementation|default:"" }}">
+      </td>
+    </tr>
+    
+    <!-- 11. Effectiveness Evaluation -->
+    <tr>
+      <td colspan="4" class="section-title">11. Effectiveness evaluation of implemented Correction, Corrective Action / Preventive Action</td>
+    </tr>
+    <tr>
+      <td colspan="4">
+        <textarea name="effectiveness_evaluation" class="capa-textarea" style="height: 100px;" placeholder="What is the activity to verify that corrective/preventive actions have been effective (measurement, audit, assessment)?">{{ report.effectiveness_evaluation|default:"" }}</textarea>
+      </td>
+    </tr>
+    
+    <!-- Approvals -->
+    <tr>
+      <td colspan="4" class="section-title">Approvals Sign-off Names</td>
+    </tr>
+    <tr>
+      <td colspan="4" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+          <tr style="background-color: var(--jspl-light); font-weight: bold; text-align: center;">
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 33.3%; padding: 8px;">Prepared By (Initiator)</td>
+            <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 33.3%; padding: 8px;">Reviewed By (Reviewer)</td>
+            <td style="border: none; border-bottom: 1px solid #000000; width: 33.3%; padding: 8px;">Approved By (HOD)</td>
+          </tr>
+          <tr>
+            <td style="border: none; border-right: 1px solid #000000; padding: 8px;">
+              <input type="text" name="prepared_by" class="capa-input" placeholder="Name" value="{{ report.prepared_by|default:"" }}">
+            </td>
+            <td style="border: none; border-right: 1px solid #000000; padding: 8px;">
+              <input type="text" name="reviewed_by" class="capa-input" placeholder="Name" value="{{ report.reviewed_by|default:"" }}">
+            </td>
+            <td style="border: none; padding: 8px;">
+              <input type="text" name="approved_by" class="capa-input" placeholder="Name" value="{{ report.approved_by|default:"" }}">
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Form Actions -->
+  <div style="display: flex; gap: 12px; justify-content: flex-end;">
+    <button type="button" class="btn btn-secondary"
+            hx-get="{% url 'capa_list_partial' %}"
+            hx-target="#capa-tab-content"
+            hx-swap="innerHTML">
+      Cancel
+    </button>
+    <button type="submit" class="btn btn-primary">
+      💾 Save CAPA Report
+    </button>
+  </div>
+</form>

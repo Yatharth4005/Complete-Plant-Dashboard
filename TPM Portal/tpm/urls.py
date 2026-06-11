@@ -1,8 +1,8 @@
 # tpm/urls.py
 
 from django.urls import path
-from tpm.views import auth_views, dashboard_views, department_views
-from tpm.views import pillar_views, ws_kpi_views, report_views, admin_views
+from tpm.views import auth_views, dashboard_views, department_views, governance_views
+from tpm.views import pillar_views, ws_kpi_views, report_views, admin_views, kaizen_views, capa_views
 
 urlpatterns = [
     # Auth
@@ -51,14 +51,60 @@ urlpatterns = [
     path('department/<int:dept_id>/report/excel/',
          report_views.export_excel, name='export_excel'),
 
+    # Governance
+    path('governance/structure/', governance_views.tpm_governance_structure, name='tpm_governance_structure'),
+    path('governance/users/',     governance_views.tpm_governance_users,     name='tpm_governance_users'),
+
     # Admin
     path('admin-panel/users/',       admin_views.users_list,    name='admin_users'),
     path('admin-panel/users/add/',   admin_views.add_user,      name='admin_add_user'),
     path('admin-panel/users/<int:user_id>/edit/',
          admin_views.edit_user,      name='admin_edit_user'),
+    path('admin-panel/users/<int:user_id>/delete/',
+         admin_views.admin_delete_user, name='admin_delete_user'),
     path('admin-panel/departments/', admin_views.departments,   name='admin_departments'),
 
     # HTMX: admin unlock a locked entry
     path('admin-panel/unlock-entry/<int:entry_id>/',
          admin_views.unlock_entry,   name='unlock_entry'),
+
+    # Kaizen Sheets
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/',
+         kaizen_views.kaizen_list_partial, name='kaizen_list_partial'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/new/',
+         kaizen_views.kaizen_edit_partial, name='kaizen_new_partial'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/<int:kaizen_id>/edit/',
+         kaizen_views.kaizen_edit_partial, name='kaizen_edit_partial'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/save/',
+         kaizen_views.kaizen_save, name='kaizen_save'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/save/<int:kaizen_id>/',
+         kaizen_views.kaizen_save, name='kaizen_save_id'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/<int:kaizen_id>/delete/',
+         kaizen_views.kaizen_delete, name='kaizen_delete'),
+    path('kaizen/<int:kaizen_id>/download/excel/',
+         kaizen_views.download_excel, name='kaizen_download_excel'),
+    path('kaizen/<int:kaizen_id>/download/pdf/',
+         kaizen_views.download_pdf, name='kaizen_download_pdf'),
+
+    # Plant Dashboard Overview Tab partial
+    path('dashboard/overview/',
+         dashboard_views.plant_overview_partial, name='plant_overview_partial'),
+
+    # CAPA Sheets
+    path('dashboard/capa/',
+         capa_views.capa_list_partial, name='capa_list_partial'),
+    path('dashboard/capa/new/',
+         capa_views.capa_edit_partial, name='capa_new_partial'),
+    path('dashboard/capa/<int:capa_id>/edit/',
+         capa_views.capa_edit_partial, name='capa_edit_partial'),
+    path('dashboard/capa/save/',
+         capa_views.capa_save, name='capa_save'),
+    path('dashboard/capa/save/<int:capa_id>/',
+         capa_views.capa_save, name='capa_save_id'),
+    path('dashboard/capa/<int:capa_id>/delete/',
+         capa_views.capa_delete, name='capa_delete'),
+    path('capa/<int:capa_id>/download/excel/',
+         capa_views.download_excel, name='capa_download_excel'),
+    path('capa/<int:capa_id>/download/pdf/',
+         capa_views.download_pdf, name='capa_download_pdf'),
 ]

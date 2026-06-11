@@ -1,0 +1,28 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}CAPA Reports — Jindal Steels Operations Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">CAPA Reports</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  
+  <!-- Header Row -->
+  <div class="dashboard-header-row" style="margin-bottom: 30px;">
+    <div>
+      <h1 class="portal-page-title">📋 Corrective and Preventive Action (CAPA) Reports</h1>
+      <p class="portal-page-subtitle">Main Portal — View, create, and manage CAPA reports for all departments</p>
+    </div>
+  </div>
+
+  <!-- CAPA Container -->
+  <div class="card" id="capa-tab-content">
+    {% include "partials/_capa_list.html" %}
+  </div>
+
+</div>
+{% endblock %}

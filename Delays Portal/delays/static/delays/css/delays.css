@@ -716,3 +716,66 @@
 .block {
   display: block;
 }
+
+/* Table Inline Editing Inputs & Selects */
+.table-input-date,
+.table-input-duration,
+.table-select-agency,
+.table-select-equipment,
+.table-select-why {
+  border: 1px solid var(--delays-border);
+  background: #F9FAFB;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--delays-text);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.table-input-date:hover, .table-input-date:focus,
+.table-input-duration:hover, .table-input-duration:focus,
+.table-select-agency:hover, .table-select-agency:focus,
+.table-select-equipment:hover, .table-select-equipment:focus,
+.table-select-why:hover, .table-select-why:focus {
+  border-color: var(--delays-accent);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(244, 121, 32, 0.1);
+}
+
+.table-input-date {
+  max-width: 130px;
+}
+
+.table-input-duration {
+  max-width: 80px;
+}
+
+.table-select-agency, .table-select-equipment {
+  width: 100%;
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.table-select-why {
+  min-width: 80px;
+}
+
+.btn-action-save {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: var(--transition);
+  display: inline-block;
+  line-height: 1;
+}
+
+.btn-action-save:hover {
+  background: rgba(16, 185, 129, 0.08);
+}
+

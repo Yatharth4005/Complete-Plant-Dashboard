@@ -1,0 +1,421 @@
+{% load tpm_tags %}
+<div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">
+      {% if kaizen.id %}✏️ Edit Kaizen Sheet — {{ kaizen.kaizen_no }}{% else %}➕ New Kaizen Sheet{% endif %}
+    </h3>
+    <p style="font-size: 0.85rem; color: var(--jspl-muted);">Fill in the parameters below. Once saved, you can download it as an Excel or PDF document.</p>
+  </div>
+  <button class="btn btn-secondary"
+          hx-get="{% url 'kaizen_list_partial' dept.id pillar_id %}"
+          hx-target="#tab-content"
+          hx-swap="innerHTML">
+    🔙 Back to List
+  </button>
+</div>
+
+<form hx-post="{% if kaizen.id %}{% url 'kaizen_save_id' dept.id pillar_id kaizen.id %}{% else %}{% url 'kaizen_save' dept.id pillar_id %}{% endif %}"
+      hx-encoding="multipart/form-data"
+      hx-target="#tab-content"
+      hx-swap="innerHTML"
+      style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
+  {% csrf_token %}
+  
+  <style>
+    .kaizen-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .kaizen-table td {
+      border: 1px solid #000000;
+      padding: 8px;
+      vertical-align: top;
+      font-size: 0.85rem;
+    }
+    .kaizen-hdr-label {
+      background-color: var(--jspl-light);
+      font-weight: bold;
+      color: var(--jspl-navy);
+      width: 15%;
+    }
+    .kaizen-input {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid var(--jspl-border);
+      border-radius: 4px;
+      outline: none;
+      font-size: 0.85rem;
+    }
+    .kaizen-input:focus {
+      border-color: var(--jspl-orange);
+    }
+    .kaizen-textarea {
+      width: 100%;
+      height: 120px;
+      padding: 6px;
+      border: 1px solid var(--jspl-border);
+      border-radius: 4px;
+      resize: vertical;
+      outline: none;
+      font-size: 0.85rem;
+    }
+    .kaizen-textarea:focus {
+      border-color: var(--jspl-orange);
+    }
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .image-upload-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      border: 1px dashed var(--jspl-border);
+      padding: 10px;
+      border-radius: 6px;
+      background-color: var(--jspl-gray);
+    }
+    .image-preview {
+      width: 100%;
+      height: 150px;
+      object-fit: contain;
+      border: 1px solid var(--jspl-border);
+      border-radius: 4px;
+      background-color: #FFFFFF;
+    }
+  </style>
+
+  <!-- KAIZEN GRID SYSTEM FORM -->
+  <table class="kaizen-table">
+    <!-- Row 1: Kaizen No, Title, Activities -->
+    <tr>
+      <td class="kaizen-hdr-label" style="vertical-align: middle;">
+        KAIZEN NO.
+        <input type="text" name="kaizen_no" class="kaizen-input mono" style="margin-top: 6px; font-weight: bold;" value="{{ kaizen.kaizen_no|default:prefills.kaizen_no }}" required>
+      </td>
+      <td style="text-align: center; vertical-align: middle; width: 45%; background-color: var(--jspl-navy); color: #FFFFFF;">
+        <h2 style="color: #FFFFFF; margin: 0; font-size: 1.4rem; letter-spacing: 1px;">KAIZEN IDEA SHEET</h2>
+        <span style="font-size: 0.75rem; opacity: 0.8;">JINDAL STEEL LIMITED</span>
+      </td>
+      <td>
+        <div style="font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy);">ACTIVITY</div>
+        <div class="checkbox-group">
+          {% for act in "KK,JH,QM,PM,SHE,OTPM,DM,ET"|split_str:"," %}
+            <label class="checkbox-label">
+              <input type="checkbox" name="activities" value="{{ act }}"
+                     {% if kaizen and act in kaizen.activities or not kaizen and act == pillar_id %}checked{% endif %}>
+              {{ act }}
+            </label>
+          {% endfor %}
+        </div>
+      </td>
+    </tr>
+    
+    <!-- Row 2: Loss Name -->
+    <tr>
+      <td class="kaizen-hdr-label" style="vertical-align: middle;">Loss Name/JH STEP (if Any)</td>
+      <td colspan="2" style="vertical-align: middle;">
+        <input type="text" name="loss_name" class="kaizen-input" placeholder="Enter Loss Name or JH Step details..." value="{{ kaizen.loss_name|default:"" }}">
+      </td>
+    </tr>
+    
+    <!-- Row 3: Result Area -->
+    <tr>
+      <td class="kaizen-hdr-label" style="vertical-align: middle;">RESULT AREA</td>
+      <td colspan="2" style="vertical-align: middle;">
+        <div style="display: flex; gap: 24px;">
+          {% for r in "S,Q,P,C,D,M"|split_str:"," %}
+            <label class="checkbox-label" style="font-size: 0.9rem;">
+              <input type="checkbox" name="result_areas" value="{{ r }}"
+                     {% if kaizen and r in kaizen.result_areas %}checked{% endif %}>
+              {{ r }}
+            </label>
+          {% endfor %}
+          <span style="font-size: 0.75rem; color: var(--jspl-muted); margin-left: auto; align-self: center;">
+            (S: Safety, Q: Quality, P: Productivity, C: Cost, D: Delivery, M: Morale)
+          </span>
+        </div>
+      </td>
+    </tr>
+    
+    <!-- Row 4: Department, Area, Circle Name -->
+    <tr>
+      <td colspan="3" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+          <tr>
+            <td style="border: none; border-right: 1px solid #000000; width: 33.3%;">
+              <div style="font-weight: bold; margin-bottom: 4px; color: var(--jspl-navy);">DEPARTMENT:</div>
+              <input type="text" class="kaizen-input" style="background-color: var(--jspl-gray); font-weight: bold;" value="{{ dept.name }}" readonly>
+            </td>
+            <td style="border: none; border-right: 1px solid #000000; width: 33.3%;">
+              <div style="font-weight: bold; margin-bottom: 4px; color: var(--jspl-navy);">AREA/EQUIPMENT:</div>
+              <input type="text" name="area_equipment" class="kaizen-input" placeholder="e.g. BF-1 Tap Hole Area" value="{{ kaizen.area_equipment|default:"" }}" required>
+            </td>
+            <td style="border: none; width: 33.3%;">
+              <div style="font-weight: bold; margin-bottom: 4px; color: var(--jspl-navy);">TPM CIRCLE NAME:</div>
+              <input type="text" name="circle_name" class="kaizen-input" placeholder="Enter Circle name..." value="{{ kaizen.circle_name|default:"" }}">
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    
+    <!-- Row 5: Theme, Idea, Parameters on Right -->
+    <tr>
+      <td colspan="3" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+          <tr>
+            <!-- Theme -->
+            <td style="border: none; border-right: 1px solid #000000; width: 35%;">
+              <div style="font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy);">KAIZEN THEME</div>
+              <textarea name="theme" class="kaizen-textarea" placeholder="Describe the theme or focus area of the Kaizen..." required>{{ kaizen.theme|default:"" }}</textarea>
+            </td>
+            
+            <!-- Idea -->
+            <td style="border: none; border-right: 1px solid #000000; width: 35%;">
+              <div style="font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy);">IDEA</div>
+              <textarea name="idea" class="kaizen-textarea" placeholder="Describe the improvement idea..." required>{{ kaizen.idea|default:"" }}</textarea>
+            </td>
+            
+            <!-- Targets & Members -->
+            <td style="border: none; width: 30%; padding: 0;">
+              <table style="width: 100%; border-collapse: collapse; border: none;">
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-light); font-weight: bold; width: 40%;">BENCHMARK</td>
+                  <td style="border: none; border-bottom: 1px solid #000000;">
+                    <input type="text" name="benchmark" class="kaizen-input" value="{{ kaizen.benchmark|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-light); font-weight: bold;">TARGET</td>
+                  <td style="border: none; border-bottom: 1px solid #000000;">
+                    <input type="text" name="target" class="kaizen-input" value="{{ kaizen.target|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-light); font-weight: bold;">START DATE</td>
+                  <td style="border: none; border-bottom: 1px solid #000000;">
+                    <input type="text" name="start_date" class="kaizen-input" placeholder="DD-MM-YYYY" value="{{ kaizen.start_date|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-light); font-weight: bold;">FINISH DATE</td>
+                  <td style="border: none; border-bottom: 1px solid #000000;">
+                    <input type="text" name="finish_date" class="kaizen-input" placeholder="DD-MM-YYYY" value="{{ kaizen.finish_date|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-navy); color: #FFFFFF; font-weight: bold; text-align: center;">
+                    TEAM MEMBERS
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; font-weight: bold;">LEADER</td>
+                  <td style="border: none; border-bottom: 1px solid #000000;">
+                    <input type="text" name="team_leader" class="kaizen-input" value="{{ kaizen.team_leader|default:"" }}" required>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; font-weight: bold;">MEMBER 1</td>
+                  <td style="border: none; border-bottom: 1px solid #000000;">
+                    <input type="text" name="member_1" class="kaizen-input" value="{{ kaizen.team_members.0|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; font-weight: bold;">MEMBER 2</td>
+                  <td style="border: none; border-bottom: 1px solid #000000;">
+                    <input type="text" name="member_2" class="kaizen-input" value="{{ kaizen.team_members.1|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; border-bottom: 1px solid #000000; font-weight: bold;">MEMBER 3</td>
+                  <td style="border: none; border-bottom: 1px solid #000000;">
+                    <input type="text" name="member_3" class="kaizen-input" value="{{ kaizen.team_members.2|default:"" }}">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border: none; font-weight: bold;">MEMBER 4</td>
+                  <td style="border: none;">
+                    <input type="text" name="member_4" class="kaizen-input" value="{{ kaizen.team_members.3|default:"" }}">
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    
+    <!-- Row 6: Before, After, Benefits -->
+    <tr>
+      <td colspan="3" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+          <tr>
+            <!-- Before Image -->
+            <td style="border: none; border-right: 1px solid #000000; width: 35%;">
+              <div style="font-weight: bold; margin-bottom: 6px; text-align: center; color: var(--jspl-navy);">BEFORE</div>
+              <div class="image-upload-container">
+                <img id="before-preview" class="image-preview" src="{% if kaizen.before_image %}{{ kaizen.before_image.url }}{% else %}https://placehold.co/240x180/e2e8f0/64748b?text=Before+Sketch{% endif %}">
+                <input type="file" name="before_image" accept="image/*" onchange="previewImage(this, 'before-preview')">
+                <span style="font-size: 0.75rem; color: var(--jspl-muted);">(ILLUSTRATE WITH PHOTO/SKETCH)</span>
+              </div>
+            </td>
+            
+            <!-- After Image -->
+            <td style="border: none; border-right: 1px solid #000000; width: 35%;">
+              <div style="font-weight: bold; margin-bottom: 6px; text-align: center; color: var(--jspl-navy);">AFTER</div>
+              <div class="image-upload-container">
+                <img id="after-preview" class="image-preview" src="{% if kaizen.after_image %}{{ kaizen.after_image.url }}{% else %}https://placehold.co/240x180/e2e8f0/64748b?text=After+Sketch{% endif %}">
+                <input type="file" name="after_image" accept="image/*" onchange="previewImage(this, 'after-preview')">
+                <span style="font-size: 0.75rem; color: var(--jspl-muted);">(ILLUSTRATE WITH PHOTO/SKETCH)</span>
+              </div>
+            </td>
+            
+            <!-- Benefits -->
+            <td style="border: none; width: 30%; padding: 0;">
+              <table style="width: 100%; border-collapse: collapse; border: none;">
+                <tr>
+                  <td colspan="2" style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-navy); color: #FFFFFF; font-weight: bold; text-align: center;">
+                    BENEFITS
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-light); font-weight: bold; text-align: center;">
+                    TANGIBLE
+                  </td>
+                </tr>
+                {% for t_idx in "12345"|make_list %}
+                  {% with idx=forloop.counter0 %}
+                    <tr>
+                      <td style="border: none; border-bottom: 1px solid #000000; font-weight: bold; width: 15%; text-align: center;">{{ t_idx }}.0</td>
+                      <td style="border: none; border-bottom: 1px solid #000000;">
+                        <input type="text" name="tangible_{{ t_idx }}" class="kaizen-input" style="font-size: 0.8rem;" value="{{ kaizen.tangible_benefits|index_list:idx }}">
+                      </td>
+                    </tr>
+                  {% endwith %}
+                {% endfor %}
+                <tr>
+                  <td colspan="2" style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-light); font-weight: bold; text-align: center;">
+                    INTANGIBLE
+                  </td>
+                </tr>
+                {% for i_idx in "12345"|make_list %}
+                  {% with idx=forloop.counter0 %}
+                    <tr>
+                      <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; font-weight: bold; width: 15%; text-align: center;">{{ i_idx }}.0</td>
+                      <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %};">
+                        <input type="text" name="intangible_{{ i_idx }}" class="kaizen-input" style="font-size: 0.8rem;" value="{{ kaizen.intangible_benefits|index_list:idx }}">
+                      </td>
+                    </tr>
+                  {% endwith %}
+                {% endfor %}
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    
+    <!-- Row 7: Analysis, Result, Horizontal Deployment -->
+    <tr>
+      <td colspan="3" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+          <tr>
+            <!-- Analysis -->
+            <td style="border: none; border-right: 1px solid #000000; width: 35%;">
+              <div style="font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy);">ANALYSIS -</div>
+              <textarea name="analysis" class="kaizen-textarea" style="height: 150px;" placeholder="Write analysis steps or findings...">{{ kaizen.analysis|default:"" }}</textarea>
+            </td>
+            
+            <!-- Result -->
+            <td style="border: none; border-right: 1px solid #000000; width: 35%;">
+              <div style="font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy);">RESULT</div>
+              <textarea name="result_text" class="kaizen-textarea" style="height: 60px; margin-bottom: 6px;" placeholder="Describe result outcomes...">{{ kaizen.result_text|default:"" }}</textarea>
+              <div class="image-upload-container" style="padding: 4px;">
+                <img id="result-preview" class="image-preview" style="height: 80px;" src="{% if kaizen.result_image %}{{ kaizen.result_image.url }}{% else %}https://placehold.co/240x80/e2e8f0/64748b?text=Chart+Graph{% endif %}">
+                <input type="file" name="result_image" accept="image/*" onchange="previewImage(this, 'result-preview')">
+                <span style="font-size: 0.7rem; color: var(--jspl-muted);">(ILLUSTRATE WITH BAR/LINE GRAPH)</span>
+              </div>
+            </td>
+            
+            <!-- Horizontal Deployment -->
+            <td style="border: none; width: 30%; padding: 0;">
+              <table style="width: 100%; border-collapse: collapse; border: none;">
+                <tr>
+                  <td colspan="5" style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-navy); color: #FFFFFF; font-weight: bold; text-align: center;">
+                    SCOPE & PLAN OF HORIZONTAL DEPLOYMENT
+                  </td>
+                </tr>
+                <tr style="background-color: var(--jspl-light); font-weight: bold; text-align: center; font-size: 0.75rem;">
+                  <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 10%; padding: 4px;">SL</td>
+                  <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 35%; padding: 4px;">AREA/EQUIP</td>
+                  <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 20%; padding: 4px;">DATE</td>
+                  <td style="border: none; border-bottom: 1px solid #000000; border-right: 1px solid #000000; width: 20%; padding: 4px;">RESP.</td>
+                  <td style="border: none; border-bottom: 1px solid #000000; width: 15%; padding: 4px;">STATUS</td>
+                </tr>
+                {% for row in prefills.horizontal_deployment %}
+                  {% with idx=forloop.counter0 %}
+                    {% get_list_item kaizen.horizontal_deployment idx as saved_row %}
+                    <tr>
+                      <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; text-align: center; vertical-align: middle; padding: 4px;">
+                        {{ forloop.counter }}
+                        <input type="hidden" name="h_sl_no" value="{{ forloop.counter }}">
+                      </td>
+                      <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                        <input type="text" name="h_area_equip" class="kaizen-input" style="font-size: 0.75rem; padding: 2px 4px;" value="{{ saved_row.area_equip|default:"" }}">
+                      </td>
+                      <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                        <input type="text" name="h_target_date" class="kaizen-input" style="font-size: 0.75rem; padding: 2px 4px;" placeholder="DD-MM" value="{{ saved_row.target_date|default:"" }}">
+                      </td>
+                      <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
+                        <input type="text" name="h_responsibility" class="kaizen-input" style="font-size: 0.75rem; padding: 2px 4px;" value="{{ saved_row.responsibility|default:"" }}">
+                      </td>
+                      <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; padding: 4px;">
+                        <input type="text" name="h_status" class="kaizen-input" style="font-size: 0.75rem; padding: 2px 4px;" placeholder="Done/Pend" value="{{ saved_row.status|default:"Pending" }}">
+                      </td>
+                    </tr>
+                  {% endwith %}
+                {% endfor %}
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Form Actions -->
+  <div style="display: flex; gap: 12px; justify-content: flex-end;">
+    <button type="button" class="btn btn-secondary"
+            hx-get="{% url 'kaizen_list_partial' dept.id pillar_id %}"
+            hx-target="#tab-content"
+            hx-swap="innerHTML">
+      Cancel
+    </button>
+    <button type="submit" class="btn btn-primary">
+      💾 Save Kaizen Sheet
+    </button>
+  </div>
+</form>
+
+<script>
+  function previewImage(input, previewId) {
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById(previewId).src = e.target.result;
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+</script>

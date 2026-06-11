@@ -27,8 +27,8 @@ The project consists of two separate Django web services that integrate seamless
 
 ## 2. Main Dashboard & Sidenav Features
 
-- **Department Accordions**: All 28 plant departments are displayed as clean, compact cards. Clicking a card expands it downward to reveal its modules list. Clicking again collapses it.
-- **Smart Auto-Expansion**: The landing dashboard checks the logged-in user's profile and automatically expands their assigned primary department (e.g. `SMS2` expands automatically for SMS-2 users).
+- **Department Accordions**: All 28 plant departments are displayed as clean, compact cards. All accordions start collapsed by default to keep the dashboard tidy, and they expand/collapse instantly when clicked.
+- **Unified CAPA Reports**: CAPA (Corrective and Preventive Action) Reports are integrated directly into the main Operations Portal layout. Clicking "CAPA Report" in the main sidebar loads the report list and form creation flows inline, without redirecting users to the TPM department sub-portal.
 - **Responsive Sidenav Toggling**: A collapse menu toggle (`☰`) is present in the topbar on both desktop and mobile views. The sidebar retracts smoothly with CSS width slide transitions.
 - **Access Control Matrix**: Admins can visit `/admin/access/` to view and update access levels (EDIT, VIEW, NONE) for all users across all departments in real-time.
 
@@ -96,13 +96,27 @@ python manage.py seed_portal
 Open two terminals with the virtual environment activated, and run:
 
 * **Terminal 1: Main Portal (Port 8000)**
-  ```bash
-  python manage.py runserver 8000
-  ```
+  - If your virtual environment is inside the `TPM Portal` directory:
+    ```powershell
+    # On Windows PowerShell:
+    & "TPM Portal\venv\Scripts\python.exe" manage.py runserver 8000
+    
+    # Or activate the venv first:
+    & "TPM Portal\venv\Scripts\Activate.ps1"
+    python manage.py runserver 8000
+    ```
+  - Standard command (if Python with Django is globally available or active):
+    ```bash
+    python manage.py runserver 8000
+    ```
 
 * **Terminal 2: TPM Portal (Port 8001)**
   ```bash
   cd "TPM Portal"
+  # On Windows PowerShell:
+  & "venv\Scripts\python.exe" manage.py runserver 8001
+  
+  # Standard:
   python manage.py runserver 8001
   ```
 

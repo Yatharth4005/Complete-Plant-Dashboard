@@ -177,6 +177,8 @@ def dept_overview(request, dept_id):
             'records': records[:100],
             'department': department,
             'can_edit': can_edit,
+            'agencies': agencies,
+            'equipments': equipments,
         })
 
     context = {
@@ -330,10 +332,18 @@ def records_table(request, dept_id):
     if date_end:
         records = records.filter(date__lte=date_end)
         
+    all_records = DelayRecord.objects.filter(department=department)
+    agencies = list(all_records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency=''))
+    equipments = list(all_records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment=''))
+    if not agencies:
+        agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+
     return render(request, 'delays/partials/_records_table.html', {
         'records': records[:150], # Limit query size for performance
         'department': department,
         'can_edit': can_edit,
+        'agencies': agencies,
+        'equipments': equipments,
     })
 
 
@@ -349,7 +359,7 @@ def new_record(request, dept_id):
         return redirect('delays:dept_overview', dept_id=dept_id)
         
     if request.method == 'POST':
-        form = DelayRecordForm(request.POST)
+        form = DelayRecordForm(request.POST, department=department)
         if form.is_valid():
             record = form.save(commit=False)
             record.department = department
@@ -358,7 +368,7 @@ def new_record(request, dept_id):
             messages.success(request, f"Manual delay entry on {record.date} successfully logged.")
             return redirect('delays:dept_overview', dept_id=dept_id)
     else:
-        form = DelayRecordForm()
+        form = DelayRecordForm(department=department)
         
     # Fetch autocompletes
     records = DelayRecord.objects.filter(department=department)
@@ -399,13 +409,13 @@ def edit_record(request, dept_id, record_id):
         return redirect('delays:dept_overview', dept_id=dept_id)
         
     if request.method == 'POST':
-        form = DelayRecordForm(request.POST, instance=record)
+        form = DelayRecordForm(request.POST, instance=record, department=department)
         if form.is_valid():
             form.save()
             messages.success(request, "Delay record updated successfully.")
             return redirect('delays:dept_overview', dept_id=dept_id)
     else:
-        form = DelayRecordForm(instance=record)
+        form = DelayRecordForm(instance=record, department=department)
         
     # Fetch autocompletes
     records = DelayRecord.objects.filter(department=department)
@@ -457,6 +467,62 @@ def delete_record(request, dept_id, record_id):
         
     messages.success(request, f"Delay record on {record_info} deleted successfully.")
     return redirect('delays:dept_overview', dept_id=dept_id)
+
+
+@login_required
+def update_record_inline(request, dept_id, record_id):
+    """
+    Updates a specific delay record inline from the table row.
+    """
+    department = get_object_or_404(Department, id=dept_id)
+    record = get_object_or_404(DelayRecord, id=record_id, department=department)
+    
+    if not user_can_edit_module(request.user, department, 'Delays'):
+        return HttpResponse('<tr class="table-danger"><td colspan="6">Access Denied</td></tr>', status=403)
+        
+    if request.method == 'POST':
+        # Retrieve values from POST parameters
+        date_val = request.POST.get('date')
+        duration_val = request.POST.get('duration_mins')
+        agency_val = request.POST.get('agency')
+        equipment_val = request.POST.get('equipment')
+        why_val = request.POST.get('why')
+        
+        # Simple validation & update
+        if date_val:
+            record.date = date_val
+        if duration_val:
+            try:
+                record.duration_mins = float(duration_val)
+            except ValueError:
+                pass
+        if agency_val:
+            record.agency = agency_val
+        record.equipment = equipment_val
+        record.why = why_val
+        
+        # Handle required description
+        eq_name = record.equipment or "Unknown Equipment"
+        record.description = f"Manual delay entry for {eq_name} ({record.agency})"
+        
+        record.save()
+        
+        # Render the updated single row back
+        all_records = DelayRecord.objects.filter(department=department)
+        agencies = list(all_records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency=''))
+        equipments = list(all_records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment=''))
+        if not agencies:
+            agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+            
+        return render(request, 'delays/partials/_record_row.html', {
+            'r': record,
+            'department': department,
+            'can_edit': True,
+            'agencies': agencies,
+            'equipments': equipments,
+        })
+        
+    return HttpResponse('Method Not Allowed', status=405)
 
 
 @login_required

@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from tpm.models import Department
+from tpm.models import Department, CAPAReport
 from portal.models import Module, UserModuleAccess
 from portal.utils.access import get_user_module_access_map
 
@@ -43,3 +43,15 @@ def plant_dashboard(request):
         'active_section': 'dashboard',
     }
     return render(request, 'portal/dashboard/plant_dashboard.html', context)
+
+@login_required
+def capa_reports(request):
+    """
+    Renders the CAPA reports list inside the main portal dashboard.
+    """
+    reports = CAPAReport.objects.all().order_by('-created_at')
+    context = {
+        'reports': reports,
+        'active_section': 'capa',
+    }
+    return render(request, 'portal/dashboard/capa_reports.html', context)

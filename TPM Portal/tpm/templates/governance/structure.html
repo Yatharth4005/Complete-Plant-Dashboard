@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+
+{% block title %}TPM Governance Structure — Jindal Steels Operations Portal{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{% url 'tpm_dashboard' %}">Plant Dashboard</a>
+  <span>Governance Structure</span>
+{% endblock %}
+
+{% block content %}
+<div class="governance-container">
+  
+  <div style="margin-bottom: 24px;">
+    <h2>⚖️ TPM Governance Structure</h2>
+    <p style="color: var(--jspl-muted); font-size: 0.9rem; margin-top: 4px;">
+      Organisational hierarchy and key responsibilities for the TPM implementation review cycle.
+    </p>
+  </div>
+
+  <!-- FLOWCHART SECTION -->
+  <div class="card" style="padding: 30px; margin-bottom: 30px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm);">
+    <h3 style="margin-bottom: 30px; text-align: center; color: var(--jspl-navy); font-weight: 700; letter-spacing: -0.5px;">
+      📐 Implementation Hierarchy Flowchart
+    </h3>
+
+    <div class="governance-flowchart">
+      
+      <!-- LEVEL 1: Project Sponsor -->
+      <div class="chart-row">
+        <div class="chart-node node-sponsor">
+          <div class="node-badge">PROJECT SPONSOR</div>
+          <div class="node-name">Executive Director</div>
+          <div class="node-desc">Unit Head — JSP Raigarh++</div>
+        </div>
+      </div>
+
+      <div class="connector-line-vert"></div>
+
+      <!-- LEVEL 2: Steering Committee -->
+      <div class="chart-row">
+        <div class="chart-node node-steering">
+          <div class="node-badge">STEERING COMMITTEE</div>
+          <div class="node-split-grid">
+            <div class="split-cell">
+              <strong>Chairman</strong>
+              <div class="name-text">Mr. Anshoo Raina</div>
+            </div>
+            <div class="split-cell" style="border-left: 1px solid rgba(255,255,255,0.25);">
+              <strong>Vice Chairman</strong>
+              <div class="name-text">Mr. Lalit Goyal</div>
+            </div>
+          </div>
+          <div class="node-footer-list">
+            <strong>Committee Members:</strong>
+            <span>Mr. Amit Khokhar, Mr. Ankit Bansal, Mr. Praveen George, Mr. Pinaki Bhattacharjee, Mr. Moreshwar Borkar, Mr. Pradeep Kumar Agrawal, Mr. Sanjay Sharma</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector-line-vert"></div>
+
+      <!-- LEVEL 3: Split Grid for Coordinators & Area HODs -->
+      <div class="chart-split-wrapper">
+        <div class="connector-line-horiz"></div>
+        <div class="split-columns-grid">
+          
+          <!-- Column Left: TPM Coordinators -->
+          <div class="split-column">
+            <div class="connector-line-vert-half"></div>
+            <div class="chart-node node-coordinators">
+              <div class="node-badge">TPM COORDINATORS</div>
+              <div class="coordinator-profile" style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 12px;">
+                <div class="name-text">Mr. Raj Bhushan</div>
+                <div class="desc-text">Pillar Coordinator</div>
+              </div>
+              <div class="coordinator-profile">
+                <div class="name-text">Ms. Raunika</div>
+                <div class="desc-text">Workstation / Cell Team Coordinator</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column Right: HODs, Cell Leaders, Workstation Leads -->
+          <div class="split-column">
+            <div class="connector-line-vert-half"></div>
+            
+            <!-- HOD Node -->
+            <div class="chart-node node-hod">
+              <div class="node-badge">HOD / AREA OWNERS</div>
+              <div class="hod-names-grid">
+                <span>Mr. Sandeep Tyagi</span>
+                <span>Mr. Saptarsi Sengupta</span>
+                <span>Mr. Varun Mishra</span>
+                <span>Mr. Satyabrata Sahu</span>
+                <span>Mr. Harsh Pandey</span>
+                <span>Mr. Gunjan Jha</span>
+                <span>Mr. Ch VSS Kumar</span>
+                <span>Mr. Deepak Upadhyay</span>
+                <span>Mr. Pawan Vij</span>
+              </div>
+            </div>
+
+            <div class="connector-line-vert"></div>
+
+            <!-- Cell Leader Node -->
+            <div class="chart-node node-cell">
+              <div class="node-badge">CELL LEADERS</div>
+              <div class="name-text">Departmental Cell Teams</div>
+              <div class="desc-text">Technical guidance & cross-functional coordination</div>
+            </div>
+
+            <div class="connector-line-vert"></div>
+
+            <!-- Workstation Lead Node -->
+            <div class="chart-node node-workstation">
+              <div class="node-badge">WORKSTATION LEADS</div>
+              <div class="name-text">Workstation KPI SPOCs</div>
+              <div class="desc-text">KPI targets, zero leakage, timelines</div>
+            </div>
+
+            <div class="connector-line-vert"></div>
+
+            <!-- Workstation / Cell Team Node -->
+            <div class="chart-node node-workforce">
+              <div class="node-badge">WORKSTATION / CELL TEAMS</div>
+              <div class="name-text">Ground Execution Workforce</div>
+              <div class="desc-text">5S, abnormality RCA, target completion</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RESPONSIBILITIES DETAILS -->
+  <div style="margin-top: 40px; margin-bottom: 20px;">
+    <h3 style="color: var(--jspl-navy); font-weight: 700;">💡 Governance Roles &amp; Responsibilities</h3>
+    <p style="color: var(--jspl-muted); font-size: 0.85rem; margin-top: 4px;">Detailed protocols and execution requirements for each governance level.</p>
+  </div>
+
+  <div class="responsibilities-grid">
+    <!-- Sponsor Card -->
+    <div class="responsibility-card border-sponsor">
+      <div class="card-role-header text-sponsor">👑 Project Sponsor</div>
+      <div class="card-role-designation">Executive Director (Unit Head — JSP Raigarh++)</div>
+      <ul class="resp-list">
+        <li>Ensure the TPM initiative aligns with the organization's overall strategic goals and objectives.</li>
+        <li>Resource Allocation and key Decision Making for the TPM implementation.</li>
+      </ul>
+    </div>
+
+    <!-- Steering Committee Card -->
+    <div class="responsibility-card border-steering">
+      <div class="card-role-header text-steering">👥 Steering Committee</div>
+      <div class="card-role-designation">Chairman, Vice Chairman &amp; Board Members</div>
+      <ul class="resp-list">
+        <li>Approve TPM implementation roadmap.</li>
+        <li>Conduct monthly TPM progress review.</li>
+        <li>Recommend teams for reward &amp; recognition.</li>
+        <li>Arrange for recognition and felicitation for teams achieving TPM quarterly targets.</li>
+      </ul>
+    </div>
+
+    <!-- TPM Coordinators Card -->
+    <div class="responsibility-card border-coordinators">
+      <div class="card-role-header text-coordinators">⚙️ TPM Coordinators</div>
+      <div class="card-role-designation">Raj Bhushan (Pillar) &amp; Raunika (Workstation/Cell)</div>
+      <ul class="resp-list">
+        <li><b>Pillar (Raj Bhushan):</b> Prepare and manage the training calendar, release monthly reports, sign off milestone stages, and audit documentation (OPL/Standards).</li>
+        <li><b>Logistics (Raunika):</b> Maintain trainee attendance, coordinate assessments, and manage training organization scheduling, travel, accommodation &amp; bills.</li>
+      </ul>
+    </div>
+
+    <!-- HOD Card -->
+    <div class="responsibility-card border-hod">
+      <div class="card-role-header text-hod">🏢 HOD / Area Owners</div>
+      <div class="card-role-designation">Department Heads &amp; Zonal Heads</div>
+      <ul class="resp-list">
+        <li>Identify cells and workstations along with their team members.</li>
+        <li>Review and approve quarterly targets of workstations and cells.</li>
+        <li>Ensure participation &amp; attendance of teams in TPM related trainings.</li>
+        <li>Ensure active participation of the Cell and Workstation teams during reviews.</li>
+        <li>Provide necessary resources (e.g. tools, materials) and conduct fortnightly reviews.</li>
+      </ul>
+    </div>
+
+    <!-- Cell Leader Card -->
+    <div class="responsibility-card border-cell">
+      <div class="card-role-header text-cell">🤝 Cell Leaders</div>
+      <div class="card-role-designation">Cell Team Heads</div>
+      <ul class="resp-list">
+        <li>Provide necessary technical guidance to the workstation teams.</li>
+        <li>Address any cross-functional coordination and alignment issues.</li>
+        <li>Conduct weekly progress reviews for cell workstations.</li>
+      </ul>
+    </div>
+
+    <!-- Workstation Lead Card -->
+    <div class="responsibility-card border-workstation">
+      <div class="card-role-header text-workstation">🔧 Workstation Leads</div>
+      <div class="card-role-designation">Workstation SPOC / Lead Operators</div>
+      <ul class="resp-list">
+        <li>Achieve quarterly goals of KPIs.</li>
+        <li>Ensure timely actions on identified abnormalities.</li>
+        <li>Lead Zero leakage drives and assign tasks to team members.</li>
+        <li>Ensure presence of team and timely action on review feedbacks.</li>
+      </ul>
+    </div>
+
+    <!-- Workforce Card -->
+    <div class="responsibility-card border-workforce" style="grid-column: span 2;">
+      <div class="card-role-header text-workforce">🛠️ Workstation / Cell Teams</div>
+      <div class="card-role-designation">Ground workforce execution teams</div>
+      <ul class="resp-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 30px;">
+        <li>Identify abnormalities / failures and address them including analysis, RCA with permanent solutions.</li>
+        <li>Complete the allocated tasks on time.</li>
+        <li>Participate in internal &amp; external reviews.</li>
+        <li>Maintain 5S in Workstations.</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- Flowchart and node inline CSS variables -->
+<style>
+  .governance-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 10px;
+  }
+  .governance-flowchart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+  .chart-row {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+  
+  /* Node Styling */
+  .chart-node {
+    padding: 18px 24px;
+    border-radius: 12px;
+    color: white;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+  }
+  .chart-node:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  }
+  
+  .node-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 3px 10px;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .node-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .node-desc {
+    font-size: 0.8rem;
+    opacity: 0.85;
+  }
+  .name-text {
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+  .desc-text {
+    font-size: 0.75rem;
+    opacity: 0.85;
+  }
+  
+  /* Node Color Coding */
+  .node-sponsor {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border: 1px solid #334155;
+    width: 280px;
+  }
+  .node-steering {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    border: 2px solid var(--jspl-orange);
+    width: 480px;
+    max-width: 100%;
+  }
+  .node-coordinators {
+    background: linear-gradient(135deg, #581c87 0%, #7e22ce 100%);
+    border: 1px solid #a21caf;
+    width: 250px;
+  }
+  .node-hod {
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    border: 1px solid #14b8a6;
+    width: 450px;
+    max-width: 100%;
+  }
+  .node-cell {
+    background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+    border: 1px solid #22c55e;
+    width: 280px;
+  }
+  .node-workstation {
+    background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+    border: 1px solid #f59e0b;
+    width: 280px;
+  }
+  .node-workforce {
+    background: linear-gradient(135deg, #3f3f46 0%, #27272a 100%);
+    border: 1px solid #71717a;
+    width: 280px;
+  }
+  
+  /* Steering split grid */
+  .node-split-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin: 10px 0;
+  }
+  .split-cell {
+    padding: 5px 10px;
+  }
+  .split-cell strong {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.8;
+    text-transform: uppercase;
+  }
+  .node-footer-list {
+    font-size: 0.75rem;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    padding-top: 10px;
+    margin-top: 5px;
+    line-height: 1.4;
+    text-align: left;
+  }
+  .node-footer-list strong {
+    color: var(--jspl-orange);
+  }
+  
+  /* HOD List layout */
+  .hod-names-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-top: 10px;
+    text-align: left;
+  }
+  .hod-names-grid span {
+    background: rgba(255,255,255,0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  
+  /* Connectors */
+  .connector-line-vert {
+    width: 3px;
+    height: 30px;
+    background-color: #64748b;
+    margin: 0 auto;
+  }
+  .connector-line-vert-half {
+    width: 3px;
+    height: 20px;
+    background-color: #64748b;
+    margin: 0 auto;
+  }
+  
+  /* Split columns hierarchy */
+  .chart-split-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+  .connector-line-horiz {
+    height: 3px;
+    background-color: #64748b;
+    width: calc(50% + 15px); /* Mathematically perfect width to touch column centers */
+    margin: 0 auto;
+  }
+  .split-columns-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 30px;
+  }
+  .split-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  /* Responsibilities grid */
+  .responsibilities-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .responsibility-card {
+    background: white;
+    border: 1px solid var(--jspl-border);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  .card-role-header {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  .card-role-designation {
+    font-size: 0.8rem;
+    color: var(--jspl-muted);
+    font-weight: 600;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+  }
+  .resp-list {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: #4b5563;
+  }
+  .resp-list li {
+    margin-bottom: 8px;
+  }
+  
+  /* Role card border accents */
+  .border-sponsor { border-top: 4px solid #0f172a; }
+  .border-steering { border-top: 4px solid #1e3a8a; }
+  .border-coordinators { border-top: 4px solid #581c87; }
+  .border-hod { border-top: 4px solid #0d9488; }
+  .border-cell { border-top: 4px solid #15803d; }
+  .border-workstation { border-top: 4px solid #b45309; }
+  .border-workforce { border-top: 4px solid #3f3f46; }
+  
+  .text-sponsor { color: #0f172a; }
+  .text-steering { color: #1e3a8a; }
+  .text-coordinators { color: #581c87; }
+  .text-hod { color: #0d9488; }
+  .text-cell { color: #15803d; }
+  .text-workstation { color: #b45309; }
+  .text-workforce { color: #3f3f46; }
+  
+  @media (max-width: 900px) {
+    .split-columns-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .connector-line-horiz {
+      display: none;
+    }
+    .connector-line-vert-half {
+      display: none;
+    }
+    .responsibilities-grid {
+      grid-template-columns: 1fr;
+    }
+    .border-workforce {
+      grid-column: span 1 !important;
+    }
+    .border-workforce .resp-list {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+{% endblock %}

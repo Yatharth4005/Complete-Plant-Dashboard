@@ -31,3 +31,34 @@ def percentage(value):
 def make_range(value):
     """Returns range for pagination or grid displays"""
     return range(1, int(value) + 1)
+
+
+@register.filter
+def split_str(value, key):
+    """Splits a string by a delimiter"""
+    if not isinstance(value, str):
+        return []
+    return value.split(key)
+
+
+@register.filter
+def index_list(lst, idx):
+    """Gets list element at index idx, returns empty string on failure"""
+    try:
+        if not lst:
+            return ""
+        return lst[int(idx)]
+    except (IndexError, ValueError, TypeError):
+        return ""
+
+
+@register.simple_tag
+def get_list_item(lst, idx):
+    """Gets list element at index idx, returns empty dict on failure"""
+    try:
+        if not lst:
+            return {}
+        return lst[int(idx)]
+    except (IndexError, ValueError, TypeError):
+        return {}
+

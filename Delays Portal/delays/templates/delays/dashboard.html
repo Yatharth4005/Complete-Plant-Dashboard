@@ -119,8 +119,8 @@
             class="filter-bar">
         
         <div class="filter-group col-search">
-          <label class="filter-label">Search Breakdown Details</label>
-          <input type="text" name="q" placeholder="Search description, equipment, incharge..." class="filter-input input-mono">
+          <label class="filter-label">Search Delay Details</label>
+          <input type="text" name="q" placeholder="Search equipment, agency..." class="filter-input input-mono">
         </div>
         
         <div class="filter-group">
@@ -129,16 +129,6 @@
             <option value="">All Agencies</option>
             {% for a in agencies %}
               <option value="{{ a }}">{{ a }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        
-        <div class="filter-group">
-          <label class="filter-label">Sheet/Source</label>
-          <select name="sheet" class="filter-input input-mono">
-            <option value="">All Sources</option>
-            {% for s in sheets_parsed %}
-              <option value="{{ s }}">{{ s }}</option>
             {% endfor %}
           </select>
         </div>

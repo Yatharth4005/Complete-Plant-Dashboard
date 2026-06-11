@@ -2,30 +2,49 @@ from django import forms
 from delays.models import DelayRecord
 
 class DelayRecordForm(forms.ModelForm):
+    agency = forms.ChoiceField(choices=[], required=True, widget=forms.Select(attrs={'class': 'input-mono'}))
+    equipment = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
+    why = forms.ChoiceField(choices=[('WHY/WHY', 'WHY/WHY'), ('CAPA', 'CAPA'), ('NO', 'NO')], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
+
     class Meta:
         model = DelayRecord
-        fields = [
-            'date', 'time_slot', 'start_time', 'end_time', 
-            'duration_mins', 'agency', 'sub_agency', 'section', 
-            'equipment', 'sub_equipment', 'shift_incharge', 
-            'description', 'why'
-        ]
+        fields = ['date', 'duration_mins', 'agency', 'equipment', 'why']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'input-mono'}),
-            'time_slot': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'e.g. 22:00 - 23:00'}),
-            'start_time': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'e.g. 22:15'}),
-            'end_time': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'e.g. 22:25'}),
             'duration_mins': forms.NumberInput(attrs={'class': 'input-mono', 'step': 'any', 'placeholder': 'Duration in minutes'}),
-            
-            # Autocomplete standard list inputs
-            'agency': forms.TextInput(attrs={'class': 'input-mono', 'list': 'agency_list', 'placeholder': 'Select or type agency'}),
-            'sub_agency': forms.TextInput(attrs={'class': 'input-mono', 'list': 'sub_agency_list', 'placeholder': 'Select or type sub-agency'}),
-            'section': forms.TextInput(attrs={'class': 'input-mono', 'list': 'section_list', 'placeholder': 'e.g. UC 254X254'}),
-            'equipment': forms.TextInput(attrs={'class': 'input-mono', 'list': 'equipment_list', 'placeholder': 'Select or type equipment'}),
-            'sub_equipment': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'Sub-equipment (optional)'}),
-            'shift_incharge': forms.TextInput(attrs={'class': 'input-mono', 'list': 'incharge_list', 'placeholder': 'Shift incharge'}),
-            
-            # Text areas
-            'description': forms.Textarea(attrs={'class': 'input-mono', 'rows': 3, 'placeholder': 'Enter detailed description of the delay...'}),
-            'why': forms.Textarea(attrs={'class': 'input-mono', 'rows': 2, 'placeholder': 'Enter root cause or why-why analysis...'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        department = kwargs.pop('department', None)
+        super().__init__(*args, **kwargs)
+        
+        # Default choices if nothing in DB
+        agency_list = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+        equip_list = []
+        
+        if department:
+            records = DelayRecord.objects.filter(department=department)
+            db_agencies = list(records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency=''))
+            if db_agencies:
+                agency_list = db_agencies
+            equip_list = list(records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment=''))
+            
+        self.fields['agency'].choices = [(a, a) for a in agency_list]
+        self.fields['equipment'].choices = [('', 'Select Equipment')] + [(e, e) for e in equip_list]
+        
+        # If editing an existing instance, make sure its current values are valid choices
+        if self.instance and self.instance.pk:
+            if self.instance.agency and (self.instance.agency, self.instance.agency) not in self.fields['agency'].choices:
+                self.fields['agency'].choices.append((self.instance.agency, self.instance.agency))
+            if self.instance.equipment and (self.instance.equipment, self.instance.equipment) not in self.fields['equipment'].choices:
+                self.fields['equipment'].choices.append((self.instance.equipment, self.instance.equipment))
+                
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if not instance.description:
+            eq_name = instance.equipment or "Unknown Equipment"
+            instance.description = f"Manual delay entry for {eq_name} ({instance.agency})"
+        if commit:
+            instance.save()
+        return instance
+

@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+
+{% block title %}User Informations — TPM Governance — Jindal Steels Operations Portal{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{% url 'tpm_dashboard' %}">Plant Dashboard</a>
+  <span>Governance Users Directory</span>
+{% endblock %}
+
+{% block content %}
+<div class="governance-container" x-data="{ addModalOpen: false, editModalOpen: false, editUser: {} }">
+  
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h2 style="color: var(--jspl-navy); font-weight: 700; margin: 0;">👥 Governance Users Directory</h2>
+      <p style="color: var(--jspl-muted); font-size: 0.85rem; margin-top: 4px;">
+        Contact directory and assignments for all registered users in the TPM portal.
+      </p>
+    </div>
+    {% if request.user.is_admin %}
+      <button @click="addModalOpen = true" class="btn btn-primary" style="padding: 10px 20px; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px;">
+        ➕ Create User Account
+      </button>
+    {% endif %}
+   <!-- Contacts Table -->
+  <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--jspl-border); border-radius: 16px; box-shadow: var(--shadow-sm); background-color: white;">
+    <div>
+      <table class="kpi-table" style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 0;">
+        <thead>
+          <tr style="background-color: var(--jspl-navy); color: white;">
+            <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; text-align: center; width: 60px;">Avatar</th>
+            <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem;">Full Name</th>
+            <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; width: 220px;">Email Address</th>
+            <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; width: 110px;">Phone Number</th>
+            <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; width: 110px;">Department</th>
+            <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; width: 110px;">Designation</th>
+            <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; text-align: center; width: 80px;">Role</th>
+            {% if request.user.is_admin %}
+              <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; text-align: center; width: 150px;">Actions</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+            <tr style="border-bottom: 1px solid var(--jspl-border); background-color: {% if forloop.counter|divisibleby:2 %}#F9FAFB{% else %}#FFFFFF{% endif %}; transition: background-color 0.2s;">
+              
+              <!-- Avatar Column -->
+              <td style="padding: 8px 10px; text-align: center; vertical-align: middle;">
+                <div class="user-avatar-circle" style="width: 36px; height: 36px; font-size: 0.9rem;">
+                  {% if u.photo %}
+                    <img src="{{ u.photo.url }}" alt="{{ u.get_display_name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                  {% else %}
+                    {{ u.first_name|default:u.username|slice:":1"|upper }}
+                  {% endif %}
+                </div>
+              </td>
+              
+              <!-- Full Name -->
+              <td style="padding: 12px 10px; vertical-align: middle; font-weight: 600; color: var(--jspl-navy); font-size: 0.82rem; line-height: 1.3;">
+                {{ u.first_name }} {{ u.last_name }}
+              </td>
+ 
+              <!-- Email Address -->
+              <td style="padding: 12px 10px; vertical-align: middle; font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; word-break: break-all; line-height: 1.4;">
+                {{ u.email|default:u.username }}
+              </td>
+ 
+              <!-- Phone Number -->
+              <td style="padding: 12px 10px; vertical-align: middle; color: var(--jspl-muted); font-size: 0.8rem;">
+                {{ u.phone|default:"—" }}
+              </td>
+ 
+              <!-- Department -->
+              <td style="padding: 12px 10px; vertical-align: middle;">
+                {% if u.department %}
+                  <span style="font-weight: 600; color: var(--jspl-orange); font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px;">
+                    🏢 {{ u.department.name }}
+                  </span>
+                {% else %}
+                  <span style="color: var(--jspl-muted); font-style: italic; font-size: 0.8rem;">—</span>
+                {% endif %}
+              </td>
+              
+              <!-- Designation -->
+              <td style="padding: 12px 10px; vertical-align: middle;">
+                {% if u.designation %}
+                  <span class="user-designation-badge" style="padding: 3px 6px; font-size: 0.75rem;">{{ u.designation }}</span>
+                {% else %}
+                  <span style="color: var(--jspl-muted); font-style: italic; font-size: 0.8rem;">—</span>
+                {% endif %}
+              </td>
+ 
+              <!-- Role -->
+              <td style="padding: 12px 10px; vertical-align: middle; text-align: center;">
+                {% if u.is_admin %}
+                  <span class="badge badge-admin" style="font-size: 0.7rem; padding: 3px 6px;">ADMIN</span>
+                {% else %}
+                  <span class="badge badge-muted" style="font-size: 0.7rem; padding: 3px 6px;">USER</span>
+                {% endif %}
+              </td>
+ 
+              <!-- Actions (Admin only) -->
+              {% if request.user.is_admin %}
+                <td style="padding: 8px 10px; vertical-align: middle; text-align: center;">
+                  <div style="display: inline-flex; gap: 6px; justify-content: center; align-items: center;">
+                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 0.75rem; font-weight: 600;"
+                            @click="
+                              editUser = {
+                                id: '{{ u.id }}',
+                                username: '{{ u.username|escapejs }}',
+                                email: '{{ u.email|escapejs }}',
+                                first_name: '{{ u.first_name|escapejs }}',
+                                last_name: '{{ u.last_name|escapejs }}',
+                                role: '{{ u.role|escapejs }}',
+                                phone: '{{ u.phone|escapejs }}',
+                                department_id: '{{ u.department.id|default:'' }}',
+                                designation: '{{ u.designation|escapejs }}',
+                                is_active: {% if u.is_active %}true{% else %}false{% endif %}
+                              };
+                              editModalOpen = true;
+                            ">
+                      ✏️ Edit
+                    </button>
+                    
+                    <form method="POST" action="{% url 'admin_delete_user' u.id %}" style="display:inline; margin: 0;"
+                          onsubmit="return confirm('Are you sure you want to permanently delete user account \'{{ u.username|escapejs }}\'?')">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-red" style="padding: 5px 10px; font-size: 0.75rem; font-weight: 600;">
+                        🗑️ Delete
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              {% endif %}
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="{% if request.user.is_admin %}8{% else %}7{% endif %}" style="text-align: center; padding: 40px; color: var(--jspl-muted); font-style: italic;">
+                No user contacts found.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CREATE USER MODAL -->
+  <div x-show="addModalOpen" 
+       x-transition 
+       x-cloak
+       style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;">
+    
+    <div @click.outside="addModalOpen = false" 
+         style="background: white; border-radius: 16px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--jspl-border);">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--jspl-border);">
+        <h3 style="color: var(--jspl-navy); margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">➕ Create New User Account</h3>
+        <button @click="addModalOpen = false" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--jspl-muted);">&times;</button>
+      </div>
+
+      <form action="{% url 'admin_add_user' %}" method="POST" style="padding: 24px;">
+        {% csrf_token %}
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div>
+            <label class="field-label-text">Username *</label>
+            <input type="text" name="username" class="input-mono" placeholder="Username" required style="width: 100%; height: 38px;">
+          </div>
+          <div>
+            <label class="field-label-text">Password *</label>
+            <input type="password" name="password" class="input-mono" placeholder="Password" required style="width: 100%; height: 38px;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div>
+            <label class="field-label-text">First Name</label>
+            <input type="text" name="first_name" class="input-mono" placeholder="First Name" style="width: 100%; height: 38px;">
+          </div>
+          <div>
+            <label class="field-label-text">Last Name</label>
+            <input type="text" name="last_name" class="input-mono" placeholder="Last Name" style="width: 100%; height: 38px;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div>
+            <label class="field-label-text">Email Address</label>
+            <input type="email" name="email" class="input-mono" placeholder="email@jspl.in" style="width: 100%; height: 38px;">
+          </div>
+          <div>
+            <label class="field-label-text">Phone Number</label>
+            <input type="text" name="phone" class="input-mono" placeholder="Phone Number" style="width: 100%; height: 38px;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;" x-data="{ userRole: 'USER' }">
+          <div>
+            <label class="field-label-text">System Role</label>
+            <select name="role" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;" x-model="userRole">
+              <option value="USER">Department User</option>
+              <option value="ADMIN">Administrator</option>
+            </select>
+          </div>
+          <div x-show="userRole === 'USER'">
+            <label class="field-label-text">Department</label>
+            <select name="department" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
+              <option value="">No Department</option>
+              {% for d in departments %}
+                <option value="{{ d.id }}">🏢 {{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <label class="field-label-text">Designation</label>
+          <select name="designation" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
+            <option value="">No Designation</option>
+            <option value="HOD">HOD</option>
+            <option value="SPOC">SPOC</option>
+            <option value="Engineer">Engineer</option>
+            <option value="Operator">Operator</option>
+          </select>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button type="button" @click="addModalOpen = false" class="btn" style="background-color: var(--jspl-gray); color: var(--jspl-text) !important; border: 1px solid var(--jspl-border); font-weight: 600;">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="font-weight: 600;">Save User</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- EDIT USER MODAL -->
+  <div x-show="editModalOpen" 
+       x-transition 
+       x-cloak
+       style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;">
+    
+    <div @click.outside="editModalOpen = false" 
+         style="background: white; border-radius: 16px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--jspl-border);">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--jspl-border);">
+        <h3 style="color: var(--jspl-navy); margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">✏️ Edit User Details</h3>
+        <button @click="editModalOpen = false" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--jspl-muted);">&times;</button>
+      </div>
+
+      <form :action="'{% url 'admin_edit_user' 99999 %}'.replace('99999', editUser.id)" method="POST" style="padding: 24px;">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 16px;">
+          <label class="field-label-text">Username (Read Only)</label>
+          <input type="text" :value="editUser.username" class="input-mono" readonly style="width: 100%; height: 38px; background-color: var(--jspl-gray); cursor: not-allowed;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 16px;">
+          <div>
+            <label class="field-label-text">First Name</label>
+            <input type="text" name="first_name" x-model="editUser.first_name" class="input-mono" required style="width: 100%; height: 38px;">
+          </div>
+          <div>
+            <label class="field-label-text">Last Name</label>
+            <input type="text" name="last_name" x-model="editUser.last_name" class="input-mono" style="width: 100%; height: 38px;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 16px;">
+          <div>
+            <label class="field-label-text">Email Address</label>
+            <input type="email" name="email" x-model="editUser.email" class="input-mono" style="width: 100%; height: 38px;">
+          </div>
+          <div>
+            <label class="field-label-text">Phone Number</label>
+            <input type="text" name="phone" x-model="editUser.phone" class="input-mono" style="width: 100%; height: 38px;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+          <div>
+            <label class="field-label-text">System Role</label>
+            <select name="role" x-model="editUser.role" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
+              <option value="USER">Department User</option>
+              <option value="ADMIN">Administrator</option>
+            </select>
+          </div>
+          <div x-show="editUser.role === 'USER'">
+            <label class="field-label-text">Department</label>
+            <select name="department" x-model="editUser.department_id" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
+              <option value="">No Department</option>
+              {% for d in departments %}
+                <option value="{{ d.id }}">🏢 {{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label class="field-label-text">Reset Password (Leave blank to keep current)</label>
+          <input type="password" name="password" autocomplete="new-password" class="input-mono" style="width: 100%; height: 38px;" placeholder="New Password">
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <label class="field-label-text">Designation</label>
+          <select name="designation" x-model="editUser.designation" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
+            <option value="">No Designation</option>
+            <option value="HOD">HOD</option>
+            <option value="SPOC">SPOC</option>
+            <option value="Engineer">Engineer</option>
+            <option value="Operator">Operator</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" name="is_active" id="edit_is_active" x-model="editUser.is_active">
+          <label for="edit_is_active" style="font-weight: 600; font-size: 0.9rem; cursor: pointer; color: var(--jspl-navy);">User Account Active</label>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button type="button" @click="editModalOpen = false" class="btn" style="background-color: var(--jspl-gray); color: var(--jspl-text) !important; border: 1px solid var(--jspl-border); font-weight: 600;">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="font-weight: 600;">Save Changes</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .governance-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 10px;
+  }
+  .user-avatar-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #EFF6FF;
+    border: 1px solid var(--jspl-border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #3b82f6;
+    font-size: 1.1rem;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+  }
+  .user-designation-badge {
+    background: #EFF6FF;
+    color: #1E40AF;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    border: 1px solid rgba(30,64,175,0.15);
+    display: inline-block;
+  }
+  .badge-admin {
+    background: #FEF3C7 !important;
+    color: #D97706 !important;
+    border: 1px solid rgba(217,119,6,0.2) !important;
+    font-weight: bold !important;
+  }
+  .field-label-text {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--jspl-navy);
+    margin-bottom: 6px;
+  }
+  .btn-red {
+    background-color: #EF4444;
+    color: white !important;
+    border: none;
+  }
+  .btn-red:hover {
+    background-color: #DC2626;
+  }
+</style>
+{% endblock %}

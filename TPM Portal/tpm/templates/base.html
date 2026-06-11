@@ -55,13 +55,32 @@
       
       <a href="http://localhost:8000/dashboard/" class="sidebar-nav-btn" style="background-color: rgba(244,121,32,0.1); color: var(--jspl-orange) !important; font-weight: bold; border-left: 3px solid var(--jspl-orange);">🏭 Main Plant Portal</a>
       
-      {% if request.user.is_admin %}
-        <a href="http://localhost:8000/dashboard/" class="sidebar-nav-btn">🏭 Plant Overview</a>
-        <a href="{% url 'admin_users' %}" class="sidebar-nav-btn">👤 User Management</a>
-        <div style="margin-top: 15px; padding: 0 20px; font-size: 0.75rem; color: var(--jspl-orange); font-weight: bold; text-transform: uppercase;">
-          Departments
+      <!-- Governance Accordion -->
+      <div x-data="{ open: {% if active_section == 'governance' %}true{% else %}false{% endif %} }">
+        <button @click="open = !open" class="dept-accordion-btn">
+          <span>⚖️ Governance</span>
+          <span x-text="open ? '▲' : '▼'"></span>
+        </button>
+        <div x-show="open" x-transition class="dept-links">
+          <a href="{% url 'tpm_governance_structure' %}" class="{% if active_tab == 'structure' %}active{% endif %}">
+            📐 Structure
+          </a>
+          <a href="{% url 'tpm_governance_users' %}" class="{% if active_tab == 'users' %}active{% endif %}">
+            👥 Users Info
+          </a>
         </div>
+      </div>
+
+      <a href="{% url 'tpm_dashboard' %}" class="sidebar-nav-btn">📊 TPM Plant Overview</a>
+
+
+      {% if request.user.is_admin %}
+        <a href="{% url 'admin_users' %}" class="sidebar-nav-btn">👤 User Management</a>
       {% endif %}
+
+      <div style="margin-top: 15px; padding: 0 20px; font-size: 0.75rem; color: var(--jspl-orange); font-weight: bold; text-transform: uppercase;">
+        Departments
+      </div>
       
       <!-- Department accordion -->
       <div x-data="sidebarState()">

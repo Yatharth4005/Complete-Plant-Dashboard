@@ -1452,3 +1452,39 @@ select.input-mono {
   background-color: var(--jspl-light-blue, #E8F0FA) !important;
   border-color: var(--jspl-blue, #0057A8) !important;
 }
+
+/* KPI Table Styling */
+.table-container {
+  background: var(--jspl-white);
+  border: 1px solid var(--jspl-border);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  margin-bottom: 24px;
+}
+
+.kpi-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.kpi-table th {
+  background-color: var(--jspl-navy);
+  color: var(--jspl-white);
+  font-weight: 600;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--jspl-border);
+}
+
+.kpi-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--jspl-border);
+  font-size: 0.9rem;
+  vertical-align: middle;
+}
+
+.kpi-table tbody tr:hover {
+  background-color: var(--jspl-light-blue);
+}

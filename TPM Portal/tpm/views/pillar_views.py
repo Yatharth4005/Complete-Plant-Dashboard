@@ -178,6 +178,12 @@ def pillar_page(request, dept_id, pillar_id):
     else:
         query_params = f"filter_type=single&month={month}&year={year}"
 
+    active_tab = request.GET.get('tab', 'entry')
+    sheets = None
+    if active_tab == 'kaizen':
+        from tpm.models import KaizenSheet
+        sheets = KaizenSheet.objects.filter(department=dept, pillar=pillar_id).order_by('-created_at')
+
     context = {
         'dept': dept,
         'pillar_id': pillar_id,
@@ -197,7 +203,8 @@ def pillar_page(request, dept_id, pillar_id):
         'is_locked': is_locked,
         'entry': entry,
         'month_label': period_label,
-        'active_tab': request.GET.get('tab', 'entry'),
+        'active_tab': active_tab,
+        'sheets': sheets,
     }
     return render(request, 'department/pillar_entry.html', context)
 

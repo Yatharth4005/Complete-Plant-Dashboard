@@ -173,3 +173,17 @@ def unlock_entry(request, entry_id):
     response = render(request, 'partials/_kpi_table.html', context)
     response.content = response.content + toast_html.encode('utf-8')
     return response
+
+
+@admin_required
+@require_POST
+def admin_delete_user(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    if user == request.user:
+        messages.error(request, "You cannot delete your own account.")
+    else:
+        username = user.username
+        user.delete()
+        messages.success(request, f"User '{username}' deleted successfully.")
+    return redirect('tpm_governance_users')
+
