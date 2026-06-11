@@ -38,21 +38,44 @@
   
   <!-- WHY-WHY/CAPA dropdown -->
   <td class="td-why">
-    {% if can_edit %}
-      <select name="why" class="table-select-why">
-        <option value="WHY/WHY" {% if r.why == 'WHY/WHY' %}selected{% endif %}>WHY/WHY</option>
-        <option value="CAPA" {% if r.why == 'CAPA' %}selected{% endif %}>CAPA</option>
-        <option value="NO" {% if r.why == 'NO' or not r.why %}selected{% endif %}>NO</option>
-      </select>
-    {% else %}
-      <span class="status-badge {% if r.why == 'WHY/WHY' %}failed{% elif r.why == 'CAPA' %}warning{% else %}success{% endif %}">
-        {{ r.why|default:"NO" }}
-      </span>
-    {% endif %}
+    <div style="display: flex; align-items: center; gap: 8px;">
+      {% if can_edit %}
+        <select name="why" class="table-select-why" onchange="updateWhyButton(this, '{{ r.id }}')">
+          <option value="WHY/WHY" {% if r.why == 'WHY/WHY' %}selected{% endif %}>WHY/WHY</option>
+          <option value="CAPA" {% if r.why == 'CAPA' %}selected{% endif %}>CAPA</option>
+          <option value="NO" {% if r.why == 'NO' or not r.why %}selected{% endif %}>NO</option>
+        </select>
+        
+        <!-- The button that appears dynamically -->
+        <a id="why-btn-{{ r.id }}" 
+           href="{% if r.why == 'CAPA' %}/dashboard/capa/?action=new&delay_record_id={{ r.id }}{% else %}#{% endif %}" 
+           class="btn-fill-sheet" 
+           onclick="{% if r.why == 'WHY/WHY' %}alert('WHY/WHY analysis sheet is coming soon! Under development.'); return false;{% elif r.why == 'NO' or not r.why %}return false;{% endif %}"
+           style="{% if r.why == 'NO' or not r.why %}display: none;{% else %}display: inline-flex;{% endif %} text-decoration: none; padding: 4px 8px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap; align-items: center; justify-content: center;"
+           target="_blank">
+           {% if r.why == 'WHY/WHY' %}Fill WHY/WHY{% else %}Fill CAPA{% endif %}
+        </a>
+      {% else %}
+        <span class="status-badge {% if r.why == 'WHY/WHY' %}failed{% elif r.why == 'CAPA' %}warning{% else %}success{% endif %}">
+          {{ r.why|default:"NO" }}
+        </span>
+        {% if r.why == 'CAPA' %}
+          <a href="/dashboard/capa/" class="btn-fill-sheet" style="text-decoration: none; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--delays-primary); background: transparent; color: var(--delays-primary);" target="_blank">
+            View CAPAs
+          </a>
+        {% endif %}
+      {% endif %}
+    </div>
   </td>
   
   {% if can_edit %}
     <td class="td-actions" style="text-align: center; white-space: nowrap;">
+      <!-- Edit Detail page button -->
+      <a href="{% url 'delays:edit_record' department.id r.id %}"
+         class="btn-action-edit"
+         title="Edit Detailed Record"
+         style="text-decoration: none; margin-right: 4px;">📝</a>
+
       <!-- Save button -->
       <button class="btn-action-save"
               hx-post="{% url 'delays:update_record_inline' department.id r.id %}"

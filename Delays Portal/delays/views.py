@@ -8,10 +8,46 @@ from django.db import models
 from django.db.models import Q, Sum, Avg
 from django.utils import timezone
 from tpm.models import Department
-from delays.models import DelayUpload, DelayRecord
+from delays.models import DelayUpload, DelayRecord, DelayDropdownOption
 from delays.forms import DelayRecordForm
 from delays.utils.parser import parse_excel_file
 from portal.utils.access import user_can_access_module, user_can_edit_module
+
+def get_department_autocompletes(department, records):
+    custom_options = DelayDropdownOption.objects.filter(department=department)
+    
+    custom_agencies = list(custom_options.filter(category__iexact='Agency').values_list('value', flat=True).distinct())
+    agencies_set = set(records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency='')) | set(custom_agencies)
+    agencies = sorted([x for x in agencies_set if x])
+    if not agencies:
+        agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+        
+    custom_sub_agencies = list(custom_options.filter(category__iexact='Sub-Agency').values_list('value', flat=True).distinct())
+    sub_agencies_set = set(records.order_by('sub_agency').values_list('sub_agency', flat=True).distinct().exclude(sub_agency='')) | set(custom_sub_agencies)
+    sub_agencies = sorted([x for x in sub_agencies_set if x])
+    
+    sections_set = set(records.order_by('section').values_list('section', flat=True).distinct().exclude(section=''))
+    sections = sorted([x for x in sections_set if x])
+    
+    custom_equipments = list(custom_options.filter(category__iexact='Equipment').values_list('value', flat=True).distinct())
+    equipments_set = set(records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment='')) | set(custom_equipments)
+    equipments = sorted([x for x in equipments_set if x])
+    
+    custom_sub_equipments = list(custom_options.filter(category__iexact='Sub-Equipment').values_list('value', flat=True).distinct())
+    sub_equipments_set = set(records.order_by('sub_equipment').values_list('sub_equipment', flat=True).distinct().exclude(sub_equipment='')) | set(custom_sub_equipments)
+    sub_equipments = sorted([x for x in sub_equipments_set if x])
+    
+    incharges_set = set(records.order_by('shift_incharge').values_list('shift_incharge', flat=True).distinct().exclude(shift_incharge=''))
+    incharges = sorted([x for x in incharges_set if x])
+    
+    return {
+        'agencies': agencies,
+        'sub_agencies': sub_agencies,
+        'sections': sections,
+        'equipments': equipments,
+        'sub_equipments': sub_equipments,
+        'incharges': incharges
+    }
 
 @login_required
 def dept_overview(request, dept_id):
@@ -50,10 +86,31 @@ def dept_overview(request, dept_id):
     agency_labels = [x['agency'] for x in agency_breakdown[:8]]
     agency_data = [round(x['total'], 1) for x in agency_breakdown[:8]]
     
-    # Chart 2: Daily Trend (Last 30 active days)
+    # Chart 2: Daily Trend (Last 30 active days, stacked by agency)
     daily_breakdown = list(records.values('date').annotate(total=Sum('duration_mins')).order_by('date'))
-    daily_labels = [x['date'].strftime('%d-%b-%Y') for x in daily_breakdown[-30:]]
-    daily_data = [round(x['total'], 1) for x in daily_breakdown[-30:]]
+    daily_active_dates = [x['date'] for x in daily_breakdown[-30:]]
+    daily_labels = [d.strftime('%d-%b-%Y') for d in daily_active_dates]
+    
+    last_30_records = records.filter(date__in=daily_active_dates)
+    active_agencies = [a for a in last_30_records.values_list('agency', flat=True).distinct().exclude(agency='') if a]
+    if not active_agencies:
+        active_agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+        
+    downtime_by_date_agency = last_30_records.values('date', 'agency').annotate(total=Sum('duration_mins'))
+    downtime_map = {}
+    for entry in downtime_by_date_agency:
+        downtime_map[(entry['date'], entry['agency'])] = entry['total']
+        
+    daily_datasets = []
+    for agency in active_agencies:
+        agency_daily_data = []
+        for d in daily_active_dates:
+            mins = downtime_map.get((d, agency), 0.0)
+            agency_daily_data.append(round(mins, 1))
+        daily_datasets.append({
+            'label': agency or "N/A",
+            'data': agency_daily_data
+        })
     
     # Chart 3: Top bottleneck equipment
     equip_breakdown = records.exclude(
@@ -64,17 +121,19 @@ def dept_overview(request, dept_id):
     equip_data = [round(x['total'], 1) for x in equip_breakdown]
     
     # List of sheets parsed
-    sheets_parsed = list(records.order_by('sheet_name').values_list('sheet_name', flat=True).distinct())
+    sheets_parsed = [s for s in records.order_by('sheet_name').values_list('sheet_name', flat=True).distinct() if s]
     
     # Upload history
     uploads = DelayUpload.objects.filter(department=department).order_by('-uploaded_at')
     
     # Form autocompletes
-    agencies = list(records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency=''))
-    sub_agencies = list(records.order_by('sub_agency').values_list('sub_agency', flat=True).distinct().exclude(sub_agency=''))
-    sections = list(records.order_by('section').values_list('section', flat=True).distinct().exclude(section=''))
-    equipments = list(records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment=''))
-    incharges = list(records.order_by('shift_incharge').values_list('shift_incharge', flat=True).distinct().exclude(shift_incharge=''))
+    autocompletes = get_department_autocompletes(department, records)
+    agencies = autocompletes['agencies']
+    sub_agencies = autocompletes['sub_agencies']
+    sections = autocompletes['sections']
+    equipments = autocompletes['equipments']
+    sub_equipments = autocompletes['sub_equipments']
+    incharges = autocompletes['incharges']
 
     # Pareto Calculation by Agency
     agency_pareto = []
@@ -179,6 +238,8 @@ def dept_overview(request, dept_id):
             'can_edit': can_edit,
             'agencies': agencies,
             'equipments': equipments,
+            'sub_agencies': sub_agencies,
+            'sub_equipments': sub_equipments,
         })
 
     context = {
@@ -196,7 +257,7 @@ def dept_overview(request, dept_id):
         'agency_labels_json': json.dumps(agency_labels),
         'agency_data_json': json.dumps(agency_data),
         'daily_labels_json': json.dumps(daily_labels),
-        'daily_data_json': json.dumps(daily_data),
+        'daily_datasets_json': json.dumps(daily_datasets),
         'equip_labels_json': json.dumps(equip_labels),
         'equip_data_json': json.dumps(equip_data),
         
@@ -223,6 +284,7 @@ def dept_overview(request, dept_id):
         'sub_agencies': sub_agencies,
         'sections': sections,
         'equipments': equipments,
+        'sub_equipments': sub_equipments,
         'incharges': incharges,
         
         # Sidebar/Layout settings
@@ -305,6 +367,9 @@ def records_table(request, dept_id):
     
     query = request.GET.get('q', '').strip()
     agency_filter = request.GET.get('agency', '').strip()
+    sub_agency_filter = request.GET.get('sub_agency', '').strip()
+    equipment_filter = request.GET.get('equipment', '').strip()
+    sub_equipment_filter = request.GET.get('sub_equipment', '').strip()
     sheet_filter = request.GET.get('sheet', '').strip()
     date_start = request.GET.get('date_start', '').strip()
     date_end = request.GET.get('date_end', '').strip()
@@ -323,6 +388,15 @@ def records_table(request, dept_id):
     if agency_filter:
         records = records.filter(agency=agency_filter)
         
+    if sub_agency_filter:
+        records = records.filter(sub_agency=sub_agency_filter)
+        
+    if equipment_filter:
+        records = records.filter(equipment=equipment_filter)
+        
+    if sub_equipment_filter:
+        records = records.filter(sub_equipment=sub_equipment_filter)
+        
     if sheet_filter:
         records = records.filter(sheet_name=sheet_filter)
         
@@ -333,10 +407,11 @@ def records_table(request, dept_id):
         records = records.filter(date__lte=date_end)
         
     all_records = DelayRecord.objects.filter(department=department)
-    agencies = list(all_records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency=''))
-    equipments = list(all_records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment=''))
-    if not agencies:
-        agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+    autocompletes = get_department_autocompletes(department, all_records)
+    agencies = autocompletes['agencies']
+    equipments = autocompletes['equipments']
+    sub_agencies = autocompletes['sub_agencies']
+    sub_equipments = autocompletes['sub_equipments']
 
     return render(request, 'delays/partials/_records_table.html', {
         'records': records[:150], # Limit query size for performance
@@ -344,6 +419,8 @@ def records_table(request, dept_id):
         'can_edit': can_edit,
         'agencies': agencies,
         'equipments': equipments,
+        'sub_agencies': sub_agencies,
+        'sub_equipments': sub_equipments,
     })
 
 
@@ -372,11 +449,13 @@ def new_record(request, dept_id):
         
     # Fetch autocompletes
     records = DelayRecord.objects.filter(department=department)
-    agencies = list(records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency=''))
-    sub_agencies = list(records.order_by('sub_agency').values_list('sub_agency', flat=True).distinct().exclude(sub_agency=''))
-    sections = list(records.order_by('section').values_list('section', flat=True).distinct().exclude(section=''))
-    equipments = list(records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment=''))
-    incharges = list(records.order_by('shift_incharge').values_list('shift_incharge', flat=True).distinct().exclude(shift_incharge=''))
+    autocompletes = get_department_autocompletes(department, records)
+    agencies = autocompletes['agencies']
+    sub_agencies = autocompletes['sub_agencies']
+    sections = autocompletes['sections']
+    equipments = autocompletes['equipments']
+    sub_equipments = autocompletes['sub_equipments']
+    incharges = autocompletes['incharges']
     
     context = {
         'form': form,
@@ -386,6 +465,7 @@ def new_record(request, dept_id):
         'sub_agencies': sub_agencies,
         'sections': sections,
         'equipments': equipments,
+        'sub_equipments': sub_equipments,
         'incharges': incharges,
         
         # Sidebar
@@ -419,11 +499,13 @@ def edit_record(request, dept_id, record_id):
         
     # Fetch autocompletes
     records = DelayRecord.objects.filter(department=department)
-    agencies = list(records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency=''))
-    sub_agencies = list(records.order_by('sub_agency').values_list('sub_agency', flat=True).distinct().exclude(sub_agency=''))
-    sections = list(records.order_by('section').values_list('section', flat=True).distinct().exclude(section=''))
-    equipments = list(records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment=''))
-    incharges = list(records.order_by('shift_incharge').values_list('shift_incharge', flat=True).distinct().exclude(shift_incharge=''))
+    autocompletes = get_department_autocompletes(department, records)
+    agencies = autocompletes['agencies']
+    sub_agencies = autocompletes['sub_agencies']
+    sections = autocompletes['sections']
+    equipments = autocompletes['equipments']
+    sub_equipments = autocompletes['sub_equipments']
+    incharges = autocompletes['incharges']
     
     context = {
         'form': form,
@@ -434,6 +516,7 @@ def edit_record(request, dept_id, record_id):
         'sub_agencies': sub_agencies,
         'sections': sections,
         'equipments': equipments,
+        'sub_equipments': sub_equipments,
         'incharges': incharges,
         
         # Sidebar
@@ -509,10 +592,9 @@ def update_record_inline(request, dept_id, record_id):
         
         # Render the updated single row back
         all_records = DelayRecord.objects.filter(department=department)
-        agencies = list(all_records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency=''))
-        equipments = list(all_records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment=''))
-        if not agencies:
-            agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+        autocompletes = get_department_autocompletes(department, all_records)
+        agencies = autocompletes['agencies']
+        equipments = autocompletes['equipments']
             
         return render(request, 'delays/partials/_record_row.html', {
             'r': record,
@@ -544,3 +626,207 @@ def download_pdf_report(request, dept_id):
     filename = f"{department.code.lower()}_delays_report_{timezone.now().strftime('%Y%m%d')}.pdf"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+
+@login_required
+def pareto_overall(request, dept_id):
+    """
+    Returns the overall Pareto Analysis content (HTMX endpoint).
+    """
+    department = get_object_or_404(Department, id=dept_id)
+    records = DelayRecord.objects.filter(department=department)
+    
+    total_mins = records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
+    
+    # Pareto Calculation by Agency
+    agency_breakdown = records.values('agency').annotate(total=Sum('duration_mins')).order_by('-total')
+    agency_pareto = []
+    running_mins = 0
+    for idx, ab in enumerate(agency_breakdown):
+        running_mins += ab['total']
+        cum_percent = (running_mins / total_mins * 100) if total_mins > 0 else 0.0
+        agency_pareto.append({
+            'agency': ab['agency'] or "N/A",
+            'mins': round(ab['total'], 1),
+            'percent': round((ab['total'] / total_mins * 100) if total_mins > 0 else 0.0, 1),
+            'cum_percent': round(cum_percent, 1),
+            'rank': idx + 1,
+            'is_vital': cum_percent <= 85.0 or idx == 0
+        })
+
+    # Pareto Calculation by Equipment
+    all_equip_breakdown = records.exclude(
+        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')
+    ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')
+    
+    total_equip_mins = sum(x['total'] for x in all_equip_breakdown)
+    group_by_field = 'equipment'
+    is_description = False
+    
+    # Fallback to description if no equipment data is available (like in SMS3 daily sheets)
+    if total_equip_mins == 0:
+        all_equip_breakdown = records.exclude(
+            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')
+        ).values('description').annotate(total=Sum('duration_mins')).order_by('-total')
+        total_equip_mins = sum(x['total'] for x in all_equip_breakdown)
+        group_by_field = 'description'
+        is_description = True
+
+    equip_pareto = []
+    running_equip_mins = 0
+    for idx, eb in enumerate(all_equip_breakdown):
+        running_equip_mins += eb['total']
+        cum_percent = (running_equip_mins / total_equip_mins * 100) if total_equip_mins > 0 else 0.0
+        label_val = eb[group_by_field] or "N/A"
+        equip_pareto.append({
+            'equipment': label_val,
+            'mins': round(eb['total'], 1),
+            'percent': round((eb['total'] / total_equip_mins * 100) if total_equip_mins > 0 else 0.0, 1),
+            'cum_percent': round(cum_percent, 1),
+            'rank': idx + 1,
+            'is_vital': cum_percent <= 85.0 or idx == 0
+        })
+        
+    top_agency = agency_pareto[0]['agency'] if agency_pareto else "N/A"
+    top_agency_mins = agency_pareto[0]['mins'] if agency_pareto else 0.0
+
+    context = {
+        'department': department,
+        'agency_pareto': agency_pareto,
+        'equip_pareto': equip_pareto[:10],
+        'top_agency': top_agency,
+        'top_agency_mins': top_agency_mins,
+        'is_description': is_description,
+        'pareto_labels_json': json.dumps([x['agency'] for x in agency_pareto]),
+        'pareto_mins_json': json.dumps([x['mins'] for x in agency_pareto]),
+        'pareto_cum_json': json.dumps([x['cum_percent'] for x in agency_pareto]),
+    }
+    return render(request, 'delays/partials/_pareto_content.html', context)
+
+
+@login_required
+def pareto_agency(request, dept_id):
+    """
+    Returns the equipment Pareto Analysis for a specific agency (HTMX endpoint).
+    """
+    department = get_object_or_404(Department, id=dept_id)
+    # Do not strip agency name because database values can have exact leading/trailing spaces
+    agency_name = request.GET.get('agency', '')
+    
+    records = DelayRecord.objects.filter(department=department, agency=agency_name)
+    total_agency_mins = records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
+    
+    # Pareto Calculation by Equipment *within* that agency
+    equip_breakdown = records.exclude(
+        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='None')
+    ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')
+    
+    total_mins = sum(x['total'] for x in equip_breakdown)
+    group_by_field = 'equipment'
+    is_description = False
+    
+    # Fallback to description if no equipment data is available (like in SMS3 daily sheets)
+    if total_mins == 0:
+        equip_breakdown = records.exclude(
+            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')
+        ).values('description').annotate(total=Sum('duration_mins')).order_by('-total')
+        total_mins = sum(x['total'] for x in equip_breakdown)
+        group_by_field = 'description'
+        is_description = True
+        
+    equip_pareto = []
+    running_mins = 0
+    for idx, eb in enumerate(equip_breakdown):
+        running_mins += eb['total']
+        cum_percent = (running_mins / total_mins * 100) if total_mins > 0 else 0.0
+        
+        label_val = eb[group_by_field] or "N/A"
+        
+        equip_pareto.append({
+            'label': label_val,
+            'mins': round(eb['total'], 1),
+            'percent': round((eb['total'] / total_mins * 100) if total_mins > 0 else 0.0, 1),
+            'cum_percent': round(cum_percent, 1),
+            'rank': idx + 1,
+            'is_vital': cum_percent <= 85.0 or idx == 0
+        })
+        
+    top_equipment = equip_pareto[0]['label'] if equip_pareto else "N/A"
+    top_equipment_mins = equip_pareto[0]['mins'] if equip_pareto else 0.0
+
+    context = {
+        'department': department,
+        'agency_name': agency_name,
+        'equip_pareto': equip_pareto,
+        'total_mins': round(total_agency_mins, 1),
+        'top_equipment': top_equipment,
+        'top_equipment_mins': top_equipment_mins,
+        'is_description': is_description,
+        'pareto_labels_json': json.dumps([x['label'] for x in equip_pareto[:15]]),
+        'pareto_mins_json': json.dumps([x['mins'] for x in equip_pareto[:15]]),
+        'pareto_cum_json': json.dumps([x['cum_percent'] for x in equip_pareto[:15]]),
+    }
+    return render(request, 'delays/partials/_pareto_agency_content.html', context)
+
+
+@login_required
+def manage_options(request, dept_id):
+    """
+    Allows adding and removing custom options (Agency, Sub-Agency, Equipment, Sub-Equipment) per department.
+    """
+    department = get_object_or_404(Department, id=dept_id)
+    if not user_can_edit_module(request.user, department, 'Delays'):
+        messages.error(request, "You do not have permission to manage options.")
+        return redirect('delays:dept_overview', dept_id=dept_id)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'add':
+            category = request.POST.get('category', '').strip()
+            value = request.POST.get('value', '').strip()
+            parent_value = request.POST.get('parent_value', '').strip() or None
+            
+            if category and value:
+                option, created = DelayDropdownOption.objects.get_or_create(
+                    department=department,
+                    category=category,
+                    value=value,
+                    parent_value=parent_value
+                )
+                if created:
+                    messages.success(request, f"Option '{value}' added to '{category}' successfully.")
+                else:
+                    messages.info(request, f"Option '{value}' already exists in '{category}'.")
+            else:
+                messages.error(request, "Category and value are required.")
+                
+        elif action == 'delete':
+            option_id = request.POST.get('option_id')
+            option = get_object_or_404(DelayDropdownOption, id=option_id, department=department)
+            val = option.value
+            cat = option.category
+            option.delete()
+            messages.success(request, f"Option '{val}' removed from '{cat}'.")
+            
+        return redirect('delays:manage_options', dept_id=dept_id)
+
+    options = DelayDropdownOption.objects.filter(department=department).order_by('category', 'value')
+    
+    # Predefined suggested categories
+    suggested_categories = ['Agency', 'Sub-Agency', 'Equipment', 'Sub-Equipment']
+    db_categories = list(options.values_list('category', flat=True).distinct())
+    for cat in db_categories:
+        if cat not in suggested_categories:
+            suggested_categories.append(cat)
+
+    context = {
+        'department': department,
+        'options': options,
+        'suggested_categories': suggested_categories,
+        'active_dept_id': department.id,
+        'active_module': 'Delays',
+        'active_section': 'department_module',
+    }
+    return render(request, 'delays/manage_options.html', context)
+
+

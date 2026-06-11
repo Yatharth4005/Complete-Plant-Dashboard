@@ -58,30 +58,42 @@ function initCharts() {
     };
 
     // ─────────────────────────────────────────────────────────
-    // CHART 1: DAILY DOWNTIME TREND (Bar Chart)
-    // ─────────────────────────────────────────────────────────
+    // CHART 1: DAILY DOWNTIME TREND (Stacked Bar Chart by Agency)
     const trendCtx = document.getElementById('trendChart');
     if (trendCtx) {
+        const dailyDatasets = (data.dailyDatasets || []).map((dataset, index) => {
+            const color = mixedPalette[index % mixedPalette.length];
+            return {
+                label: dataset.label,
+                data: dataset.data,
+                backgroundColor: color,
+                borderColor: color,
+                borderWidth: 1,
+                borderRadius: 4
+            };
+        });
+
         charts.trend = new Chart(trendCtx, {
             type: 'bar',
             data: {
                 labels: data.dailyLabels,
-                datasets: [{
-                    label: 'Downtime (Mins)',
-                    data: data.dailyData,
-                    backgroundColor: 'rgba(244, 121, 32, 0.85)',
-                    borderColor: '#F47920',
-                    borderWidth: 1.5,
-                    borderRadius: 4,
-                    hoverBackgroundColor: '#E05300'
-                }]
+                datasets: dailyDatasets
             },
             options: Object.assign({}, commonOptions, {
                 plugins: {
-                    legend: { display: false } // Hide legend since there's only 1 dataset
+                    legend: {
+                        display: true,
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 10,
+                            font: { family: "'Sora', sans-serif" }
+                        }
+                    }
                 },
                 scales: {
                     y: {
+                        stacked: true,
                         beginAtZero: true,
                         grid: { color: '#E5E7EB' },
                         title: {
@@ -92,6 +104,7 @@ function initCharts() {
                         ticks: { font: { family: "'JetBrains Mono', monospace" } }
                     },
                     x: {
+                        stacked: true,
                         grid: { display: false },
                         ticks: {
                             font: { family: "'JetBrains Mono', monospace", size: 10 },
@@ -182,83 +195,5 @@ function initCharts() {
             })
         });
     }
-
-    // ─────────────────────────────────────────────────────────
-    // CHART 4: PARETO ANALYSIS (Dual Y-Axis Chart)
-    // ─────────────────────────────────────────────────────────
-    const paretoCtx = document.getElementById('paretoChart');
-    if (paretoCtx) {
-        charts.pareto = new Chart(paretoCtx, {
-            type: 'bar',
-            data: {
-                labels: data.paretoLabels,
-                datasets: [
-                    {
-                        type: 'bar',
-                        label: 'Downtime (Mins)',
-                        data: data.paretoMins,
-                        backgroundColor: 'rgba(244, 121, 32, 0.85)',
-                        borderColor: '#F47920',
-                        borderWidth: 1.5,
-                        borderRadius: 4,
-                        yAxisID: 'y'
-                    },
-                    {
-                        type: 'line',
-                        label: 'Cumulative %',
-                        data: data.paretoCum,
-                        borderColor: '#DC2626',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#DC2626',
-                        pointBorderColor: '#FFFFFF',
-                        pointBorderWidth: 1.5,
-                        pointRadius: 4,
-                        tension: 0.1,
-                        fill: false,
-                        yAxisID: 'y1'
-                    }
-                ]
-            },
-            options: Object.assign({}, commonOptions, {
-                scales: {
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        beginAtZero: true,
-                        grid: { color: '#E5E7EB' },
-                        title: {
-                            display: true,
-                            text: 'Minutes',
-                            font: { family: "'Sora', sans-serif", weight: 'bold' }
-                        },
-                        ticks: { font: { family: "'JetBrains Mono', monospace" } }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        min: 0,
-                        max: 100,
-                        grid: { drawOnChartArea: false },
-                        title: {
-                            display: true,
-                            text: 'Cumulative Percentage',
-                            font: { family: "'Sora', sans-serif", weight: 'bold' }
-                        },
-                        ticks: {
-                            callback: function(value) { return value + '%'; },
-                            font: { family: "'JetBrains Mono', monospace" }
-                        }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: {
-                            font: { family: "'Sora', sans-serif", size: 10 }
-                        }
-                    }
-                }
-            })
-        });
-    }
+    // NOTE: Pareto chart is now dynamically handled inside _pareto_content.html and _pareto_agency_content.html
 }

@@ -1,0 +1,192 @@
+<div style="animation: fadeIn 0.3s ease-out;">
+  <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div>
+      <h3 style="color: var(--delays-primary); margin: 0 0 6px 0;">📊 Pareto Analysis for Agency: <span style="color: var(--delays-accent);">{{ agency_name }}</span></h3>
+      <p style="color: var(--delays-muted); font-size: 0.85rem; margin: 0;">
+        Showing {% if is_description %}delay reason{% else %}equipment-level{% endif %} bottlenecks within the agency <b>{{ agency_name }}</b> (Total Downtime: <b>{{ total_mins }} mins</b>).
+      </p>
+    </div>
+    <button class="btn btn-secondary"
+            hx-get="{% url 'delays:pareto_overall' department.id %}"
+            hx-target="#pareto-tab-container"
+            hx-swap="innerHTML"
+            style="background: white; border: 1px solid var(--delays-border); padding: 8px 16px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; color: var(--delays-primary); display: flex; align-items: center; gap: 6px;">
+      ⬅ Back to Overall Pareto
+    </button>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: start; margin-bottom: 24px;">
+    <!-- Pareto Chart -->
+    <div class="chart-card" style="box-shadow: none; border-color: var(--delays-border); flex: 3 1 500px; min-width: 300px; margin: 0;">
+      <h4 class="chart-title">📈 {% if is_description %}Delay Reason{% else %}Equipment{% endif %} Pareto Chart ({{ agency_name }})</h4>
+      <div style="position: relative; height: 320px;">
+        <canvas id="paretoChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Pareto Vital Few summary -->
+    <div style="background: rgba(239, 68, 68, 0.03); border: 1.5px dashed rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); padding: 20px; flex: 2 1 300px; min-width: 260px;">
+      <h4 style="color: #DC2626; margin-top: 0; display: flex; align-items: center; gap: 8px;">
+        🚨 Vital Few {% if is_description %}Reasons{% else %}Equipment{% endif %} ({{ agency_name }})
+      </h4>
+      <p style="font-size: 0.85rem; color: #4b5563; line-height: 1.5; margin-bottom: 15px;">
+        Prioritize maintenance and failure analysis (RCFA) on the following vital areas under {{ agency_name }} to resolve the majority of this agency's downtime.
+      </p>
+      
+      <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top {% if is_description %}Delay Reason{% else %}Equipment{% endif %} Bottleneck</h5>
+      <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; overflow: hidden;">
+        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_equipment }}</span>
+        <span style="white-space: nowrap; flex-shrink: 0;">{{ top_equipment_mins }} mins</span>
+      </div>
+
+      <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">{% if is_description %}Delay Reason{% else %}Equipment{% endif %} Vital Few List</h5>
+      <div style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 4px;">
+        {% for eq in equip_pareto %}
+          {% if eq.is_vital %}
+            <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #F47920; padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 500; overflow: hidden;">
+              <span class="font-mono" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ eq.label }}</span>
+              <span style="color: var(--delays-muted); font-size: 0.8rem; white-space: nowrap; flex-shrink: 0;">Rank #{{ eq.rank }} ({{ eq.cum_percent }}%)</span>
+            </div>
+          {% endif %}
+        {% empty %}
+          <div style="color: var(--delays-muted); font-size: 0.85rem; font-style: italic;">No bottleneck details specified for this agency's downtime.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="chart-card" style="box-shadow: none; padding: 0;">
+    <h4 class="chart-title" style="padding: 16px 20px; margin-bottom: 0;">⚙️ {% if is_description %}Delay Reason{% else %}Equipment{% endif %} Pareto Cumulative Table ({{ agency_name }})</h4>
+    <div class="table-responsive">
+      <table class="delays-table" style="font-size: 0.8rem;">
+        <thead>
+          <tr>
+            <th style="padding: 10px 14px;">Rank</th>
+            <th style="padding: 10px 14px;">{% if is_description %}Delay Reason{% else %}Equipment{% endif %}</th>
+            <th style="padding: 10px 14px; text-align: right;">Downtime</th>
+            <th style="padding: 10px 14px; text-align: right;">Share %</th>
+            <th style="padding: 10px 14px; text-align: right;">Cum %</th>
+            <th style="padding: 10px 14px; text-align: center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ep in equip_pareto %}
+            <tr>
+              <td class="font-mono" style="padding: 10px 14px;">{{ ep.rank }}</td>
+              <td style="padding: 10px 14px; font-weight: 600;" class="font-mono">{{ ep.label }}</td>
+              <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ep.mins }}m</td>
+              <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ep.percent }}%</td>
+              <td class="font-mono" style="padding: 10px 14px; text-align: right; font-weight: bold;">{{ ep.cum_percent }}%</td>
+              <td style="padding: 10px 14px; text-align: center;">
+                {% if ep.is_vital %}
+                  <span class="status-badge failed" style="font-size: 0.7rem; padding: 2px 6px;">Vital Few</span>
+                {% else %}
+                  <span class="status-badge success" style="font-size: 0.7rem; padding: 2px 6px;">Useful Many</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="table-empty">No details available for this agency.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const paretoCtx = document.getElementById('paretoChart');
+      if (paretoCtx) {
+        if (window.paretoChartInstance) {
+          window.paretoChartInstance.destroy();
+        }
+        window.paretoChartInstance = new Chart(paretoCtx, {
+          type: 'bar',
+          data: {
+            labels: {{ pareto_labels_json|safe }},
+            datasets: [
+              {
+                type: 'bar',
+                label: 'Downtime (Mins)',
+                data: {{ pareto_mins_json|safe }},
+                backgroundColor: 'rgba(10, 61, 98, 0.85)',
+                borderColor: '#0A3D62',
+                borderWidth: 1.5,
+                borderRadius: 4,
+                yAxisID: 'y'
+              },
+              {
+                type: 'line',
+                label: 'Cumulative %',
+                data: {{ pareto_cum_json|safe }},
+                borderColor: '#DC2626',
+                borderWidth: 3,
+                pointBackgroundColor: '#DC2626',
+                pointBorderColor: '#FFFFFF',
+                pointBorderWidth: 1.5,
+                pointRadius: 4,
+                tension: 0.1,
+                fill: false,
+                yAxisID: 'y1'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: {
+                  font: { family: "'Sora', sans-serif", size: 11 }
+                }
+              }
+            },
+            scales: {
+              y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                beginAtZero: true,
+                grid: { color: '#E5E7EB' },
+                title: {
+                  display: true,
+                  text: 'Minutes',
+                  font: { family: "'Sora', sans-serif", weight: 'bold' }
+                },
+                ticks: { font: { family: "'JetBrains Mono', monospace" } }
+              },
+              y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                min: 0,
+                max: 100,
+                grid: { drawOnChartArea: false },
+                title: {
+                  display: true,
+                  text: 'Cumulative Percentage',
+                  font: { family: "'Sora', sans-serif", weight: 'bold' }
+                },
+                ticks: {
+                  callback: function(value) { return value + '%'; },
+                  font: { family: "'JetBrains Mono', monospace" }
+                }
+              },
+              x: {
+                grid: { display: false },
+                ticks: {
+                  font: { family: "'Sora', sans-serif", size: 9 },
+                  maxRotation: 45,
+                  minRotation: 45
+                }
+              }
+            }
+          }
+        });
+      }
+    })();
+  </script>
+</div>

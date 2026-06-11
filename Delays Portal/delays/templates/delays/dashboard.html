@@ -1,6 +1,19 @@
 {% extends 'delays/base_delays.html' %}
 {% load static %}
 
+{% block delays_header_right %}
+<div class="header-right">
+  <label for="dept-select" class="selector-label">🏢 Change Department:</label>
+  <select id="dept-select" class="dept-dropdown" onchange="window.location.href='/delays/department/' + this.value + '/'">
+    {% for d in departments %}
+      <option value="{{ d.id }}" {% if d.id == department.id %}selected{% endif %}>
+        {{ d.name }} ({{ d.code }})
+      </option>
+    {% endfor %}
+  </select>
+</div>
+{% endblock %}
+
 {% block delays_content %}
 <div x-data="{ uploadOpen: false, activeTab: 'logs' }">
 
@@ -106,6 +119,11 @@
       <button class="tab-btn" :class="{ 'active': activeTab === 'uploads' }" @click="activeTab = 'uploads'">
         📂 Upload History
       </button>
+      {% if can_edit %}
+        <a href="{% url 'delays:manage_options' department.id %}" class="tab-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+          ⚙️ Manage Dropdown Options
+        </a>
+      {% endif %}
     </div>
 
     <!-- TAB 1: LOGS TABLE & FILTERS -->
@@ -129,6 +147,36 @@
             <option value="">All Agencies</option>
             {% for a in agencies %}
               <option value="{{ a }}">{{ a }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <label class="filter-label">Sub-Agency</label>
+          <select name="sub_agency" class="filter-input input-mono">
+            <option value="">All Sub-Agencies</option>
+            {% for sa in sub_agencies %}
+              <option value="{{ sa }}">{{ sa }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Equipment</label>
+          <select name="equipment" class="filter-input input-mono">
+            <option value="">All Equipments</option>
+            {% for e in equipments %}
+              <option value="{{ e }}">{{ e }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Sub-Equipment</label>
+          <select name="sub_equipment" class="filter-input input-mono">
+            <option value="">All Sub-Equipments</option>
+            {% for se in sub_equipments %}
+              <option value="{{ se }}">{{ se }}</option>
             {% endfor %}
           </select>
         </div>
@@ -162,7 +210,7 @@
               <th>Parsing Status</th>
               <th>Records Imported / Details</th>
               {% if can_edit %}
-                <th style="width: 100px; text-align: center;">Actions</th>
+                <th style="width: 140px; text-align: center; white-space: nowrap;">Actions</th>
               {% endif %}
             </tr>
           </thead>
@@ -187,7 +235,7 @@
                   {{ up.error_message|default:"Parsed successfully." }}
                 </td>
                 {% if can_edit %}
-                  <td style="text-align: center;">
+                  <td style="text-align: center; white-space: nowrap;">
                     <a href="{% url 'delays:delete_upload' department.id up.id %}" 
                        class="btn-delete-upload"
                        onclick="return confirm('Are you sure you want to delete this upload? Doing so will delete all its parsed delay records from analytics.')">
@@ -209,127 +257,8 @@
       </div>
 
     <!-- TAB 3: PARETO ANALYSIS -->
-    <div x-show="activeTab === 'pareto'" x-transition style="display: none; padding: 24px;">
-      <div style="margin-bottom: 20px;">
-        <h3 style="color: var(--delays-primary); margin: 0 0 6px 0;">📊 Pareto Analysis (80/20 Rule)</h3>
-        <p style="color: var(--delays-muted); font-size: 0.85rem; margin: 0;">
-          The Pareto principle states that roughly 80% of downtime results from 20% of the causes. Highlighted below are the "Vital Few" bottleneck agencies and equipment that should be prioritized for maintenance.
-        </p>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 24px; align-items: start; margin-bottom: 24px;">
-        <!-- Pareto Chart -->
-        <div class="chart-card" style="box-shadow: none; border-color: var(--delays-border);">
-          <h4 class="chart-title">📈 Agency Pareto Chart (Cumulative Downtime)</h4>
-          <div style="position: relative; height: 320px;">
-            <canvas id="paretoChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Pareto Vital Few summary -->
-        <div style="background: rgba(239, 68, 68, 0.03); border: 1.5px dashed rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); padding: 20px;">
-          <h4 style="color: #DC2626; margin-top: 0; display: flex; align-items: center; gap: 8px;">
-            🚨 Vital Few Priorities (Action Items)
-          </h4>
-          <p style="font-size: 0.85rem; color: #4b5563; line-height: 1.5; margin-bottom: 15px;">
-            The following agencies and equipment account for 80% of your plant delays. Directing engineering focus to these areas yields the highest reduction in downtime.
-          </p>
-          
-          <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Agency Bottleneck</h5>
-          <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; color: #991b1b; display: flex; justify-content: space-between;">
-            <span>{{ top_agency }}</span>
-            <span>{{ top_agency_mins }} mins</span>
-          </div>
-
-          <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Equipment Bottlenecks (Vital Few)</h5>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            {% for eq in equip_pareto %}
-              {% if eq.is_vital %}
-                <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #F47920; padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; display: flex; justify-content: space-between; font-weight: 500;">
-                  <span class="font-mono">{{ eq.equipment }}</span>
-                  <span style="color: var(--delays-muted);">Rank #{{ eq.rank }} ({{ eq.cum_percent }}% cumulative)</span>
-                </div>
-              {% endif %}
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-        <!-- Agency Pareto Table -->
-        <div class="chart-card" style="box-shadow: none; padding: 0;">
-          <h4 class="chart-title" style="padding: 16px 20px; margin-bottom: 0;">🏢 Agency Pareto Cumulative Table</h4>
-          <div class="table-responsive">
-            <table class="delays-table" style="font-size: 0.8rem;">
-              <thead>
-                <tr>
-                  <th style="padding: 10px 14px;">Rank</th>
-                  <th style="padding: 10px 14px;">Agency</th>
-                  <th style="padding: 10px 14px; text-align: right;">Downtime</th>
-                  <th style="padding: 10px 14px; text-align: right;">Share %</th>
-                  <th style="padding: 10px 14px; text-align: right;">Cum %</th>
-                  <th style="padding: 10px 14px; text-align: center;">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for ap in agency_pareto %}
-                  <tr>
-                    <td class="font-mono" style="padding: 10px 14px;">{{ ap.rank }}</td>
-                    <td style="padding: 10px 14px; font-weight: 600;">{{ ap.agency }}</td>
-                    <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ap.mins }}m</td>
-                    <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ap.percent }}%</td>
-                    <td class="font-mono" style="padding: 10px 14px; text-align: right; font-weight: bold;">{{ ap.cum_percent }}%</td>
-                    <td style="padding: 10px 14px; text-align: center;">
-                      {% if ap.is_vital %}
-                        <span class="status-badge failed" style="font-size: 0.7rem; padding: 2px 6px;">Vital Few</span>
-                      {% else %}
-                        <span class="status-badge success" style="font-size: 0.7rem; padding: 2px 6px;">Useful Many</span>
-                      {% endif %}
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Equipment Pareto Table -->
-        <div class="chart-card" style="box-shadow: none; padding: 0;">
-          <h4 class="chart-title" style="padding: 16px 20px; margin-bottom: 0;">⚙️ Equipment Pareto Cumulative Table</h4>
-          <div class="table-responsive">
-            <table class="delays-table" style="font-size: 0.8rem;">
-              <thead>
-                <tr>
-                  <th style="padding: 10px 14px;">Rank</th>
-                  <th style="padding: 10px 14px;">Equipment</th>
-                  <th style="padding: 10px 14px; text-align: right;">Downtime</th>
-                  <th style="padding: 10px 14px; text-align: right;">Share %</th>
-                  <th style="padding: 10px 14px; text-align: right;">Cum %</th>
-                  <th style="padding: 10px 14px; text-align: center;">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for ep in equip_pareto %}
-                  <tr>
-                    <td class="font-mono" style="padding: 10px 14px;">{{ ep.rank }}</td>
-                    <td style="padding: 10px 14px; font-weight: 600;" class="font-mono">{{ ep.equipment }}</td>
-                    <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ep.mins }}m</td>
-                    <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ep.percent }}%</td>
-                    <td class="font-mono" style="padding: 10px 14px; text-align: right; font-weight: bold;">{{ ep.cum_percent }}%</td>
-                    <td style="padding: 10px 14px; text-align: center;">
-                      {% if ep.is_vital %}
-                        <span class="status-badge failed" style="font-size: 0.7rem; padding: 2px 6px;">Vital Few</span>
-                      {% else %}
-                        <span class="status-badge success" style="font-size: 0.7rem; padding: 2px 6px;">Useful Many</span>
-                      {% endif %}
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+    <div x-show="activeTab === 'pareto'" x-transition style="display: none; padding: 24px;" id="pareto-tab-container">
+      {% include "delays/partials/_pareto_content.html" %}
     </div>
 
     <!-- TAB 4: REDUCTION & MITIGATION -->
@@ -504,7 +433,7 @@
     agencyLabels: {{ agency_labels_json|safe }},
     agencyData: {{ agency_data_json|safe }},
     dailyLabels: {{ daily_labels_json|safe }},
-    dailyData: {{ daily_data_json|safe }},
+    dailyDatasets: {{ daily_datasets_json|safe }},
     equipLabels: {{ equip_labels_json|safe }},
     equipData: {{ equip_data_json|safe }},
     
@@ -513,5 +442,30 @@
     paretoMins: {{ pareto_mins_json|safe }},
     paretoCum: {{ pareto_cum_json|safe }}
   };
+
+  function updateWhyButton(selectEl, recordId) {
+    const btn = document.getElementById('why-btn-' + recordId);
+    if (!btn) return;
+    const val = selectEl.value;
+    if (val === 'CAPA') {
+        btn.href = '/dashboard/capa/?action=new&delay_record_id=' + recordId;
+        btn.innerText = 'Fill CAPA';
+        btn.style.display = 'inline-flex';
+        btn.onclick = null;
+    } else if (val === 'WHY/WHY') {
+        btn.href = '#';
+        btn.innerText = 'Fill WHY/WHY';
+        btn.style.display = 'inline-flex';
+        btn.onclick = function(e) {
+            e.preventDefault();
+            alert('WHY/WHY analysis sheet is coming soon! Under development.');
+            return false;
+        };
+    } else {
+        btn.style.display = 'none';
+        btn.href = '#';
+        btn.onclick = function(e) { e.preventDefault(); return false; };
+    }
+  }
 </script>
 {% endblock %}

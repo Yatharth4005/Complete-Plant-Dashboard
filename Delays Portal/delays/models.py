@@ -60,3 +60,18 @@ class DelayRecord(models.Model):
 
     def __str__(self):
         return f"{self.department.code} - {self.date} - {self.agency} ({self.duration_mins} min)"
+
+
+class DelayDropdownOption(models.Model):
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='delay_dropdown_options')
+    category = models.CharField(max_length=100, help_text="e.g. 'Agency', 'Sub-Agency', 'Equipment', 'Sub-Equipment', etc.")
+    value = models.CharField(max_length=255)
+    parent_value = models.CharField(max_length=255, blank=True, null=True, help_text="Optional parent value, e.g. parent agency for a sub-agency")
+
+    class Meta:
+        unique_together = ('department', 'category', 'value', 'parent_value')
+        ordering = ['category', 'value']
+
+    def __str__(self):
+        return f"{self.department.code} - {self.category}: {self.value}"
+

@@ -48,10 +48,79 @@ def plant_dashboard(request):
 def capa_reports(request):
     """
     Renders the CAPA reports list inside the main portal dashboard.
+    Supports showing the new form and prefilling fields via delay_record_id or query parameters.
     """
+    action = request.GET.get('action')
+    show_new_form = (action == 'new')
+    
     reports = CAPAReport.objects.all().order_by('-created_at')
+    
+    # Fetch all departments for selection list
+    depts = Department.objects.all().order_by('name')
+    
+    # Setup default prefills
+    prefills = {
+        'capa_no': f"CAPA-{(CAPAReport.objects.count() + 1):03d}",
+        'responsible_team': [
+            {'name': '', 'members': '', 'role': '', 'contact': ''},
+            {'name': '', 'members': '', 'role': '', 'contact': ''},
+            {'name': '', 'members': '', 'role': '', 'contact': ''},
+        ],
+        'corrective_actions': [
+            {'action': '', 'responsibility': '', 'target_date': '', 'impl_date': ''},
+            {'action': '', 'responsibility': '', 'target_date': '', 'impl_date': ''},
+        ],
+        'preventive_actions': [
+            {'action': '', 'responsibility': '', 'target_date': '', 'impl_date': ''},
+            {'action': '', 'responsibility': '', 'target_date': '', 'impl_date': ''},
+        ]
+    }
+    
+    # Check GET parameters for prefilling
+    dept_id = request.GET.get('department_id')
+    dept = None
+    if dept_id:
+        try:
+            dept = Department.objects.get(id=dept_id)
+        except Department.DoesNotExist:
+            pass
+            
+    report = None
+    delay_record_id = request.GET.get('delay_record_id')
+    if delay_record_id:
+        try:
+            from delays.models import DelayRecord
+            delay_rec = DelayRecord.objects.get(id=delay_record_id)
+            dept = delay_rec.department
+            date_str = delay_rec.date.strftime('%d.%m.%Y') if delay_rec.date else ""
+            dur_hrs = str(round(delay_rec.duration_mins / 60.0, 2)) if delay_rec.duration_mins else ""
+            problem_what = delay_rec.description or f"Breakdown on {delay_rec.equipment or 'Equipment'} ({delay_rec.agency})"
+            
+            report = CAPAReport(
+                department=dept,
+                area_section=delay_rec.equipment or "",
+                date_incident=date_str,
+                problem_what=problem_what,
+                breakdown_hrs=dur_hrs
+            )
+        except Exception:
+            pass
+            
+    if not report:
+        report = CAPAReport(
+            department=dept,
+            area_section=request.GET.get('area_section', ''),
+            date_incident=request.GET.get('date_incident', ''),
+            problem_what=request.GET.get('problem_what', ''),
+            breakdown_hrs=request.GET.get('breakdown_hrs', '')
+        )
+        
     context = {
         'reports': reports,
         'active_section': 'capa',
+        'show_new_form': show_new_form,
+        'report': report,
+        'depts': depts,
+        'prefills': prefills,
     }
     return render(request, 'portal/dashboard/capa_reports.html', context)

@@ -32,16 +32,7 @@
       <p class="delays-subtitle">Track, upload, and analyze breakdown downtime event history</p>
     </div>
     
-    <div class="header-right">
-      <label for="dept-select" class="selector-label">🏢 Change Department:</label>
-      <select id="dept-select" class="dept-dropdown" onchange="window.location.href='/delays/department/' + this.value + '/'">
-        {% for d in departments %}
-          <option value="{{ d.id }}" {% if d.id == department.id %}selected{% endif %}>
-            {{ d.name }} ({{ d.code }})
-          </option>
-        {% endfor %}
-      </select>
-    </div>
+    {% block delays_header_right %}{% endblock %}
   </div>
 
   <!-- Main Sub-Content -->
@@ -52,6 +43,6 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'delays/js/delays.js' %}"></script>
+  <script src="{% static 'delays/js/delays.js' %}?v=2"></script>
   {% block delays_extra_js %}{% endblock %}
 {% endblock %}

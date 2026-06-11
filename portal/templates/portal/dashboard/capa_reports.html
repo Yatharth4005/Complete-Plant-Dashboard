@@ -21,7 +21,11 @@
 
   <!-- CAPA Container -->
   <div class="card" id="capa-tab-content">
-    {% include "partials/_capa_list.html" %}
+    {% if show_new_form %}
+      {% include "partials/_capa_form.html" %}
+    {% else %}
+      {% include "partials/_capa_list.html" %}
+    {% endif %}
   </div>
 
 </div>

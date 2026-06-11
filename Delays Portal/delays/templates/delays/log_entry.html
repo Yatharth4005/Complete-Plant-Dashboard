@@ -8,61 +8,151 @@
   </span>
 {% endblock %}
 
+{% block delays_header_right %}{% endblock %}
+
 {% block delays_content %}
-<div class="log-entry-container" style="max-width: 650px; margin: 0 auto;">
+<div class="log-entry-container" style="max-width: 900px; margin: 0 auto;">
   <div style="margin-bottom: 24px;">
     <h3 style="color: var(--jspl-navy); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
       📝 {% if is_edit %}Modify Delay Log Record{% else %}New Delay Log Entry{% endif %}
     </h3>
     <p style="color: var(--jspl-muted); font-size: 0.85rem;">
-      Select the downtime details below to save the record.
+      Fill in the downtime and categorization details below to save the record.
     </p>
   </div>
 
   <form method="POST" class="log-entry-form" style="background: white; padding: 28px; border-radius: var(--radius-lg); border: 1px solid var(--delays-border); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
     {% csrf_token %}
     
-    <div style="display: flex; flex-direction: column; gap: 20px;">
-      <!-- Date field -->
+    <div class="form-columns-grid">
+      <!-- Column 1: Time & Duration Details -->
+      <div class="form-column">
+        <h4 class="form-sec-title">🕒 Time & Duration Details</h4>
+        
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Date *</label>
+          {{ form.date }}
+          {% if form.date.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.date.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Time Slot</label>
+          {{ form.time_slot }}
+          {% if form.time_slot.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.time_slot.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="field-row-2">
+          <div class="form-field-group">
+            <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Start Time</label>
+            {{ form.start_time }}
+            {% if form.start_time.errors %}
+              <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.start_time.errors }}</div>
+            {% endif %}
+          </div>
+          
+          <div class="form-field-group">
+            <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">End Time</label>
+            {{ form.end_time }}
+            {% if form.end_time.errors %}
+              <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.end_time.errors }}</div>
+            {% endif %}
+          </div>
+        </div>
+        
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Duration (Minutes) *</label>
+          {{ form.duration_mins }}
+          {% if form.duration_mins.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.duration_mins.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Column 2: Categorization & Asset Info -->
+      <div class="form-column">
+        <h4 class="form-sec-title">🏷️ Categorization & Asset Info</h4>
+        
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Responsible Agency *</label>
+          {{ form.agency }}
+          {% if form.agency.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.agency.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Sub Agency</label>
+          {{ form.sub_agency }}
+          {% if form.sub_agency.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.sub_agency.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Rolled Section</label>
+          {{ form.section }}
+          {% if form.section.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.section.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Equipment</label>
+          {{ form.equipment }}
+          {% if form.equipment.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.equipment.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Sub Equipment</label>
+          {{ form.sub_equipment }}
+          {% if form.sub_equipment.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.sub_equipment.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Shift Incharge</label>
+          {{ form.shift_incharge }}
+          {% if form.shift_incharge.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.shift_incharge.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Section 3: Analysis & Breakdown Descriptions -->
+    <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 24px;">
+      <h4 class="form-sec-title">📝 Analysis & Breakdown</h4>
+      
       <div class="form-field-group">
-        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy); margin-bottom: 6px; display: block;">Date *</label>
-        {{ form.date }}
-        {% if form.date.errors %}
-          <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.date.errors }}</div>
+        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Complete Description of Breakdown/Delay</label>
+        {{ form.description }}
+        {% if form.description.errors %}
+          <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.description.errors }}</div>
         {% endif %}
       </div>
       
-      <!-- Duration field -->
       <div class="form-field-group">
-        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy); margin-bottom: 6px; display: block;">Duration (Minutes) *</label>
-        {{ form.duration_mins }}
-        {% if form.duration_mins.errors %}
-          <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.duration_mins.errors }}</div>
-        {% endif %}
-      </div>
-
-      <!-- Agency field -->
-      <div class="form-field-group">
-        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy); margin-bottom: 6px; display: block;">Responsible Agency *</label>
-        {{ form.agency }}
-        {% if form.agency.errors %}
-          <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.agency.errors }}</div>
-        {% endif %}
-      </div>
-
-      <!-- Equipment field -->
-      <div class="form-field-group">
-        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy); margin-bottom: 6px; display: block;">Equipment</label>
-        {{ form.equipment }}
-        {% if form.equipment.errors %}
-          <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.equipment.errors }}</div>
-        {% endif %}
-      </div>
-
-      <!-- Why field -->
-      <div class="form-field-group">
-        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy); margin-bottom: 6px; display: block;">WHY-WHY/CAPA</label>
-        {{ form.why }}
+        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">WHY-WHY/CAPA Analysis</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          {{ form.why }}
+          {% if is_edit %}
+            <a id="why-btn-edit" 
+               href="{% if record.why == 'CAPA' %}/dashboard/capa/?action=new&delay_record_id={{ record.id }}{% else %}#{% endif %}" 
+               class="btn-fill-sheet" 
+               onclick="{% if record.why == 'WHY/WHY' %}alert('WHY/WHY analysis sheet is coming soon! Under development.'); return false;{% elif record.why == 'NO' or not record.why %}return false;{% endif %}"
+               style="{% if record.why == 'NO' or not record.why %}display: none;{% else %}display: inline-flex;{% endif %} text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap;"
+               target="_blank">
+               {% if record.why == 'WHY/WHY' %}Fill WHY/WHY{% else %}Fill CAPA{% endif %}
+            </a>
+          {% endif %}
+        </div>
         {% if form.why.errors %}
           <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.why.errors }}</div>
         {% endif %}
@@ -78,4 +168,64 @@
     </div>
   </form>
 </div>
+
+<!-- Autocomplete Datalists -->
+<datalist id="sub_agencies_list">
+  {% for sa in sub_agencies %}
+    <option value="{{ sa }}">
+  {% endfor %}
+</datalist>
+
+<datalist id="sections_list">
+  {% for sec in sections %}
+    <option value="{{ sec }}">
+  {% endfor %}
+</datalist>
+
+<datalist id="sub_equipments_list">
+  {% for se in sub_equipments %}
+    <option value="{{ se }}">
+  {% endfor %}
+</datalist>
+
+<datalist id="incharges_list">
+  {% for inc in incharges %}
+    <option value="{{ inc }}">
+  {% endfor %}
+</datalist>
+
+{% if is_edit %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const selectEl = document.getElementById('id_why');
+    if (selectEl) {
+      selectEl.addEventListener('change', function() {
+        const btn = document.getElementById('why-btn-edit');
+        if (!btn) return;
+        const val = this.value;
+        const recordId = "{{ record.id }}";
+        if (val === 'CAPA') {
+            btn.href = '/dashboard/capa/?action=new&delay_record_id=' + recordId;
+            btn.innerText = 'Fill CAPA';
+            btn.style.display = 'inline-flex';
+            btn.onclick = null;
+        } else if (val === 'WHY/WHY') {
+            btn.href = '#';
+            btn.innerText = 'Fill WHY/WHY';
+            btn.style.display = 'inline-flex';
+            btn.onclick = function(e) {
+                e.preventDefault();
+                alert('WHY/WHY analysis sheet is coming soon! Under development.');
+                return false;
+            };
+        } else {
+            btn.style.display = 'none';
+            btn.href = '#';
+            btn.onclick = function(e) { e.preventDefault(); return false; };
+        }
+      });
+    }
+  });
+</script>
+{% endif %}
 {% endblock %}

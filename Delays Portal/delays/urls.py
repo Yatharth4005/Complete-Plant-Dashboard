@@ -20,4 +20,12 @@ urlpatterns = [
     path('department/<int:dept_id>/records/<int:record_id>/delete/', views.delete_record, name='delete_record'),
     path('department/<int:dept_id>/records/<int:record_id>/update-inline/', views.update_record_inline, name='update_record_inline'),
     path('department/<int:dept_id>/report/pdf/', views.download_pdf_report, name='download_pdf_report'),
+    
+    # Pareto Analysis dynamic drilldown APIs
+    path('department/<int:dept_id>/pareto/overall/', views.pareto_overall, name='pareto_overall'),
+    path('department/<int:dept_id>/pareto/agency/', views.pareto_agency, name='pareto_agency'),
+    
+    # Custom Option Management
+    path('department/<int:dept_id>/manage-options/', views.manage_options, name='manage_options'),
 ]
+

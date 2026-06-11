@@ -1,0 +1,151 @@
+{% extends 'delays/base_delays.html' %}
+{% load static %}
+
+{% block delays_breadcrumb %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">Manage Options</span>
+{% endblock %}
+
+{% block delays_content %}
+<div class="manage-options-container" style="max-width: 1000px; margin: 0 auto; padding-bottom: 40px;" x-data="{ category: 'Agency', customCategory: false, categoryInput: 'Agency' }">
+  
+  <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h3 style="color: var(--delays-primary); margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px;">
+        ⚙️ Manage Dropdown Options
+      </h3>
+      <p style="color: var(--delays-muted); font-size: 0.85rem; margin: 0;">
+        Configure custom values for dropdown menus and search autocompletes across the {{ department.name }} delay module.
+      </p>
+    </div>
+    <a href="{% url 'delays:dept_overview' department.id %}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; padding: 6px 12px; font-size: 0.8rem;">
+      ← Back to Dashboard
+    </a>
+  </div>
+
+  <!-- Form & Tables Grid -->
+  <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 28px; align-items: start;">
+    
+    <!-- LEFT: Add New Option Form -->
+    <div class="chart-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.03); background: white;">
+      <h4 style="color: var(--delays-primary); margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px; font-size: 1rem;">
+        ➕ Add Custom Option
+      </h4>
+      
+      <form action="{% url 'delays:manage_options' department.id %}" method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add">
+        
+        <!-- Category Selector -->
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; font-size: 0.8rem; color: var(--delays-primary);">Category Type</label>
+          <select class="filter-input input-mono" style="width: 100%; height: 38px;" 
+                  x-model="category" 
+                  @change="customCategory = (category === 'CUSTOM'); categoryInput = (category === 'CUSTOM' ? '' : category)"
+                  name="category_select">
+            <option value="Agency">Agency (e.g. Mechanical, Electrical)</option>
+            <option value="Sub-Agency">Sub-Agency (e.g. Coupling, Sensor)</option>
+            <option value="Equipment">Equipment (e.g. Caster, Furnace)</option>
+            <option value="Sub-Equipment">Sub-Equipment (e.g. Pump, Cylinder)</option>
+            <option value="CUSTOM">Custom Category...</option>
+          </select>
+        </div>
+        
+        <!-- Custom Category Text Input -->
+        <div class="form-field-group" x-show="customCategory" x-transition x-cloak>
+          <label class="field-label" style="font-weight: 600; font-size: 0.8rem; color: var(--delays-accent);">Enter Custom Category Name</label>
+          <input type="text" x-model="categoryInput" placeholder="e.g. Section, Shift Incharge" class="filter-input input-mono" style="width: 100%; height: 38px;">
+        </div>
+        
+        <!-- Real Category Name Sender -->
+        <input type="hidden" name="category" :value="categoryInput">
+
+        <!-- Option Value -->
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; font-size: 0.8rem; color: var(--delays-primary);">Value / Option Text *</label>
+          <input type="text" name="value" placeholder="e.g. CCS Drive Motor" required class="filter-input input-mono" style="width: 100%; height: 38px;">
+        </div>
+
+        <!-- Optional Parent Value -->
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; font-size: 0.8rem; color: var(--delays-primary);">Parent Value (Optional)</label>
+          <input type="text" name="parent_value" placeholder="e.g. parent Equipment or Agency" class="filter-input input-mono" style="width: 100%; height: 38px;">
+          <small style="color: var(--delays-muted); font-size: 0.75rem; margin-top: 3px; display: block; line-height: 1.3;">
+            Helps associate Sub-Agencies to Agencies, or Sub-Equipments to Equipments.
+          </small>
+        </div>
+
+        <button type="submit" class="btn btn-primary-gradient" style="width: 100%; height: 42px; margin-top: 8px; font-weight: 600; justify-content: center;">
+          💾 Save Option
+        </button>
+      </form>
+    </div>
+    
+    <!-- RIGHT: Configured Options Listing -->
+    <div class="data-section-card" x-data="{ activeTab: 'Agency', searchText: '' }">
+      <!-- Tabs Headers -->
+      <div class="tabs-header" style="flex-wrap: wrap;">
+        {% for cat in suggested_categories %}
+          <button class="tab-btn" :class="{ 'active': activeTab === '{{ cat }}' }" @click="activeTab = '{{ cat }}'; searchText = ''">
+            {{ cat }}
+          </button>
+        {% endfor %}
+      </div>
+      
+      <!-- Table Filter and Search -->
+      <div class="filter-bar" style="grid-template-columns: 1fr; background: #FAFBFD;">
+        <div class="filter-group">
+          <input type="text" placeholder="Search configured values under this tab..." 
+                 class="filter-input input-mono" style="width: 100%;" x-model="searchText">
+        </div>
+      </div>
+      
+      <!-- Options Tables for each Category -->
+      {% for cat in suggested_categories %}
+        <div x-show="activeTab === '{{ cat }}'" x-transition>
+          <div class="table-responsive">
+            <table class="delays-table">
+              <thead>
+                <tr>
+                  <th>Value</th>
+                  <th>Parent Value Association</th>
+                  <th style="width: 100px; text-align: center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for opt in options %}
+                  {% if opt.category == cat %}
+                    <tr x-show="!searchText || '{{ opt.value|escapejs }}'.toLowerCase().includes(searchText.toLowerCase()) || '{{ opt.parent_value|default:''|escapejs }}'.toLowerCase().includes(searchText.toLowerCase())">
+                      <td style="font-weight: 600; color: var(--delays-primary);">{{ opt.value }}</td>
+                      <td>
+                        {% if opt.parent_value %}
+                          <span class="agency-badge" style="background: rgba(244,121,32,0.08); color: var(--delays-accent); border-color: rgba(244,121,32,0.2);">{{ opt.parent_value }}</span>
+                        {% else %}
+                          <span style="color: var(--delays-muted); font-size: 0.8rem; font-style: italic;">None</span>
+                        {% endif %}
+                      </td>
+                      <td style="text-align: center;">
+                        <form action="{% url 'delays:manage_options' department.id %}" method="POST" style="margin: 0; display: inline;" onsubmit="return confirm('Are you sure you want to delete this option?')">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="delete">
+                          <input type="hidden" name="option_id" value="{{ opt.id }}">
+                          <button type="submit" class="btn-action-delete" style="background: none; border: none; padding: 4px; cursor: pointer; color: #dc2626;" title="Delete Option">
+                            🗑️
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endfor %}
+      
+    </div>
+    
+  </div>
+
+</div>
+{% endblock %}
