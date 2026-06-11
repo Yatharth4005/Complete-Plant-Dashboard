@@ -1419,13 +1419,13 @@ select.input-mono {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none !important;
   color: var(--jspl-white, #ffffff) !important;
-  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05));
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
   user-select: none;
 }
 
 .btn:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.08));
+  box-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.08));
   filter: brightness(1.08);
 }
 

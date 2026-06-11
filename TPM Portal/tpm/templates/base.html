@@ -1,45 +1,51 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Jindal Steels Operations Portal TPM Portal{% endblock %}</title>
-  
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+
   <!-- Custom CSS -->
   <link rel="stylesheet" href="{% static 'css/tpm.css' %}?v=3">
-  
+
   <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-  
+
   <!-- Alpine.js (defer) -->
   <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
-  
+
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
+
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
   <!-- TOPBAR -->
   <header id="topbar">
     <div class="topbar-brand">
       <div class="topbar-title">
-      <a href="http://localhost:8000/dashboard/" style="text-decoration: none; display: flex; align-items: center;">
-        <img src="{% static 'images/logo.png' %}" alt="Jindal Steels Operations Portal Logo" style="height: 45px !important; width: auto; object-fit: contain;">
-      </a>
-    </div>
+        <a href="http://localhost:8000/dashboard/" style="text-decoration: none; display: flex; align-items: center;">
+          <img src="{% static 'images/logo.png' %}" alt="Jindal Steels Operations Portal Logo"
+            style="height: 45px !important; width: auto; object-fit: contain;">
+        </a>
+      </div>
     </div>
     <div class="breadcrumb">
       {% block breadcrumb %}{% endblock %}
     </div>
     <div class="user-menu">
       {% if dept %}
-        <a href="http://localhost:8000/department/{{ dept.id }}/" style="margin-right: 15px; color: var(--jspl-orange); font-weight: bold; text-decoration: none;">← Dept Hub</a>
+      <a href="http://localhost:8000/department/{{ dept.id }}/"
+        style="margin-right: 15px; color: var(--jspl-orange); font-weight: bold; text-decoration: none;">← Dept Hub</a>
       {% endif %}
       <span class="user-name">{{ request.user.first_name }} {{ request.user.last_name }}</span>
       <span class="badge badge-muted">{{ request.user.role }}</span>
@@ -52,9 +58,11 @@
     <!-- SIDEBAR -->
     <aside id="sidebar" data-active-dept="{{ dept.id }}">
       <div class="sidebar-logo">TPM Analytics Portal</div>
-      
-      <a href="http://localhost:8000/dashboard/" class="sidebar-nav-btn" style="background-color: rgba(244,121,32,0.1); color: var(--jspl-orange) !important; font-weight: bold; border-left: 3px solid var(--jspl-orange);">🏭 Main Plant Portal</a>
-      
+
+      <a href="http://localhost:8000/dashboard/" class="sidebar-nav-btn"
+        style="background-color: rgba(244,121,32,0.1); color: var(--jspl-orange) !important; font-weight: bold; border-left: 3px solid var(--jspl-orange);">🏭
+        Main Plant Portal</a>
+
       <!-- Governance Accordion -->
       <div x-data="{ open: {% if active_section == 'governance' %}true{% else %}false{% endif %} }">
         <button @click="open = !open" class="dept-accordion-btn">
@@ -75,38 +83,43 @@
 
 
       {% if request.user.is_admin %}
-        <a href="{% url 'admin_users' %}" class="sidebar-nav-btn">👤 User Management</a>
+      <a href="{% url 'admin_users' %}" class="sidebar-nav-btn">👤 User Management</a>
       {% endif %}
 
-      <div style="margin-top: 15px; padding: 0 20px; font-size: 0.75rem; color: var(--jspl-orange); font-weight: bold; text-transform: uppercase;">
+      <div
+        style="margin-top: 15px; padding: 0 20px; font-size: 0.75rem; color: var(--jspl-orange); font-weight: bold; text-transform: uppercase;">
         Departments
       </div>
-      
+
       <!-- Department accordion -->
       <div x-data="sidebarState()">
         {% for d in sidebar_departments %}
-          <div x-data="{ open: {{ d.id }} == {{ dept.id|default:0 }} }">
-            <button @click="open = !open" class="dept-accordion-btn">
-              <span>🏢 {{ d.name }}</span>
-              <span x-text="open ? '▲' : '▼'"></span>
-            </button>
-            <div x-show="open" x-transition class="dept-links">
-              <a href="{% url 'dept_overview' d.id %}" class="{% if request.resolver_match.url_name == 'dept_overview' and dept.id == d.id %}active{% endif %}">
-                📊 Dashboard
-              </a>
-              {% for p in pillars %}
-                <a href="{% url 'pillar_page' d.id p.id %}" class="{% if pillar_id == p.id and dept.id == d.id %}active{% endif %}">
-                  📁 {{ p.label }}
-                </a>
-              {% endfor %}
-              <a href="{% url 'ws_kpi_page' d.id %}" class="{% if request.resolver_match.url_name == 'ws_kpi_page' and dept.id == d.id %}active{% endif %}">
-                🔧 Workstation KPI
-              </a>
-              <a href="{% url 'report_page' d.id %}" class="{% if request.resolver_match.url_name == 'report_page' and dept.id == d.id %}active{% endif %}">
-                📜 Report Generator
-              </a>
-            </div>
+        <div x-data="{ open: {{ d.id }} == {{ dept.id|default:0 }} }">
+          <button @click="open = !open" class="dept-accordion-btn">
+            <span>🏢 {{ d.name }}</span>
+            <span x-text="open ? '▲' : '▼'"></span>
+          </button>
+          <div x-show="open" x-transition class="dept-links">
+            <a href="{% url 'dept_overview' d.id %}"
+              class="{% if request.resolver_match.url_name == 'dept_overview' and dept.id == d.id %}active{% endif %}">
+              📊 Dashboard
+            </a>
+            {% for p in pillars %}
+            <a href="{% url 'pillar_page' d.id p.id %}"
+              class="{% if pillar_id == p.id and dept.id == d.id %}active{% endif %}">
+              📁 {{ p.label }}
+            </a>
+            {% endfor %}
+            <a href="{% url 'ws_kpi_page' d.id %}"
+              class="{% if request.resolver_match.url_name == 'ws_kpi_page' and dept.id == d.id %}active{% endif %}">
+              🔧 Workstation KPI
+            </a>
+            <a href="{% url 'report_page' d.id %}"
+              class="{% if request.resolver_match.url_name == 'report_page' and dept.id == d.id %}active{% endif %}">
+              📜 Report Generator
+            </a>
           </div>
+        </div>
         {% endfor %}
       </div>
     </aside>
@@ -115,17 +128,18 @@
     <main id="content">
       <!-- Out of Band swaps target for messages/toasts -->
       <div id="toast-container" aria-live="polite"></div>
-      
+
       {% if messages %}
-        <div style="margin-bottom: 20px;">
-          {% for message in messages %}
-            <div class="lock-banner {% if message.tags == 'success' %}lock-banner-success{% else %}lock-banner-error{% endif %}">
-              <span>{{ message }}</span>
-            </div>
-          {% endfor %}
+      <div style="margin-bottom: 20px;">
+        {% for message in messages %}
+        <div
+          class="lock-banner {% if message.tags == 'success' %}lock-banner-success{% else %}lock-banner-error{% endif %}">
+          <span>{{ message }}</span>
         </div>
+        {% endfor %}
+      </div>
       {% endif %}
-      
+
       {% block content %}{% endblock %}
     </main>
   </div>
@@ -134,4 +148,5 @@
   <script src="{% static 'js/tpm.js' %}"></script>
   {% block extra_js %}{% endblock %}
 </body>
+
 </html>
