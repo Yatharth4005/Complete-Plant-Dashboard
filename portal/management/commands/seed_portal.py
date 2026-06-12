@@ -109,6 +109,24 @@ class Command(BaseCommand):
                 'redirect_url_template': '/department/{dept_id}/coming-soon/availability/',
                 'sort_order': 6,
             },
+            {
+                'key': 'FMEA',
+                'label': 'FMEA',
+                'description': 'Failure Mode and Effects Analysis for risk identification and mitigation',
+                'icon': 'shield',
+                'color_class': 'module-fmea',
+                'redirect_url_template': '/department/{dept_id}/coming-soon/FMEA/',
+                'sort_order': 7,
+            },
+            {
+                'key': 'CAPA',
+                'label': 'CAPA Reports',
+                'description': 'Corrective Action and Preventive Action tracking and report generation',
+                'icon': 'clipboard',
+                'color_class': 'module-capa',
+                'redirect_url_template': '/department/{dept_id}/coming-soon/CAPA/',
+                'sort_order': 8,
+            },
         ]
         
         for m in MODULES:
@@ -119,7 +137,7 @@ class Command(BaseCommand):
     def seed_portal_users_and_access(self):
         # 1. Update/Create Saurabh Agrawal as Plant Admin
         admin_pass = make_password('Admin@1234')
-        admin, created = User.objects.update_or_create(
+        admin, created = User.objects.get_or_create(
             username='saurabh.agrawal@jindalsteel.in',
             defaults={
                 'email': 'saurabh.agrawal@jindalsteel.in',
@@ -138,7 +156,7 @@ class Command(BaseCommand):
         # 2. Update/Create Lalit Goyal as SMS-2 user
         sms2_dept = Department.objects.get(code='SMS2')
         user_pass = make_password('Dept@1234')
-        lalit, created = User.objects.update_or_create(
+        lalit, created = User.objects.get_or_create(
             username='lalit.goyal@jindalsteel.in',
             defaults={
                 'email': 'lalit.goyal@jindalsteel.in',

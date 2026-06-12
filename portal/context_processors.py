@@ -46,18 +46,23 @@ def sidebar_context(request):
             pass
             
     # Detect module namespace in path
-    if 'tpm' in parts:
+    parts_lower = [p.lower() for p in parts]
+    if 'tpm' in parts_lower:
         active_module = 'TPM'
-    elif 'cmc' in parts:
+    elif 'cmc' in parts_lower:
         active_module = 'CMC'
-    elif 'iso' in parts:
+    elif 'iso' in parts_lower:
         active_module = 'ISO'
-    elif 'delays' in parts:
+    elif 'delays' in parts_lower:
         active_module = 'Delays'
-    elif 'oee' in parts:
+    elif 'oee' in parts_lower:
         active_module = 'OEE'
-    elif 'availability' in parts:
+    elif 'availability' in parts_lower:
         active_module = 'Availability'
+    elif 'fmea' in parts_lower:
+        active_module = 'FMEA'
+    elif 'capa' in parts_lower:
+        active_module = 'CAPA'
 
     # Get user access mapping for the current department to display sidebar indicators
     user_modules_map = {}

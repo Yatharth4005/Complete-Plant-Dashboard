@@ -42,8 +42,8 @@
                 ✏️ Edit
               </button>
               
-              <a href="{% url 'capa_download_excel' sheet.id %}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; background-color: #DEF7EC; color: #03543F; border-color: #31C48D;" target="_blank">
-                📥 Excel
+              <a href="{% url 'capa_download_pdf' sheet.id %}?inline=1" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; background-color: #DEF7EC; color: #03543F; border-color: #31C48D;" target="_blank">
+                👁️ View
               </a>
               
               <a href="{% url 'capa_download_pdf' sheet.id %}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; background-color: #E8F0FA; color: #003478; border-color: #D1DCF0;" target="_blank">

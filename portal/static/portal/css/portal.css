@@ -849,6 +849,14 @@ a {
   border-top: 4px solid #10b981;
 }
 
+.module-card.module-fmea {
+  border-top: 4px solid #e11d48;
+}
+
+.module-card.module-capa {
+  border-top: 4px solid #0d9488;
+}
+
 .module-card-top {
   display: flex;
   justify-content: space-between;
@@ -1288,6 +1296,14 @@ a {
   border-left: 4.5px solid #10b981;
 }
 
+.dept-hub-module-btn.module-fmea {
+  border-left: 4.5px solid #e11d48;
+}
+
+.dept-hub-module-btn.module-capa {
+  border-left: 4.5px solid #0d9488;
+}
+
 .dept-hub-module-btn.accessible.module-tpm:hover {
   border-color: var(--jspl-blue);
 }
@@ -1310,6 +1326,14 @@ a {
 
 .dept-hub-module-btn.accessible.module-availability:hover {
   border-color: #10b981;
+}
+
+.dept-hub-module-btn.accessible.module-fmea:hover {
+  border-color: #e11d48;
+}
+
+.dept-hub-module-btn.accessible.module-capa:hover {
+  border-color: #0d9488;
 }
 
 .dept-hub-module-btn.locked {

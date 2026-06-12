@@ -807,5 +807,8 @@ def download_pdf(request, capa_id):
     
     filename = f"CAPA_{report.capa_no or 'Draft'}_{report.department.code}.pdf"
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    inline_mode = request.GET.get('inline') == '1'
+    disposition = 'inline' if inline_mode else 'attachment'
+    response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
     return response
