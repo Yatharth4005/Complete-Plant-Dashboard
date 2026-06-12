@@ -54,6 +54,7 @@ class DelayRecord(models.Model):
     # Breakdown Analysis
     description = models.TextField(help_text="Detailed description of the delay/breakdown")
     why = models.TextField(blank=True, null=True, help_text="Root cause or 'why-why' analysis")
+    is_locked = models.BooleanField(default=False, help_text="Locked records can only be edited by Admins")
 
     class Meta:
         ordering = ['-date', 'start_time']

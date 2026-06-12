@@ -11,7 +11,19 @@ from portal.utils.decorators import module_access_required
 @module_access_required('CMC')
 def log_list(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
-    logs = OilTestLog.objects.filter(equipment__department=department).order_by('-date')
+    
+    test_type_param = request.GET.get('type', '').strip().upper()
+    if test_type_param == 'ON_DEMAND':
+        test_type = OilTestLog.TestType.ON_DEMAND
+        title_heading = "Oil Testing On Demand"
+    else:
+        test_type = OilTestLog.TestType.SCHEDULED
+        title_heading = "Oil Testing As per Schedule"
+        
+    logs = OilTestLog.objects.filter(
+        equipment__department=department,
+        test_type=test_type
+    ).order_by('-date')
     
     search_q = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
@@ -27,6 +39,8 @@ def log_list(request, dept_id):
         'search_q': search_q,
         'status_filter': status_filter,
         'active_tab': 'oil',
+        'test_type': test_type,
+        'title_heading': title_heading,
     }
     return render(request, 'cmc/oil_test/log_list.html', context)
 
@@ -35,6 +49,10 @@ def log_list(request, dept_id):
 @module_access_required('CMC')
 def log_entry(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
+    
+    test_type_param = request.GET.get('type', '').strip().upper()
+    if test_type_param not in [OilTestLog.TestType.SCHEDULED, OilTestLog.TestType.ON_DEMAND]:
+        test_type_param = OilTestLog.TestType.SCHEDULED
     
     if request.method == 'POST':
         form = OilTestLogForm(request.POST)
@@ -57,9 +75,11 @@ def log_entry(request, dept_id):
                     }
                 )
                 
-            return redirect('cmc:oil_list', dept_id=department.id)
+            from django.urls import reverse
+            url = reverse('cmc:oil_list', kwargs={'dept_id': department.id})
+            return redirect(f"{url}?type={log.test_type.lower()}")
     else:
-        form = OilTestLogForm(initial={'date': date.today()})
+        form = OilTestLogForm(initial={'date': date.today(), 'test_type': test_type_param})
         
     context = {
         'department': department,

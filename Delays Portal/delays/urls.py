@@ -16,6 +16,7 @@ urlpatterns = [
     
     # Manual Delay Entries
     path('department/<int:dept_id>/records/new/', views.new_record, name='new_record'),
+    path('department/<int:dept_id>/records/lock/', views.lock_records, name='lock_records'),
     path('department/<int:dept_id>/records/<int:record_id>/edit/', views.edit_record, name='edit_record'),
     path('department/<int:dept_id>/records/<int:record_id>/delete/', views.delete_record, name='delete_record'),
     path('department/<int:dept_id>/records/<int:record_id>/update-inline/', views.update_record_inline, name='update_record_inline'),

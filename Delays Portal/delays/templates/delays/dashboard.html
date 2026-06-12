@@ -190,6 +190,15 @@
           <label class="filter-label">End Date</label>
           <input type="date" name="date_end" class="filter-input input-mono">
         </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Status</label>
+          <select name="status" class="filter-input input-mono">
+            <option value="unlocked" {% if status == 'unlocked' %}selected{% endif %}>Unlocked (Draft)</option>
+            <option value="locked" {% if status == 'locked' %}selected{% endif %}>Locked (Saved)</option>
+            <option value="all" {% if status == 'all' %}selected{% endif %}>All Records</option>
+          </select>
+        </div>
       </form>
 
       <!-- Logs Table Container -->

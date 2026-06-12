@@ -63,35 +63,36 @@ def dept_overview(request, dept_id):
         return redirect('portal:dept_hub', dept_id=dept_id)
         
     can_edit = user_can_edit_module(request.user, department, 'Delays')
+    is_admin = request.user.is_admin()
     
     # Active departments for switching
     departments = Department.objects.all().order_by('name')
     
     # Fetch all records
-    records = DelayRecord.objects.filter(department=department)
+    all_records = DelayRecord.objects.filter(department=department)
     
     # Metrics
-    total_mins = records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
+    total_mins = all_records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
     total_hrs = total_mins / 60.0
-    total_events = records.count()
+    total_events = all_records.count()
     
     # Top agency
-    agency_breakdown = records.values('agency').annotate(total=Sum('duration_mins')).order_by('-total')
+    agency_breakdown = all_records.values('agency').annotate(total=Sum('duration_mins')).order_by('-total')
     top_agency = agency_breakdown[0]['agency'] if agency_breakdown else "N/A"
     top_agency_mins = agency_breakdown[0]['total'] if agency_breakdown else 0.0
     
-    avg_duration = records.aggregate(Avg('duration_mins'))['duration_mins__avg'] or 0.0
+    avg_duration = all_records.aggregate(Avg('duration_mins'))['duration_mins__avg'] or 0.0
     
     # Chart 1: Agency Distribution (Top 8)
     agency_labels = [x['agency'] for x in agency_breakdown[:8]]
     agency_data = [round(x['total'], 1) for x in agency_breakdown[:8]]
     
     # Chart 2: Daily Trend (Last 30 active days, stacked by agency)
-    daily_breakdown = list(records.values('date').annotate(total=Sum('duration_mins')).order_by('date'))
+    daily_breakdown = list(all_records.values('date').annotate(total=Sum('duration_mins')).order_by('date'))
     daily_active_dates = [x['date'] for x in daily_breakdown[-30:]]
     daily_labels = [d.strftime('%d-%b-%Y') for d in daily_active_dates]
     
-    last_30_records = records.filter(date__in=daily_active_dates)
+    last_30_records = all_records.filter(date__in=daily_active_dates)
     active_agencies = [a for a in last_30_records.values_list('agency', flat=True).distinct().exclude(agency='') if a]
     if not active_agencies:
         active_agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
@@ -113,7 +114,7 @@ def dept_overview(request, dept_id):
         })
     
     # Chart 3: Top bottleneck equipment
-    equip_breakdown = records.exclude(
+    equip_breakdown = all_records.exclude(
         Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')
     ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')[:5]
     
@@ -121,20 +122,20 @@ def dept_overview(request, dept_id):
     equip_data = [round(x['total'], 1) for x in equip_breakdown]
     
     # List of sheets parsed
-    sheets_parsed = [s for s in records.order_by('sheet_name').values_list('sheet_name', flat=True).distinct() if s]
+    sheets_parsed = [s for s in all_records.order_by('sheet_name').values_list('sheet_name', flat=True).distinct() if s]
     
     # Upload history
     uploads = DelayUpload.objects.filter(department=department).order_by('-uploaded_at')
     
     # Form autocompletes
-    autocompletes = get_department_autocompletes(department, records)
+    autocompletes = get_department_autocompletes(department, all_records)
     agencies = autocompletes['agencies']
     sub_agencies = autocompletes['sub_agencies']
     sections = autocompletes['sections']
     equipments = autocompletes['equipments']
     sub_equipments = autocompletes['sub_equipments']
     incharges = autocompletes['incharges']
-
+ 
     # Pareto Calculation by Agency
     agency_pareto = []
     running_mins = 0
@@ -149,9 +150,9 @@ def dept_overview(request, dept_id):
             'rank': idx + 1,
             'is_vital': cum_percent <= 85.0 or idx == 0
         })
-
+ 
     # Pareto Calculation by Equipment
-    all_equip_breakdown = records.exclude(
+    all_equip_breakdown = all_records.exclude(
         Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')
     ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')
     
@@ -169,7 +170,7 @@ def dept_overview(request, dept_id):
             'rank': idx + 1,
             'is_vital': cum_percent <= 85.0 or idx == 0
         })
-
+ 
     # Mitigation recommendations & keyword frequency
     keyword_counts = {
         'Motor / Drive Issues': 0,
@@ -209,7 +210,7 @@ def dept_overview(request, dept_id):
         'operations': 'Process Operations / Crane Delay',
     }
     
-    for r in records:
+    for r in all_records:
         desc = (r.description or '').lower()
         why = (r.why or '').lower()
         matched = set()
@@ -228,24 +229,41 @@ def dept_overview(request, dept_id):
             'percent': round(percent, 1)
         })
     sorted_keywords.sort(key=lambda x: x['count'], reverse=True)
-
+ 
+    # Status filtering for logs table
+    status_filter = request.GET.get('status', 'unlocked').strip()
+    if status_filter == 'unlocked':
+        table_records = all_records.filter(is_locked=False)
+    elif status_filter == 'locked':
+        table_records = all_records.filter(is_locked=True)
+    else:
+        table_records = all_records
+        
+    has_unlocked = all_records.filter(is_locked=False).exists()
+ 
     # HTMX request for tabular logs partial
     if request.headers.get('HX-Request') and 'records-tab' in request.GET:
         # Return log table partial
         return render(request, 'delays/partials/_records_table.html', {
-            'records': records[:100],
+            'records': table_records[:100],
             'department': department,
             'can_edit': can_edit,
+            'is_admin': is_admin,
+            'status': status_filter,
+            'has_unlocked': has_unlocked,
             'agencies': agencies,
             'equipments': equipments,
             'sub_agencies': sub_agencies,
             'sub_equipments': sub_equipments,
         })
-
+ 
     context = {
         'department': department,
         'departments': departments,
         'can_edit': can_edit,
+        'is_admin': is_admin,
+        'status': status_filter,
+        'has_unlocked': has_unlocked,
         'total_mins': round(total_mins, 1),
         'total_hrs': round(total_hrs, 1),
         'total_events': total_events,
@@ -267,7 +285,7 @@ def dept_overview(request, dept_id):
         'pareto_cum_json': json.dumps([x['cum_percent'] for x in agency_pareto]),
         
         # Lists
-        'records': records[:100], # Limit initially
+        'records': table_records[:100], # Limit initially
         'sheets_parsed': sheets_parsed,
         'uploads': uploads,
         
@@ -407,6 +425,17 @@ def records_table(request, dept_id):
         records = records.filter(date__lte=date_end)
         
     all_records = DelayRecord.objects.filter(department=department)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', 'unlocked').strip()
+    if status_filter == 'unlocked':
+        records = records.filter(is_locked=False)
+    elif status_filter == 'locked':
+        records = records.filter(is_locked=True)
+        
+    is_admin = request.user.is_admin()
+    has_unlocked = all_records.filter(is_locked=False).exists()
+    
     autocompletes = get_department_autocompletes(department, all_records)
     agencies = autocompletes['agencies']
     equipments = autocompletes['equipments']
@@ -417,6 +446,9 @@ def records_table(request, dept_id):
         'records': records[:150], # Limit query size for performance
         'department': department,
         'can_edit': can_edit,
+        'is_admin': is_admin,
+        'status': status_filter,
+        'has_unlocked': has_unlocked,
         'agencies': agencies,
         'equipments': equipments,
         'sub_agencies': sub_agencies,
@@ -488,6 +520,11 @@ def edit_record(request, dept_id, record_id):
         messages.error(request, "You do not have permissions to edit records.")
         return redirect('delays:dept_overview', dept_id=dept_id)
         
+    # Check if locked and verify admin permission
+    if record.is_locked and not request.user.is_admin():
+        messages.error(request, "This record is locked and can only be edited by an Admin.")
+        return redirect('delays:dept_overview', dept_id=dept_id)
+        
     if request.method == 'POST':
         form = DelayRecordForm(request.POST, instance=record, department=department)
         if form.is_valid():
@@ -512,6 +549,7 @@ def edit_record(request, dept_id, record_id):
         'department': department,
         'record': record,
         'is_edit': True,
+        'is_admin': request.user.is_admin(),
         'agencies': agencies,
         'sub_agencies': sub_agencies,
         'sections': sections,
@@ -541,6 +579,13 @@ def delete_record(request, dept_id, record_id):
         messages.error(request, "You do not have permission to delete records.")
         return redirect('delays:dept_overview', dept_id=dept_id)
         
+    # Check if locked and verify admin permission
+    if record.is_locked and not request.user.is_admin():
+        if request.headers.get('HX-Request'):
+            return HttpResponse('<div class="alert alert-danger">Access Denied: Record is Locked</div>', status=403)
+        messages.error(request, "This record is locked and can only be deleted by an Admin.")
+        return redirect('delays:dept_overview', dept_id=dept_id)
+        
     record_info = f"{record.date} ({record.duration_mins}m - {record.agency})"
     record.delete()
     
@@ -562,6 +607,10 @@ def update_record_inline(request, dept_id, record_id):
     
     if not user_can_edit_module(request.user, department, 'Delays'):
         return HttpResponse('<tr class="table-danger"><td colspan="6">Access Denied</td></tr>', status=403)
+        
+    # Check if locked and verify admin permission
+    if record.is_locked and not request.user.is_admin():
+        return HttpResponse('<tr class="table-danger"><td colspan="6">Access Denied: Record is Locked</td></tr>', status=403)
         
     if request.method == 'POST':
         # Retrieve values from POST parameters
@@ -600,6 +649,7 @@ def update_record_inline(request, dept_id, record_id):
             'r': record,
             'department': department,
             'can_edit': True,
+            'is_admin': request.user.is_admin(),
             'agencies': agencies,
             'equipments': equipments,
         })
@@ -828,5 +878,24 @@ def manage_options(request, dept_id):
         'active_section': 'department_module',
     }
     return render(request, 'delays/manage_options.html', context)
+
+
+@login_required
+def lock_records(request, dept_id):
+    """
+    POST view to lock all currently unlocked delay records for a department.
+    """
+    department = get_object_or_404(Department, id=dept_id)
+    if not user_can_edit_module(request.user, department, 'Delays'):
+        messages.error(request, "You do not have editing permissions to lock logs.")
+        return redirect('delays:dept_overview', dept_id=dept_id)
+        
+    if request.method == 'POST':
+        unlocked = DelayRecord.objects.filter(department=department, is_locked=False)
+        count = unlocked.count()
+        unlocked.update(is_locked=True)
+        messages.success(request, f"Successfully saved and locked {count} delay records.")
+        
+    return redirect('delays:dept_overview', dept_id=dept_id)
 
 

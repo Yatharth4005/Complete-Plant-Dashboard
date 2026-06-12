@@ -1,17 +1,17 @@
 <tr id="record-row-{{ r.id }}" class="record-row-editable">
   <!-- Date input -->
   <td class="td-date">
-    <input type="date" name="date" value="{{ r.date|date:'Y-m-d' }}" class="table-input-date" {% if not can_edit %}disabled{% endif %}>
+    <input type="date" name="date" value="{{ r.date|date:'Y-m-d' }}" class="table-input-date" {% if is_admin or can_edit and not r.is_locked %}{% else %}disabled{% endif %}>
   </td>
   
   <!-- Duration input -->
   <td class="td-duration">
-    <input type="number" step="any" name="duration_mins" value="{{ r.duration_mins }}" class="table-input-duration" {% if not can_edit %}disabled{% endif %}>
+    <input type="number" step="any" name="duration_mins" value="{{ r.duration_mins }}" class="table-input-duration" {% if is_admin or can_edit and not r.is_locked %}{% else %}disabled{% endif %}>
   </td>
   
   <!-- Agency dropdown -->
   <td class="td-agency">
-    {% if can_edit %}
+    {% if is_admin or can_edit and not r.is_locked %}
       <select name="agency" class="table-select-agency">
         {% for a in agencies %}
           <option value="{{ a }}" {% if a == r.agency %}selected{% endif %}>{{ a }}</option>
@@ -24,7 +24,7 @@
   
   <!-- Equipment dropdown -->
   <td class="td-equipment">
-    {% if can_edit %}
+    {% if is_admin or can_edit and not r.is_locked %}
       <select name="equipment" class="table-select-equipment">
         <option value="">Select Equipment</option>
         {% for eq in equipments %}
@@ -39,7 +39,7 @@
   <!-- WHY-WHY/CAPA dropdown -->
   <td class="td-why">
     <div style="display: flex; align-items: center; gap: 8px;">
-      {% if can_edit %}
+      {% if is_admin or can_edit and not r.is_locked %}
         <select name="why" class="table-select-why" onchange="updateWhyButton(this, '{{ r.id }}')">
           <option value="WHY/WHY" {% if r.why == 'WHY/WHY' %}selected{% endif %}>WHY/WHY</option>
           <option value="CAPA" {% if r.why == 'CAPA' %}selected{% endif %}>CAPA</option>
@@ -70,28 +70,34 @@
   
   {% if can_edit %}
     <td class="td-actions" style="text-align: center; white-space: nowrap;">
-      <!-- Edit Detail page button -->
-      <a href="{% url 'delays:edit_record' department.id r.id %}"
-         class="btn-action-edit"
-         title="Edit Detailed Record"
-         style="text-decoration: none; margin-right: 4px;">📝</a>
+      {% if is_admin or not r.is_locked %}
+        <!-- Edit Detail page button -->
+        <a href="{% url 'delays:edit_record' department.id r.id %}"
+           class="btn-action-edit"
+           title="Edit Detailed Record"
+           style="text-decoration: none; margin-right: 4px;">📝</a>
 
-      <!-- Save button -->
-      <button class="btn-action-save"
-              hx-post="{% url 'delays:update_record_inline' department.id r.id %}"
-              hx-include="#record-row-{{ r.id }} input, #record-row-{{ r.id }} select"
-              hx-target="#record-row-{{ r.id }}"
-              hx-swap="outerHTML"
-              hx-confirm="Are you sure you want to save changes to this record?"
-              title="Save Changes">💾</button>
-      
-      <!-- Delete button -->
-      <button class="btn-action-delete"
-              hx-delete="{% url 'delays:delete_record' department.id r.id %}"
-              hx-confirm="Are you sure you want to delete this delay record?"
-              hx-target="#record-row-{{ r.id }}"
-              hx-swap="outerHTML"
-              title="Delete Entry">🗑️</button>
+        <!-- Save button -->
+        <button class="btn-action-save"
+                hx-post="{% url 'delays:update_record_inline' department.id r.id %}"
+                hx-include="#record-row-{{ r.id }} input, #record-row-{{ r.id }} select"
+                hx-target="#record-row-{{ r.id }}"
+                hx-swap="outerHTML"
+                hx-confirm="Are you sure you want to save changes to this record?"
+                title="Save Changes">💾</button>
+        
+        <!-- Delete button -->
+        <button class="btn-action-delete"
+                hx-delete="{% url 'delays:delete_record' department.id r.id %}"
+                hx-confirm="Are you sure you want to delete this delay record?"
+                hx-target="#record-row-{{ r.id }}"
+                hx-swap="outerHTML"
+                title="Delete Entry">🗑️</button>
+      {% else %}
+        <span class="status-badge success" style="background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.2); font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; cursor: default;">
+          🔒 Locked
+        </span>
+      {% endif %}
     </td>
   {% endif %}
 </tr>

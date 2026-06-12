@@ -173,8 +173,17 @@ class OilTestLog(models.Model):
         OK     = 'OK',     'OK'
         NOT_OK = 'NOT_OK', 'Not OK'
 
+    class TestType(models.TextChoices):
+        SCHEDULED = 'SCHEDULED', 'As per Schedule'
+        ON_DEMAND = 'ON_DEMAND', 'On Demand'
+
     equipment     = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='oil_tests')
     date          = models.DateField()
+    test_type     = models.CharField(
+        max_length=15,
+        choices=TestType.choices,
+        default=TestType.SCHEDULED,
+    )
     viscosity     = models.FloatField(null=True, blank=True)    # in cSt
     moisture      = models.CharField(max_length=50, blank=True) # e.g. "<0.1%", "<200ppm", "1500ppm"
     nas_class     = models.CharField(max_length=10, blank=True) # NAS cleanliness class, e.g. "11", ">12"

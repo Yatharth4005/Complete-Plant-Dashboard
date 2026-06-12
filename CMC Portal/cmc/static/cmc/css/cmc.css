@@ -306,4 +306,51 @@ select.input-mono {
   background-color: var(--cmc-light, #F5F3FF);
 }
 
+/* Dropdown style for Oil Testing navigation tab */
+.cmc-tab-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.cmc-dropdown-content {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: var(--jspl-white, #ffffff);
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border: 1px solid var(--jspl-border, #D1DCF0);
+  border-radius: 6px;
+  z-index: 1000;
+  margin-top: 4px;
+}
+
+.cmc-dropdown-content a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  color: var(--jspl-text, #1A2640);
+  text-decoration: none !important;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.cmc-dropdown-content a:hover {
+  background-color: var(--cmc-light, #F5F3FF);
+  color: var(--cmc-primary, #7C3AED) !important;
+}
+
+.cmc-dropdown-content a:first-child {
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+.cmc-dropdown-content a:last-child {
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
 

@@ -8,19 +8,20 @@
 {% block cmc_content %}
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <div>
-      <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">🧪 Oil Testing Register</h3>
+      <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">🧪 {{ title_heading|default:"Oil Testing Register" }}</h3>
       <p style="color: var(--jspl-muted); font-size: 0.85rem;">Displaying lab analysis logs for viscosity, moisture, and NAS cleanliness.</p>
     </div>
     
     <div style="display: flex; gap: 10px;">
       <a href="{% url 'cmc:oil_analytics' department.id %}" class="btn btn-secondary">📊 View Analytics</a>
-      <a href="{% url 'cmc:oil_new' department.id %}" class="btn btn-primary" style="background-color: var(--cmc-primary);">+ New Oil Analysis</a>
+      <a href="{% url 'cmc:oil_new' department.id %}?type={{ test_type|lower }}" class="btn btn-primary" style="background-color: var(--cmc-primary);">+ New Oil Analysis</a>
     </div>
   </div>
 
   <!-- Filter Bar -->
   <div class="filter-bar">
     <form method="GET" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+      <input type="hidden" name="type" value="{{ test_type|lower }}">
       
       <div style="display: flex; flex-direction: column; width: 320px; max-width: 100%;">
         <label style="font-size: 0.78rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Search Equipment</label>

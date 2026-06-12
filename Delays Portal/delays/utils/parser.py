@@ -15,6 +15,11 @@ def parse_date_string(date_str):
     """
     if not date_str:
         return None
+        
+    if isinstance(date_str, (datetime, date)):
+        if isinstance(date_str, datetime):
+            return date_str.date()
+        return date_str
     
     date_str = str(date_str).strip()
     
@@ -26,7 +31,11 @@ def parse_date_string(date_str):
     formats = [
         '%d.%m.%Y', '%d.%m.%y',
         '%d-%m-%Y', '%d-%m-%y',
+        '%d/%m/%Y', '%d/%m/%y',
+        '%m/%d/%Y', '%m/%d/%y',
+        '%Y/%m/%d', '%Y/%m/%d %H:%M:%S',
         '%Y-%m-%d',
+        '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f',
         '%d-%b-%Y', '%d-%b-%y', # e.g. 10-Jun-2026
         '%d %b %Y', '%d %b %y',
         '%d %B %Y', '%d %B %y',
@@ -39,9 +48,9 @@ def parse_date_string(date_str):
             continue
             
     # Try searching for a date pattern inside the string
-    match = re.search(r'\d{2}[.-]\d{2}[.-]\d{4}', date_str)
+    match = re.search(r'\d{1,2}[./-]\d{1,2}[./-]\d{2,4}', date_str)
     if match:
-        for fmt in ['%d.%m.%Y', '%d-%m-%Y']:
+        for fmt in ['%d.%m.%Y', '%d-%m-%Y', '%d/%m/%Y', '%m/%d/%Y', '%d.%m.%y', '%d-%m-%y', '%d/%m/%y', '%m/%d/%y']:
             try:
                 return datetime.strptime(match.group(0), fmt).date()
             except ValueError:
@@ -304,16 +313,6 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
     header_row_idx = None
     col_mapping = {}
     
-    keywords = {
-        'date': ['date', 'day'],
-        'time': ['time', 'slot', 'hour', 'hrs', 'from', 'to'],
-        'duration': ['min', 'minutes', 'duration', 'downtime', 'hours', 'hrs'],
-        'agency': ['agency', 'dept', 'responsibility', 'department'],
-        'description': ['reason', 'cause', 'description', 'detail', 'problem', 'delays'],
-        'equipment': ['equipment', 'asset', 'machine', 'sub equipment'],
-        'incharge': ['incharge', 'staff', 'user', 'operator', 'shift']
-    }
-    
     for r in range(min(len(rows), 20)):
         row = rows[r]
         if not row:
@@ -322,17 +321,39 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
         matches = 0
         temp_mapping = {}
         for c, val in enumerate(row):
-            if not val:
+            if val is None or val == '':
                 continue
             val_str = str(val).lower().strip()
             
-            for key, kw_list in keywords.items():
-                if any(kw in val_str for kw in kw_list):
-                    # We pick the first matching key or prioritize
-                    if key not in temp_mapping:
-                        temp_mapping[key] = c
-                        matches += 1
-                        
+            # Prioritized matching to prevent sub-keywords from matching parent fields
+            if any(kw in val_str for kw in ['sub-equip', 'subequip', 'sub equip']):
+                temp_mapping['sub_equipment'] = c
+                matches += 1
+            elif any(kw in val_str for kw in ['sub-agency', 'subagency', 'sub agency']):
+                temp_mapping['sub_agency'] = c
+                matches += 1
+            elif any(kw in val_str for kw in ['equipment', 'equip', 'asset', 'machine']):
+                temp_mapping['equipment'] = c
+                matches += 1
+            elif any(kw in val_str for kw in ['agency', 'responsibility']):
+                temp_mapping['agency'] = c
+                matches += 1
+            elif any(kw in val_str for kw in ['date', 'day']):
+                temp_mapping['date'] = c
+                matches += 1
+            elif any(kw in val_str for kw in ['duration', 'min', 'downtime']):
+                temp_mapping['duration'] = c
+                matches += 1
+            elif any(kw in val_str for kw in ['description', 'reason', 'cause', 'delays', 'desc']):
+                temp_mapping['description'] = c
+                matches += 1
+            elif any(kw in val_str for kw in ['why', 'capa', 'root']):
+                temp_mapping['why'] = c
+                matches += 1
+            elif any(kw in val_str for kw in ['incharge', 'operator', 'shift', 'staff']):
+                temp_mapping['incharge'] = c
+                matches += 1
+                
         if matches >= 3:
             # We found a header row!
             header_row_idx = r
@@ -371,18 +392,23 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             break
             
         # Extract columns
-        desc_idx = col_mapping.get('description', 0)
-        agency_idx = col_mapping.get('agency', 1)
+        desc_idx = col_mapping.get('description', None)
+        agency_idx = col_mapping.get('agency', None)
         dur_idx = col_mapping.get('duration', None)
         
         if dur_idx is None:
             # Skip if we can't find duration column
             continue
             
-        desc = row[desc_idx] if desc_idx < len(row) else None
-        agency = row[agency_idx] if agency_idx < len(row) else 'General'
-        duration_val = row[dur_idx] if dur_idx < len(row) else 0.0
+        desc = row[desc_idx] if desc_idx is not None and desc_idx < len(row) else None
+        agency = row[agency_idx] if agency_idx is not None and agency_idx < len(row) else 'General'
+        duration_val = row[dur_idx] if dur_idx is not None and dur_idx < len(row) else 0.0
         
+        # Skip rows that are empty of both description and date, which are typically summary/total spacer rows
+        row_date_val = row[col_mapping.get('date')] if col_mapping.get('date') is not None and col_mapping.get('date') < len(row) else None
+        if not desc and not row_date_val:
+            continue
+            
         if not desc and (duration_val is None or duration_val == '' or duration_val == 0.0):
             continue
             
@@ -413,6 +439,21 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
         if equip_idx is not None and equip_idx < len(row) and row[equip_idx]:
             equipment = str(row[equip_idx])
             
+        sub_equipment = ""
+        sub_equip_idx = col_mapping.get('sub_equipment', None)
+        if sub_equip_idx is not None and sub_equip_idx < len(row) and row[sub_equip_idx]:
+            sub_equipment = str(row[sub_equip_idx])
+            
+        sub_agency = ""
+        sub_agency_idx = col_mapping.get('sub_agency', None)
+        if sub_agency_idx is not None and sub_agency_idx < len(row) and row[sub_agency_idx]:
+            sub_agency = str(row[sub_agency_idx])
+            
+        why = ""
+        why_idx = col_mapping.get('why', None)
+        if why_idx is not None and why_idx < len(row) and row[why_idx]:
+            why = str(row[why_idx])
+            
         incharge = ""
         incharge_idx = col_mapping.get('incharge', None)
         if incharge_idx is not None and incharge_idx < len(row) and row[incharge_idx]:
@@ -427,9 +468,13 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             time_slot=time_slot,
             duration_mins=duration,
             agency=str(agency).strip() if agency else 'General',
+            sub_agency=str(sub_agency).strip() if sub_agency else None,
             equipment=str(equipment).strip() if equipment else None,
+            sub_equipment=str(sub_equipment).strip() if sub_equipment else None,
             shift_incharge=str(incharge).strip() if incharge else None,
             description=str(desc).strip() if desc else 'No Description',
+            why=str(why).strip() if why else None,
+            is_locked=False,
         )
         records_created += 1
         
@@ -511,8 +556,10 @@ def parse_excel_file(upload_instance):
                         total_records += count
                 else:
                     # Generic fallback parser
-                    # Skip typical summary sheet names
-                    if 'SUMMARY' not in sh_name.upper() and 'KPI' not in sh_name.upper() and 'LOSS' not in sh_name.upper():
+                    # Skip typical summary, chart, graph, milestone sheets
+                    skip_keywords = ['SUMMARY', 'KPI', 'LOSS', 'PARETO', 'ISHIKAWA', 'PROJECTS', 'GANTT', 'CHART', 'GRAPH', 'PILLAR', 'PLAN', 'MILESTONE']
+                    should_skip = any(kw in sh_name.upper() for kw in skip_keywords)
+                    if not should_skip:
                         count = parse_generic_sheet(rows, sh_name, department, upload_instance)
                         total_records += count
                         

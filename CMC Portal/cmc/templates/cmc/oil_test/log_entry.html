@@ -36,10 +36,14 @@
           <div id="search-results" style="position: relative;"></div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
           <div style="display: flex; flex-direction: column;">
             <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Date</label>
             {{ form.date }}
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Test Category</label>
+            {{ form.test_type }}
           </div>
           <div style="display: flex; flex-direction: column;">
             <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Viscosity (cSt)</label>
@@ -108,7 +112,7 @@
     </div>
 
     <div style="display: flex; gap: 10px; justify-content: flex-end;">
-      <a href="{% url 'cmc:oil_list' department.id %}" class="btn btn-secondary">Cancel</a>
+      <a href="{% url 'cmc:oil_list' department.id %}?type={{ form.initial.test_type|lower }}" class="btn btn-secondary">Cancel</a>
       <button type="submit" class="btn btn-primary" style="background-color: var(--cmc-primary);">Submit Analysis</button>
     </div>
   </form>
