@@ -17,7 +17,7 @@ def plant_dashboard(request):
         'SINT', 'SPM'
     ]
     departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
-    active_modules = Module.objects.filter(is_active=True).order_by('sort_order')
+    active_modules = Module.objects.filter(is_active=True).exclude(key__in=['FMEA', 'CAPA']).order_by('sort_order')
     
     departments_data = []
     for dept in departments:

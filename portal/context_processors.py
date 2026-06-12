@@ -87,7 +87,7 @@ def sidebar_context(request):
 
     return {
         'sidebar_departments': depts,
-        'sidebar_modules': Module.objects.all().order_by('sort_order'),
+        'sidebar_modules': Module.objects.exclude(key__in=['FMEA', 'CAPA']).order_by('sort_order'),
         'active_dept_id': active_dept_id,
         'active_module': active_module,
         'user_modules_map': user_modules_map,
