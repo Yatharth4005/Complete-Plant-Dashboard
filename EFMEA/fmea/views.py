@@ -20,49 +20,73 @@ def fmea_dashboard(request, dept_id):
     # Retrieve all Excel uploads for this department
     uploads = FMEAExcelUpload.objects.filter(department=active_dept).order_by('-sheet_date', '-uploaded_at')
     
-    upload_id = request.GET.get('upload_id')
-    selected_upload_id = None
-    
-    if upload_id == 'new_file':
-        records = FMEARecord.objects.filter(department=active_dept, excel_upload=None)
-        selected_upload_id = 'new_file'
-    elif upload_id:
-        try:
-            upload_id_int = int(upload_id)
-            records = FMEARecord.objects.filter(department=active_dept, excel_upload_id=upload_id_int)
-            selected_upload_id = upload_id_int
-        except ValueError:
-            records = FMEARecord.objects.filter(department=active_dept)
-    else:
-        if uploads.exists():
-            latest_upload = uploads.first()
-            records = FMEARecord.objects.filter(department=active_dept, excel_upload=latest_upload)
-            selected_upload_id = latest_upload.id
-        else:
-            records = FMEARecord.objects.filter(department=active_dept, excel_upload=None)
-            selected_upload_id = 'new_file'
+    # Retrieve all records for this department (combining all files & manual entries)
+    records = FMEARecord.objects.filter(department=active_dept)
             
-    # Calculate RPN categories
+    # Calculate RPN categories (overall)
     total_risks = records.count()
     high_risks = records.filter(rpn__gte=301).count()
     medium_risks = records.filter(rpn__gte=101, rpn__lte=300).count()
     low_risks = records.filter(rpn__gte=1, rpn__lte=100).count()
     
-    # Top 5 critical risks
+    # Top 5 critical risks across all files
     top_critical = records.order_by('-rpn')[:5]
     
-    # Department Risk Distribution for chart
-    if selected_upload_id == 'new_file':
-        dept_distribution = FMEARecord.objects.filter(department=active_dept, excel_upload=None).values('department__code').annotate(count=Count('id')).order_by('-count')
-    elif selected_upload_id:
-        dept_distribution = FMEARecord.objects.filter(excel_upload_id=selected_upload_id).values('department__code').annotate(count=Count('id')).order_by('-count')
-    else:
-        dept_distribution = FMEARecord.objects.filter(department=active_dept).values('department__code').annotate(count=Count('id')).order_by('-count')
-        
-    dept_chart_labels = [d['department__code'] for d in dept_distribution]
-    dept_chart_data = [d['count'] for d in dept_distribution]
+    # Build comparative analysis list
+    sheet_comparisons = []
     
-    # Mitigation Status Overview for donut chart
+    # 1. Check uploads
+    for u in uploads:
+        recs = FMEARecord.objects.filter(excel_upload=u)
+        if recs.exists():
+            sheet_comparisons.append({
+                'id': u.id,
+                'name': u.filename.replace('.xlsx', ''),
+                'date': u.sheet_date.strftime('%d.%m.%Y') if u.sheet_date else '—',
+                'total': recs.count(),
+                'high': recs.filter(rpn__gte=301).count(),
+                'medium': recs.filter(rpn__gte=101, rpn__lte=300).count(),
+                'low': recs.filter(rpn__gte=1, rpn__lte=100).count(),
+            })
+            
+    # 2. Check default manual list
+    manual_recs = FMEARecord.objects.filter(department=active_dept, excel_upload=None)
+    if manual_recs.exists():
+        sheet_comparisons.append({
+            'id': 'new_file',
+            'name': 'Default manual list',
+            'date': '—',
+            'total': manual_recs.count(),
+            'high': manual_recs.filter(rpn__gte=301).count(),
+            'medium': manual_recs.filter(rpn__gte=101, rpn__lte=300).count(),
+            'low': manual_recs.filter(rpn__gte=1, rpn__lte=100).count(),
+        })
+        
+    comp_labels = [item['name'] for item in sheet_comparisons]
+    comp_ids = [item['id'] for item in sheet_comparisons]
+    comp_high = [item['high'] for item in sheet_comparisons]
+    comp_medium = [item['medium'] for item in sheet_comparisons]
+    comp_low = [item['low'] for item in sheet_comparisons]
+    
+    # Compile detailed failure mode RPN comparison data for each sheet/file
+    detailed_data = {}
+    for item in sheet_comparisons:
+        sid = item['id']
+        if sid == 'new_file':
+            recs = FMEARecord.objects.filter(department=active_dept, excel_upload=None).order_by('sn', 'id')
+        else:
+            recs = FMEARecord.objects.filter(excel_upload_id=sid).order_by('sn', 'id')
+        detailed_data[str(sid)] = [
+            {
+                'failure_mode': r.potential_failure_mode[:20] + ('...' if len(r.potential_failure_mode) > 20 else ''),
+                'full_failure_mode': r.potential_failure_mode,
+                'rpn': r.rpn,
+                'action_rpn': r.action_rpn if r.action_rpn is not None else 0
+            }
+            for r in recs
+        ]
+        
+    # Mitigation Status Overview for donut chart (all combined)
     status_counts = records.values('status').annotate(count=Count('id'))
     status_map = {'Completed': 0, 'Under Progress': 0, 'Not Started': 0}
     for s in status_counts:
@@ -80,10 +104,6 @@ def fmea_dashboard(request, dept_id):
         'active_module': 'FMEA',
         'active_tab': 'dashboard',
         
-        # Uploads dropdown context
-        'uploads': uploads,
-        'selected_upload_id': selected_upload_id,
-        
         # Metrics
         'total_risks': total_risks,
         'high_risks': high_risks,
@@ -93,10 +113,17 @@ def fmea_dashboard(request, dept_id):
         # Top Table
         'top_critical': top_critical,
         
-        # Chart Data
-        'dept_chart_labels': json.dumps(dept_chart_labels),
-        'dept_chart_data': json.dumps(dept_chart_data),
+        # Comparative Chart Data
+        'comp_labels': json.dumps(comp_labels),
+        'comp_ids': json.dumps(comp_ids),
+        'comp_high': json.dumps(comp_high),
+        'comp_medium': json.dumps(comp_medium),
+        'comp_low': json.dumps(comp_low),
+        'detailed_data_json': json.dumps(detailed_data),
         'status_chart_data': json.dumps(status_chart_data),
+        
+        # Table of comparative sheets
+        'sheet_comparisons': sheet_comparisons,
     }
     return render(request, 'fmea/dashboard.html', context)
 

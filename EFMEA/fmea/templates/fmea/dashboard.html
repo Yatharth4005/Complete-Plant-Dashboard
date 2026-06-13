@@ -14,20 +14,7 @@
   <div class="dashboard-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
     <div>
       <h1 class="portal-page-title">EFMEA Dashboard</h1>
-      <p class="portal-page-subtitle">Interactive EFMEA matrix &amp; failure modes overview for <b>{{ active_dept.name }}</b></p>
-    </div>
-    <div>
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 0.85rem; font-weight: bold; color: var(--jspl-navy);">Select Sheet:</span>
-        <select class="input-mono" style="width: 260px; height: 36px; padding: 4px 10px;" onchange="window.location.href='?upload_id=' + this.value">
-          <option value="new_file" {% if selected_upload_id == 'new_file' %}selected{% endif %}>New file</option>
-          {% for upload in uploads %}
-            <option value="{{ upload.id }}" {% if selected_upload_id == upload.id %}selected{% endif %}>
-              {{ upload.sheet_date|date:"d.m.Y"|default:"No Date" }} ({{ upload.filename|truncatechars:20 }})
-            </option>
-          {% endfor %}
-        </select>
-      </div>
+      <p class="portal-page-subtitle">Comparative EFMEA matrix &amp; combined failure modes overview for <b>{{ active_dept.name }}</b></p>
     </div>
   </div>
 
@@ -75,7 +62,12 @@
     
     <!-- Bar Chart Card -->
     <div class="card" style="padding: 20px;">
-      <h3 class="card-section-title">EFMEA Distribution by Department</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 class="card-section-title" id="chartCardTitle" style="margin: 0;">📊 Saved Sheets Comparative Analytics</h3>
+        <button id="backToComparisonBtn" class="btn btn-secondary" style="display: none; padding: 4px 10px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; cursor: pointer; height: 26px; border: 1px solid var(--jspl-border) !important; background-color: var(--jspl-navy) !important; color: white !important;">
+          ← Back to Comparison
+        </button>
+      </div>
       <div style="position: relative; height: 260px;">
         <canvas id="deptRiskChart"></canvas>
       </div>
@@ -89,6 +81,53 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Saved Sheets Comparative Summary Table -->
+  <div class="card" style="padding: 20px; margin-bottom: 30px;">
+    <h3 class="card-section-title">📁 Saved Sheets &amp; Files Comparative Summary</h3>
+    <div class="table-responsive">
+      <table class="dashboard-table">
+        <thead>
+          <tr style="background: #f8fafc;">
+            <th style="text-align: left;">File / Sheet Name</th>
+            <th style="text-align: center; width: 140px;">Sheet Date</th>
+            <th style="text-align: center; width: 140px;">Total EFMEAs</th>
+            <th style="text-align: center; background-color: #fee2e2; color: #dc2626; width: 180px;">High (RPN >= 301)</th>
+            <th style="text-align: center; background-color: #fffbeb; color: #d97706; width: 180px;">Medium (101-300)</th>
+            <th style="text-align: center; background-color: #ecfdf5; color: #059669; width: 180px;">Low (1-100)</th>
+            <th style="text-align: center; width: 120px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sheet in sheet_comparisons %}
+          <tr>
+            <td>
+              <span style="font-size: 0.95rem; font-weight: 800; color: var(--jspl-navy);">
+                {{ sheet.name }}.xlsx
+              </span>
+            </td>
+            <td style="text-align: center;" class="mono"><b>{{ sheet.date }}</b></td>
+            <td style="text-align: center; font-weight: 800; font-size: 1.05rem;">{{ sheet.total }}</td>
+            <td style="text-align: center; font-weight: 700; color: #dc2626; background-color: #fef2f2; font-size: 1rem;">{{ sheet.high }}</td>
+            <td style="text-align: center; font-weight: 700; color: #d97706; background-color: #fffdf5; font-size: 1rem;">{{ sheet.medium }}</td>
+            <td style="text-align: center; font-weight: 700; color: #059669; background-color: #f0fdf4; font-size: 1rem;">{{ sheet.low }}</td>
+            <td style="text-align: center;">
+              <a href="{% url 'fmea:report' active_dept.id %}?upload_id={{ sheet.id }}" class="btn" style="padding: 4px 10px; font-size: 0.75rem; background-color: var(--jspl-blue) !important; color: white !important; font-weight: bold; border-radius: 4px; border: none; height: 28px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;">
+                👁 View Sheet
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" style="text-align: center; color: var(--jspl-muted); padding: 30px;">
+              No saved files or sheets found. Please add manually or upload.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Critical Risks Table Card -->
@@ -156,40 +195,164 @@
 {% block extra_js %}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // Risk distribution chart
+    // Risk distribution chart - Stacked Bar Chart comparing sheets
     const deptCtx = document.getElementById('deptRiskChart').getContext('2d');
-    const deptLabels = {{ dept_chart_labels|safe }};
-    const deptData = {{ dept_chart_data|safe }};
+    const compLabels = {{ comp_labels|safe }};
+    const compIds = {{ comp_ids|safe }};
+    const compHigh = {{ comp_high|safe }};
+    const compMedium = {{ comp_medium|safe }};
+    const compLow = {{ comp_low|safe }};
+    const detailedData = {{ detailed_data_json|safe }};
     
     // Fallback if empty
-    const finalLabels = deptLabels.length ? deptLabels : ['{{ active_dept.code }}'];
-    const finalData = deptData.length ? deptData : [0];
+    const finalLabels = compLabels.length ? compLabels : ['No Sheets'];
+    const finalHigh = compHigh.length ? compHigh : [0];
+    const finalMedium = compMedium.length ? compMedium : [0];
+    const finalLow = compLow.length ? compLow : [0];
     
-    new Chart(deptCtx, {
+    let isShowingDetail = false;
+    
+    const chart = new Chart(deptCtx, {
       type: 'bar',
       data: {
         labels: finalLabels,
-        datasets: [{
-          label: 'Number of EFMEAs',
-          data: finalData,
-          backgroundColor: '#0057A8',
-          borderRadius: 4,
-          maxBarThickness: 40
-        }]
+        datasets: [
+          {
+            label: 'Low Risk (RPN 1-100)',
+            data: finalLow,
+            backgroundColor: '#10b981',
+            borderRadius: 4
+          },
+          {
+            label: 'Medium Risk (RPN 101-300)',
+            data: finalMedium,
+            backgroundColor: '#f97316',
+            borderRadius: 4
+          },
+          {
+            label: 'High Risk (RPN >= 301)',
+            data: finalHigh,
+            backgroundColor: '#e11d48',
+            borderRadius: 4
+          }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
+          x: {
+            stacked: true,
+          },
           y: {
+            stacked: true,
             beginAtZero: true,
             ticks: { stepSize: 1 }
           }
         },
         plugins: {
-          legend: { display: false }
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: { boxWidth: 12, padding: 10 }
+          },
+          tooltip: {
+            callbacks: {
+              title: function(context) {
+                const index = context[0].dataIndex;
+                if (isShowingDetail) {
+                  const clickedId = chart.currentSheetId;
+                  const item = detailedData[clickedId][index];
+                  return item.full_failure_mode;
+                }
+                return context[0].label;
+              }
+            }
+          }
+        },
+        onClick: (event, elements) => {
+          if (isShowingDetail) return;
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const clickedId = compIds[index];
+            const clickedName = finalLabels[index];
+            
+            if (clickedId && detailedData[clickedId] && detailedData[clickedId].length > 0) {
+              showDetailedChart(clickedId, clickedName);
+            }
+          }
         }
       }
+    });
+    
+    const backBtn = document.getElementById('backToComparisonBtn');
+    const titleHeader = document.getElementById('chartCardTitle');
+    
+    function showDetailedChart(sheetId, sheetName) {
+      isShowingDetail = true;
+      chart.currentSheetId = sheetId;
+      
+      const sheetRecords = detailedData[sheetId];
+      const fmLabels = sheetRecords.map(r => r.failure_mode);
+      const initialRPNs = sheetRecords.map(r => r.rpn);
+      const revisedRPNs = sheetRecords.map(r => r.action_rpn);
+      
+      titleHeader.innerHTML = `📊 RPN Comparison: <span style="color: var(--jspl-blue);">${sheetName}</span>`;
+      backBtn.style.display = 'block';
+      
+      chart.data.labels = fmLabels;
+      chart.data.datasets = [
+        {
+          label: 'Initial RPN',
+          data: initialRPNs,
+          backgroundColor: '#e11d48',
+          borderRadius: 4
+        },
+        {
+          label: 'Revised RPN',
+          data: revisedRPNs,
+          backgroundColor: '#10b981',
+          borderRadius: 4
+        }
+      ];
+      
+      chart.options.scales.x.stacked = false;
+      chart.options.scales.y.stacked = false;
+      chart.update();
+    }
+    
+    backBtn.addEventListener('click', function() {
+      isShowingDetail = false;
+      chart.currentSheetId = null;
+      
+      titleHeader.textContent = '📊 Saved Sheets Comparative Analytics';
+      backBtn.style.display = 'none';
+      
+      chart.data.labels = finalLabels;
+      chart.data.datasets = [
+        {
+          label: 'Low Risk (RPN 1-100)',
+          data: finalLow,
+          backgroundColor: '#10b981',
+          borderRadius: 4
+        },
+        {
+          label: 'Medium Risk (RPN 101-300)',
+          data: finalMedium,
+          backgroundColor: '#f97316',
+          borderRadius: 4
+        },
+        {
+          label: 'High Risk (RPN >= 301)',
+          data: finalHigh,
+          backgroundColor: '#e11d48',
+          borderRadius: 4
+        }
+      ];
+      
+      chart.options.scales.x.stacked = true;
+      chart.options.scales.y.stacked = true;
+      chart.update();
     });
     
     // Status donut chart
