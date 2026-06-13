@@ -30,6 +30,7 @@
       display: inline-block !important;
     }
     .cmc-dropdown-content {
+      display: none !important;
       position: absolute !important;
       top: 100% !important;
       left: 0 !important;
@@ -41,6 +42,13 @@
       z-index: 9999 !important;
       margin-top: 6px !important;
       padding: 4px 0 !important;
+    }
+    .cmc-dropdown-content.open-menu {
+      display: block !important;
+    }
+    /* Hover fallback so it always opens on desktop even if JS fails */
+    .cmc-tab-dropdown:hover .cmc-dropdown-content {
+      display: block !important;
     }
     .cmc-dropdown-content a {
       display: flex !important;
@@ -77,14 +85,33 @@
        class="cmc-tab {% if active_tab == 'schedule' %}active{% endif %}">📅 PM Schedule</a>
     <a href="{% url 'cmc:vibration_list' department.id %}"
        class="cmc-tab {% if active_tab == 'vibration' %}active{% endif %}">📳 Vibration Logs</a>
-    <div class="cmc-tab-dropdown" x-data="{ open: false }" @click.outside="open = false">
-      <a href="#" id="oilTabBtn" @click.prevent="open = !open"
+    <div class="cmc-tab-dropdown" id="oilTabContainer">
+      <a href="#" id="oilTabBtn"
          class="cmc-tab {% if active_tab == 'oil' %}active{% endif %}">🧪 Oil Testing <span style="font-size: 0.7rem; margin-left: 2px; opacity: 0.8;">▼</span></a>
-      <div id="oilDropdownMenu" class="cmc-dropdown-content" x-show="open" x-transition x-cloak>
+      <div id="oilDropdownMenu" class="cmc-dropdown-content">
         <a href="{% url 'cmc:oil_list' department.id %}?type=scheduled">📅 As per Schedule</a>
-        <a href="{% url 'cmc:oil_list' department.id %}?type=on_demand">⚡ On Demand</a>
+        <a href="{% url 'cmc:oil_list' department.id %}?type=on_demand">⚡ On Request</a>
       </div>
     </div>
+    <script>
+      (function() {
+        var container = document.getElementById('oilTabContainer');
+        var btn = document.getElementById('oilTabBtn');
+        var menu = document.getElementById('oilDropdownMenu');
+        if (container && btn && menu) {
+          btn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            menu.classList.toggle('open-menu');
+          };
+          document.addEventListener('click', function(e) {
+            if (!container.contains(e.target)) {
+              menu.classList.remove('open-menu');
+            }
+          });
+        }
+      })();
+    </script>
     <a href="{% url 'cmc:wda_list' department.id %}"
        class="cmc-tab {% if active_tab == 'wda' %}active{% endif %}">🔬 WDA Logs</a>
     <a href="{% url 'cmc:notification_tracker' department.id %}"

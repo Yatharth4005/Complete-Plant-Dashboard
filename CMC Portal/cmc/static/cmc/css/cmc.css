@@ -313,7 +313,6 @@ select.input-mono {
 }
 
 .cmc-dropdown-content {
-  display: none;
   position: absolute;
   top: 100%;
   left: 0;
