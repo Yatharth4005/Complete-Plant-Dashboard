@@ -1,0 +1,10 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": [
+    "TPM Portal",
+    "CMC Portal",
+    "Delays Portal",
+    "EFMEA"
+  ]
+}

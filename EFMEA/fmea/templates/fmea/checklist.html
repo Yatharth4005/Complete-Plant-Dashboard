@@ -1,0 +1,26 @@
+{% extends "fmea/base.html" %}
+
+{% block title %}Health &amp; Hygiene Checklist — {{ active_dept.name }}{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+  <div style="margin-bottom: 25px;">
+    <h1 class="portal-page-title">Health &amp; Hygiene Checklist</h1>
+    <p class="portal-page-subtitle">Routine safety inspections, workplace hygiene, and occupational health monitoring for <b>{{ active_dept.name }}</b></p>
+  </div>
+
+  <div class="card" style="padding: 40px; text-align: center; max-width: 600px; margin: 40px auto;">
+    <div style="font-size: 4rem; margin-bottom: 15px;">🏥</div>
+    <h2 style="color: var(--jspl-navy); margin-bottom: 10px;">Checklist Module Under Construction</h2>
+    <p style="color: var(--jspl-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px;">
+      The daily and weekly Health &amp; Hygiene inspection checklists for <b>{{ active_dept.name }}</b> are currently being digitized. 
+      Access paths and integration with the central Risk Management DB have been successfully configured.
+    </p>
+    <a href="{% url 'fmea:dashboard' active_dept.id %}" class="btn btn-primary" style="background-color: var(--jspl-navy) !important;">
+      ← Back to Risk Dashboard
+    </a>
+  </div>
+
+</div>
+{% endblock %}

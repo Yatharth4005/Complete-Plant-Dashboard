@@ -8,6 +8,7 @@ urlpatterns = [
     path('tpm/', include('tpm.urls')),
     path('cmc/', include('cmc.urls', namespace='cmc')),
     path('delays/', include('delays.urls', namespace='delays')),
+    path('fmea/', include('fmea.urls', namespace='fmea')),
     path('admin/', admin.site.urls),
 ]
 

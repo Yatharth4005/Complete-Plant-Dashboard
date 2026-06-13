@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR / 'TPM Portal'))
 sys.path.append(str(BASE_DIR / 'CMC Portal'))
 sys.path.append(str(BASE_DIR / 'Delays Portal'))
+sys.path.append(str(BASE_DIR / 'EFMEA'))
 
 # Security Settings (MUST match TPM Portal's SECRET_KEY for session sharing)
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-jspl-tpm-portal-secret-key-1029384756')
@@ -31,6 +32,7 @@ INSTALLED_APPS = [
     'tpm',
     'cmc',
     'delays',
+    'fmea',
 ]
 
 MIDDLEWARE = [

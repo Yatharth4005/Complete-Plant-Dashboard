@@ -1,0 +1,26 @@
+{% extends "fmea/base.html" %}
+
+{% block title %}Monsoon Preparedness Report — {{ active_dept.name }}{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+  <div style="margin-bottom: 25px;">
+    <h1 class="portal-page-title">Monsoon Preparedness Report</h1>
+    <p class="portal-page-subtitle">Pre-monsoon action items, drainage health, structure audits, and emergency response workflows for <b>{{ active_dept.name }}</b></p>
+  </div>
+
+  <div class="card" style="padding: 40px; text-align: center; max-width: 600px; margin: 40px auto;">
+    <div style="font-size: 4rem; margin-bottom: 15px;">⛈</div>
+    <h2 style="color: var(--jspl-navy); margin-bottom: 10px;">Monsoon Preparedness Module Under Construction</h2>
+    <p style="color: var(--jspl-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px;">
+      The pre-monsoon check sheets, sump pump status trackers, and critical roof repair checklist entries for <b>{{ active_dept.name }}</b> are currently being digitized.
+      Once complete, structural audit reports will automatically calculate mitigation priorities.
+    </p>
+    <a href="{% url 'fmea:dashboard' active_dept.id %}" class="btn btn-primary" style="background-color: var(--jspl-navy) !important;">
+      ← Back to Risk Dashboard
+    </a>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,195 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}EFMEA Dashboard — Jindal Steels Operations Portal{% endblock %}</title>
+  
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="{% static 'portal/css/portal.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'fmea/css/fmea.css' %}?v=1">
+  
+  <!-- HTMX & Alpine -->
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  
+  {% block extra_css %}{% endblock %}
+</head>
+<body x-data="{ 
+  sidebarOpen: true, 
+  profileModalOpen: false,
+  confirmOpen: false,
+  confirmTitle: 'Confirm Action',
+  confirmMessage: 'Are you sure you want to proceed?',
+  confirmCallback: null,
+  showConfirm(title, message, callback) {
+    this.confirmTitle = title;
+    this.confirmMessage = message;
+    this.confirmCallback = callback;
+    this.confirmOpen = true;
+  },
+  triggerConfirm(confirmed) {
+    this.confirmOpen = false;
+    if (confirmed && this.confirmCallback) {
+      this.confirmCallback();
+    }
+  }
+}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+  <!-- TOPBAR -->
+  <header id="portal-topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle Menu">☰</button>
+      <a href="{% url 'portal:root' %}" class="topbar-brand-link">
+        <span class="topbar-logo-container">🏭</span>
+        <span class="topbar-title">Jindal Steels Operations Portal</span>
+      </a>
+    </div>
+    
+    <!-- Breadcrumb -->
+    <nav class="topbar-breadcrumb">
+      <a href="{% url 'portal:plant_dashboard' %}">Plant Dashboard</a>
+      <span class="breadcrumb-sep">›</span>
+      <a href="{% url 'portal:dept_hub' active_dept.id %}">{{ active_dept.name }}</a>
+      {% block breadcrumb_items %}{% endblock %}
+    </nav>
+
+    <div class="topbar-right">
+      <span class="active-module-badge module-fmea">🛡 EFMEA</span>
+      
+      <!-- User dropdown -->
+      <div class="user-menu" x-data="{ open: false }" @click.outside="open = false">
+        <button class="user-menu-trigger" @click="open = !open">
+          <span class="user-avatar">
+            {% if request.user.photo %}
+              <img src="{{ request.user.photo.url }}" alt="Avatar" style="width:100%; height:100%; object-fit:cover;">
+            {% else %}
+              {{ request.user.first_name|default:request.user.username|slice:":1"|upper }}
+            {% endif %}
+          </span>
+          <span class="user-name">{{ request.user.first_name|default:request.user.username }}</span>
+          <span class="user-chevron">▼</span>
+        </button>
+        <div class="user-dropdown" x-show="open" x-transition x-cloak>
+          <div class="user-dropdown-header">
+            <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+            <small>{{ request.user.email }}</small>
+          </div>
+          <a href="{% url 'portal:dept_hub' active_dept.id %}">🏢 Back to Hub</a>
+          <a href="{% url 'portal:logout' %}" class="logout-link">↩ Sign Out</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PORTAL SHELL -->
+  <div id="portal-shell" :class="{ 'sidebar-collapsed': !sidebarOpen }">
+    
+    <!-- SIDEBAR -->
+    <aside id="portal-sidebar" class="fmea-sidebar">
+      <div class="sidebar-nav-container">
+        
+        <!-- Risk Management Section -->
+        <div class="sidebar-divider" style="margin-top: 10px;">EFMEA DASHBOARD</div>
+        
+        <a href="{% url 'fmea:dashboard' active_dept_id %}" 
+           class="sidebar-link {% if active_tab == 'dashboard' %}active{% endif %}">
+          <span class="sidebar-icon">📊</span> Dashboard
+        </a>
+        <a href="{% url 'fmea:identification' active_dept_id %}" 
+           class="sidebar-link {% if active_tab == 'identification' %}active{% endif %}">
+          <span class="sidebar-icon">📝</span> EFMEA Manual Entry
+        </a>
+        <a href="{% url 'fmea:register' active_dept_id %}" 
+           class="sidebar-link {% if active_tab == 'register' %}active{% endif %}">
+          <span class="sidebar-icon">📋</span> EFMEA Register
+        </a>
+        <a href="{% url 'fmea:report' active_dept_id %}" 
+           class="sidebar-link {% if active_tab == 'report' %}active{% endif %}">
+          <span class="sidebar-icon">📄</span> EFMEA Report
+        </a>
+        <a href="{% url 'fmea:history' active_dept_id %}" 
+           class="sidebar-link {% if active_tab == 'history' %}active{% endif %}">
+          <span class="sidebar-icon">🕒</span> EFMEA History
+        </a>
+
+        
+        <!-- Back to Plant -->
+        <div class="sidebar-divider" style="margin-top: 25px;">NAVIGATION</div>
+        <a href="{% url 'portal:dept_hub' active_dept.id %}" class="sidebar-link">
+          <span class="sidebar-icon">🏢</span> Department Hub
+        </a>
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <main id="portal-content">
+      {% if messages %}
+      <div class="messages-container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" x-data="{ show: true }" x-show="show"
+             style="display: flex; justify-content: space-between; align-items: center;">
+          <span>{{ message }}</span>
+          <button type="button" @click="show = false" 
+                  style="background:none; border:none; color:inherit; font-size:20px; cursor:pointer; font-weight:bold; margin-left:10px;">&times;</button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- THEME-STYLED CONFIRMATION MODAL -->
+  <div x-show="confirmOpen" 
+       x-cloak 
+       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 99999;"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0">
+       
+    <div @click.outside="confirmOpen = false" 
+         style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #ffffff; border-radius: 16px; width: 450px; max-width: 90%; box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 52, 120, 0.15)); border: 1px solid var(--jspl-border); overflow: hidden; padding: 24px;"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95">
+         
+      <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--jspl-navy); margin-top: 0; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        ⚠️ <span x-text="confirmTitle">Confirm Action</span>
+      </h3>
+      
+      <p style="font-size: 0.88rem; color: var(--jspl-text); line-height: 1.5; margin-bottom: 24px;" x-text="confirmMessage">
+        Are you sure you want to proceed?
+      </p>
+      
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" @click="triggerConfirm(false)" class="btn btn-secondary" style="height: 36px; padding: 0 16px; font-size: 0.82rem; border-radius: 8px; border: 1px solid var(--jspl-border) !important;">
+          Cancel
+        </button>
+        <button type="button" @click="triggerConfirm(true)" class="btn" style="height: 36px; padding: 0 16px; font-size: 0.82rem; background-color: var(--status-red) !important; color: white !important; font-weight: bold; border: none; border-radius: 8px;">
+          Confirm Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{% static 'portal/js/portal.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

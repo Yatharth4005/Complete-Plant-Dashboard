@@ -1,0 +1,489 @@
+{% extends "fmea/base.html" %}
+
+{% block title %}EFMEA Register — {{ active_dept.name }}{% endblock %}
+
+{% block content %}
+<div class="page-container" x-data="riskRegister()">
+
+  <!-- Toast Toast Notification -->
+  <div x-show="toast.show" x-transition x-cloak class="fmea-toast" :class="toast.type"
+       style="position: fixed; top: 80px; right: 20px; z-index: 1000; padding: 12px 24px; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); font-weight: 600; display: flex; align-items: center; gap: 8px;">
+    <span x-text="toast.message"></span>
+  </div>
+
+  <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <h1 class="portal-page-title">EFMEA Register</h1>
+      <p class="portal-page-subtitle">Track, update, and manage mitigation progress for all failure mode EFMEAs</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <a href="{% url 'fmea:identification' active_dept.id %}" class="btn btn-primary" style="background-color: var(--status-green) !important;">
+        ➕ Identify New EFMEA
+      </a>
+      <a href="{% url 'fmea:report' active_dept.id %}" class="btn btn-secondary">
+        📄 View Master Report
+      </a>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card filter-card" style="padding: 16px 20px; margin-bottom: 24px;">
+    <form method="GET" class="filter-form" style="display: flex; gap: 20px; align-items: flex-end;">
+      
+
+
+      <div class="filter-group" style="flex: 1; min-width: 180px;">
+        <label>Filter by Owner</label>
+        <select name="owner" class="input-mono" style="height: 38px; width: 100%;">
+          <option value="">All Owners</option>
+          {% for o in owners_list %}
+            <option value="{{ o }}" {% if selected_owner == o %}selected{% endif %}>{{ o }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="filter-group" style="flex: 1.5; min-width: 200px;">
+        <label>Search Description</label>
+        <input type="text" name="description" class="input-mono" value="{{ search_desc }}" 
+               placeholder="Search equipment, component, or failure mode..." style="height: 38px; width: 100%;">
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button type="submit" class="btn btn-primary" style="height: 38px;">Apply Filters</button>
+        <a href="{% url 'fmea:register' active_dept.id %}" class="btn btn-secondary" style="height: 38px; display: flex; align-items: center;">Reset</a>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- Risk Grid List -->
+  <div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 40px;">
+    {% for row in records_data %}
+      {% with r=row.record %}
+      <div class="card risk-register-card" style="padding: 0; overflow: hidden; border-left: 6px solid {% if r.rpn >= 301 %}#e11d48{% elif r.rpn >= 101 %}#f97316{% else %}#10b981{% endif %};">
+        
+        <!-- Header row (collapsed view) -->
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; cursor: pointer; user-select: none;"
+             @click="toggleExpand({{ r.id }})">
+          <div style="display: flex; align-items: center; gap: 16px; min-width: 0;">
+            <span class="mono" style="font-weight: 700; color: var(--jspl-navy); min-width: 110px;">{{ r.risk_id }}</span>
+            <span style="font-size: 0.78rem; font-weight: 700; background: var(--jspl-gray); padding: 2px 8px; border-radius: 4px;">{{ r.department.code }}</span>
+            <span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">{{ r.main_equipment }}</span>
+            <span style="color: var(--jspl-muted); font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- {{ r.potential_failure_mode|truncatechars:60 }}</span>
+          </div>
+          
+          <div style="display: flex; align-items: center; gap: 20px; flex-shrink: 0;">
+            <div style="display: flex; gap: 8px;">
+              <span class="rpn-badge rpn-{% if r.rpn >= 301 %}high{% elif r.rpn >= 101 %}med{% else %}low{% endif %}" title="Initial RPN">
+                {{ r.rpn }}
+              </span>
+              {% if r.action_rpn %}
+                <span class="rpn-badge rpn-{% if r.action_rpn >= 301 %}high{% elif r.action_rpn >= 101 %}med{% else %}low{% endif %}" title="Revised RPN">
+                  {{ r.action_rpn }}
+                </span>
+              {% endif %}
+            </div>
+            
+            <span class="status-badge" style="background-color: {% if r.status == 'Completed' %}#dcfce7; color: var(--status-green);{% elif r.status == 'Under Progress' %}#fef3c7; color: var(--status-amber);{% else %}#f1f5f9; color: var(--jspl-muted);{% endif %} font-weight: bold; font-size: 0.75rem;">
+              {{ r.status }}
+            </span>
+            
+            <span class="dept-hub-chevron" :class="{ 'rotated': isExpanded({{ r.id }}) }">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- Expanded Drawer Panel -->
+        <div x-show="isExpanded({{ r.id }})" x-transition x-cloak 
+             style="border-top: 1px solid var(--jspl-border); background: #fafbfc; padding: 24px;">
+          
+          <div style="display: grid; grid-template-columns: 1fr 1.8fr; gap: 24px;">
+            
+            <!-- Left Side: Ratings & Details -->
+            <div>
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                <div class="rpn-rating-card" style="text-align: center; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid var(--jspl-border);">
+                  <div style="font-size: 0.65rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">Severity</div>
+                  <div style="font-size: 1.6rem; font-weight: 700; color: var(--jspl-navy); margin-top: 4px;">{{ r.severity }}</div>
+                </div>
+                <div class="rpn-rating-card" style="text-align: center; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid var(--jspl-border);">
+                  <div style="font-size: 0.65rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">Occurrence</div>
+                  <div style="font-size: 1.6rem; font-weight: 700; color: var(--jspl-navy); margin-top: 4px;">{{ r.occurrence }}</div>
+                </div>
+                <div class="rpn-rating-card" style="text-align: center; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid var(--jspl-border);">
+                  <div style="font-size: 0.65rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">Detection</div>
+                  <div style="font-size: 1.6rem; font-weight: 700; color: var(--jspl-navy); margin-top: 4px;">{{ r.detection }}</div>
+                </div>
+                <div class="rpn-rating-card" style="text-align: center; background: {% if r.rpn >= 301 %}#fee2e2{% elif r.rpn >= 101 %}#fef3c7{% else %}#dcfce7{% endif %}; padding: 10px; border-radius: 6px; border: 1px solid {% if r.rpn >= 301 %}#fca5a5{% elif r.rpn >= 101 %}#fde047{% else %}#bbf7d0{% endif %};">
+                  <div style="font-size: 0.65rem; font-weight: 700; color: var(--jspl-navy); text-transform: uppercase;">Init RPN</div>
+                  <div style="font-size: 1.6rem; font-weight: 700; color: var(--jspl-navy); margin-top: 4px;">{{ r.rpn }}</div>
+                </div>
+              </div>
+
+              <div class="info-block" style="margin-bottom: 15px;">
+                <span class="info-label" style="font-size: 0.72rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">EFMEA Owner / key contact</span>
+                <div style="font-size: 0.88rem; font-weight: 600; color: var(--jspl-navy); margin-top: 2px;">{{ r.risk_owner }}</div>
+              </div>
+
+              <div class="info-block" style="margin-bottom: 15px;">
+                <span class="info-label" style="font-size: 0.72rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">EFMEA Description</span>
+                <div style="font-size: 0.85rem; color: var(--jspl-text); margin-top: 4px; line-height: 1.4;">{{ r.potential_failure_mode }}</div>
+              </div>
+
+              <div class="info-block" style="margin-bottom: 15px;">
+                <span class="info-label" style="font-size: 0.72rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">Event Consequences</span>
+                <ol style="font-size: 0.82rem; color: var(--jspl-text); margin-top: 4px; padding-left: 18px; line-height: 1.5;">
+                  {% for c in row.consequences %}
+                    <li>{{ c }}</li>
+                  {% endfor %}
+                </ol>
+              </div>
+
+              {% if r.contingency_plan %}
+              <div class="info-block">
+                <span class="info-label" style="font-size: 0.72rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">Contingency Plan</span>
+                <div style="font-size: 0.82rem; color: var(--jspl-text); margin-top: 4px; line-height: 1.4; background: #fff; padding: 8px; border: 1px solid var(--jspl-border); border-radius: 4px;">{{ r.contingency_plan }}</div>
+              </div>
+              {% endif %}
+            </div>
+
+            <!-- Right Side: Quarterly Mitigation Form Panel -->
+            <div x-data="mitigationPanel({{ r.id }}, 'q1', {
+              q1_actions: {{ row.q1_actions|safe }},
+              q2_actions: {{ row.q2_actions|safe }},
+              q3_actions: {{ row.q3_actions|safe }},
+              q4_actions: {{ row.q4_actions|safe }},
+              q1_target: '{{ r.mitigation_q1_target|date:"Y-m-d" }}',
+              q2_target: '{{ r.mitigation_q2_target|date:"Y-m-d" }}',
+              q3_target: '{{ r.mitigation_q3_target|date:"Y-m-d" }}',
+              q4_target: '{{ r.mitigation_q4_target|date:"Y-m-d" }}',
+              q1_status: '{{ r.mitigation_q1_status|default:"Not Started" }}',
+              q2_status: '{{ r.mitigation_q2_status|default:"Not Started" }}',
+              q3_status: '{{ r.mitigation_q3_status|default:"Not Started" }}',
+              q4_status: '{{ r.mitigation_q4_status|default:"Not Started" }}',
+              remarks: {{ row.remarks|safe }},
+              as_on_date: '{{ r.as_on_date|date:"Y-m-d" }}',
+              action_taken: '{{ r.action_taken|default:"" }}',
+              action_severity: '{{ r.action_severity|default:"" }}',
+              action_occurrence: '{{ r.action_occurrence|default:"" }}',
+              action_detection: '{{ r.action_detection|default:"" }}',
+              action_rpn: '{{ r.action_rpn|default:"" }}'
+            })" style="background: #ffffff; border-radius: 8px; border: 1px solid var(--jspl-border); overflow: hidden; display: flex; flex-direction: column;">
+              
+              <!-- Tabs Header -->
+              <div style="display: flex; background: #f1f5f9; border-bottom: 1px solid var(--jspl-border);">
+                <button type="button" class="tab-btn" :class="{ 'active': tab === 'q1' }" @click="tab = 'q1'">Q1</button>
+                <button type="button" class="tab-btn" :class="{ 'active': tab === 'q2' }" @click="tab = 'q2'">Q2</button>
+                <button type="button" class="tab-btn" :class="{ 'active': tab === 'q3' }" @click="tab = 'q3'">Q3</button>
+                <button type="button" class="tab-btn" :class="{ 'active': tab === 'q4' }" @click="tab = 'q4'">Q4</button>
+              </div>
+
+              <!-- Tab Contents -->
+              <div style="padding: 20px; flex-grow: 1;">
+                
+                <!-- Mitigation Actions list -->
+                <div style="margin-bottom: 18px;">
+                  <label class="form-label-bold" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.8rem;">Mitigation Actions</span>
+                    <button type="button" @click="addAction()" class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.7rem; border-radius: 4px;">
+                      ➕ Add Action
+                    </button>
+                  </label>
+                  
+                  <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+                    <template x-for="(action, index) in getActions()" :key="index">
+                      <div style="display: flex; gap: 8px; align-items: center;">
+                        <span class="mono" style="font-size: 0.75rem; width: 15px;" x-text="getLetter(index) + ')'"></span>
+                        <input type="text" class="input-mono" x-model="getActions()[index]" 
+                               placeholder="Specify mitigation action..." style="height: 34px; font-size: 0.8rem; flex-grow: 1;">
+                        <button type="button" @click="removeAction(index)" class="btn" 
+                                style="background-color: #fee2e2; color: #dc2626 !important; border: 1px solid #fca5a5; padding: 4px 10px; height: 34px;">
+                          ❌
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Target Date & Status -->
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 15px; margin-bottom: 18px;">
+                  <div>
+                    <label class="form-label-bold" style="font-size: 0.8rem;">Target Date</label>
+                    <input type="date" class="input-mono" x-model="getTargetDate()" style="height: 36px; font-size: 0.8rem;">
+                  </div>
+                  <div>
+                    <label class="form-label-bold" style="font-size: 0.8rem;">Current Status</label>
+                    <select class="input-mono" x-model="getStatus()" style="height: 36px; font-size: 0.8rem; padding: 2px 6px;">
+                      <option value="Not Started">Not Started</option>
+                      <option value="Under Progress">Under Progress</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Status Remarks List -->
+                <div style="margin-bottom: 18px;">
+                  <label class="form-label-bold" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.8rem;">Status/Remarks</span>
+                    <button type="button" @click="addRemark()" class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.7rem; border-radius: 4px;">
+                      ➕ Add Remark
+                    </button>
+                  </label>
+                  <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+                    <template x-for="(rem, index) in remarks" :key="index">
+                      <div style="display: flex; gap: 8px; align-items: center;">
+                        <span class="mono" style="font-size: 0.75rem; width: 15px;" x-text="getLetter(index) + ')'"></span>
+                        <input type="text" class="input-mono" x-model="remarks[index]" 
+                               placeholder="Status update remark..." style="height: 34px; font-size: 0.8rem; flex-grow: 1;">
+                        <button type="button" @click="removeRemark(index)" class="btn" 
+                                style="background-color: #fee2e2; color: #dc2626 !important; border: 1px solid #fca5a5; padding: 4px 10px; height: 34px;">
+                          ❌
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- As On Date -->
+                <div style="margin-bottom: 20px;">
+                  <label class="form-label-bold" style="font-size: 0.8rem;">As On Date</label>
+                  <input type="date" class="input-mono" x-model="as_on_date" style="height: 36px; font-size: 0.8rem;">
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--jspl-border); margin: 15px 0;">
+
+                <!-- Action Results (Revised RPN) -->
+                <h4 style="font-size: 0.85rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 10px;">📊 Action Results (Revised RPN Analysis)</h4>
+                
+                <div style="margin-bottom: 12px;">
+                  <label class="form-label-bold" style="font-size: 0.78rem;">Action Taken / Corrective Action description</label>
+                  <input type="text" class="input-mono" x-model="action_taken" placeholder="Describe actual action taken..." style="height: 36px; font-size: 0.8rem;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1.2fr; gap: 10px; align-items: flex-end;">
+                  <div>
+                    <label class="form-label-bold" style="font-size: 0.75rem;">Sev</label>
+                    <select class="input-mono" x-model="action_severity" style="height: 36px; font-size: 0.8rem; padding: 2px;">
+                      <option value="">—</option>
+                      <template x-for="i in 10" :key="i">
+                        <option :value="i" x-text="i"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="form-label-bold" style="font-size: 0.75rem;">Occ</label>
+                    <select class="input-mono" x-model="action_occurrence" style="height: 36px; font-size: 0.8rem; padding: 2px;">
+                      <option value="">—</option>
+                      <template x-for="i in 10" :key="i">
+                        <option :value="i" x-text="i"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="form-label-bold" style="font-size: 0.75rem;">Det</label>
+                    <select class="input-mono" x-model="action_detection" style="height: 36px; font-size: 0.8rem; padding: 2px;">
+                      <option value="">—</option>
+                      <template x-for="i in 10" :key="i">
+                        <option :value="i" x-text="i"></option>
+                      </template>
+                    </select>
+                  </div>
+                  
+                  <div style="background: #f1f5f9; padding: 6px; border-radius: 4px; text-align: center; border: 1px solid var(--jspl-border); height: 36px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+                    <span style="font-size: 0.55rem; font-weight: bold; text-transform: uppercase; color: var(--jspl-muted); line-height: 1.1;">Revised RPN</span>
+                    <span style="font-size: 1rem; font-weight: 700; color: var(--jspl-navy); line-height: 1.1;" x-text="revisedRpn()"></span>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Footer with Save Button -->
+              <div style="background: #f8fafc; border-top: 1px solid var(--jspl-border); padding: 12px 20px; display: flex; justify-content: flex-end;">
+                <button type="button" class="btn btn-primary" @click="saveData()" style="padding: 6px 16px; font-size: 0.8rem; background-color: var(--status-green) !important;">
+                  💾 Save Changes
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+      {% endwith %}
+    {% empty %}
+      <div class="card" style="text-align: center; padding: 40px; color: var(--jspl-muted);">
+        No EFMEA records matched the search filters. Click <b>Identify New EFMEA</b> above to add one!
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function riskRegister() {
+    return {
+      expandedId: null,
+      toast: { show: false, message: '', type: 'success' },
+      
+      toggleExpand(id) {
+        if (this.expandedId === id) {
+          this.expandedId = null;
+        } else {
+          this.expandedId = id;
+        }
+      },
+      
+      isExpanded(id) {
+        return this.expandedId === id;
+      },
+      
+      triggerToast(message, type = 'success') {
+        this.toast.message = message;
+        this.toast.type = type;
+        this.toast.show = true;
+        setTimeout(() => { this.toast.show = false; }, 3000);
+      }
+    };
+  }
+
+  function mitigationPanel(recordId, initialTab, dataObj) {
+    return {
+      tab: initialTab,
+      recordId: recordId,
+      
+      // Data state
+      q1_actions: dataObj.q1_actions || [],
+      q2_actions: dataObj.q2_actions || [],
+      q3_actions: dataObj.q3_actions || [],
+      q4_actions: dataObj.q4_actions || [],
+      
+      q1_target: dataObj.q1_target || '',
+      q2_target: dataObj.q2_target || '',
+      q3_target: dataObj.q3_target || '',
+      q4_target: dataObj.q4_target || '',
+      
+      q1_status: dataObj.q1_status || 'Not Started',
+      q2_status: dataObj.q2_status || 'Not Started',
+      q3_status: dataObj.q3_status || 'Not Started',
+      q4_status: dataObj.q4_status || 'Not Started',
+      
+      remarks: dataObj.remarks || [],
+      as_on_date: dataObj.as_on_date || '',
+      action_taken: dataObj.action_taken || '',
+      action_severity: dataObj.action_severity || '',
+      action_occurrence: dataObj.action_occurrence || '',
+      action_detection: dataObj.action_detection || '',
+      
+      getActions() {
+        if (this.tab === 'q1') return this.q1_actions;
+        if (this.tab === 'q2') return this.q2_actions;
+        if (this.tab === 'q3') return this.q3_actions;
+        return this.q4_actions;
+      },
+      
+      getTargetDate() {
+        if (this.tab === 'q1') return this.q1_target;
+        if (this.tab === 'q2') return this.q2_target;
+        if (this.tab === 'q3') return this.q3_target;
+        return this.q4_target;
+      },
+      
+      setTargetDate(val) {
+        if (this.tab === 'q1') this.q1_target = val;
+        else if (this.tab === 'q2') this.q2_target = val;
+        else if (this.tab === 'q3') this.q3_target = val;
+        else this.q4_target = val;
+      },
+      
+      getStatus() {
+        if (this.tab === 'q1') return this.q1_status;
+        if (this.tab === 'q2') return this.q2_status;
+        if (this.tab === 'q3') return this.q3_status;
+        return this.q4_status;
+      },
+      
+      setStatus(val) {
+        if (this.tab === 'q1') this.q1_status = val;
+        else if (this.tab === 'q2') this.q2_status = val;
+        else if (this.tab === 'q3') this.q3_status = val;
+        else this.q4_status = val;
+      },
+      
+      getLetter(index) {
+        return String.fromCharCode(97 + index);
+      },
+      
+      addAction() {
+        this.getActions().push('');
+      },
+      
+      removeAction(index) {
+        this.getActions().splice(index, 1);
+      },
+      
+      addRemark() {
+        this.remarks.push('');
+      },
+      
+      removeRemark(index) {
+        this.remarks.splice(index, 1);
+      },
+      
+      revisedRpn() {
+        if (this.action_severity && this.action_occurrence && this.action_detection) {
+          return parseInt(this.action_severity) * parseInt(this.action_occurrence) * parseInt(this.action_detection);
+        }
+        return '—';
+      },
+      
+      async saveData() {
+        const formData = new FormData();
+        formData.append('quarter', this.tab);
+        formData.append('status', this.getStatus());
+        formData.append('target_date', this.getTargetDate());
+        formData.append('as_on_date', this.as_on_date);
+        formData.append('action_taken', this.action_taken);
+        formData.append('action_severity', this.action_severity);
+        formData.append('action_occurrence', this.action_occurrence);
+        formData.append('action_detection', this.action_detection);
+        
+        // Append arrays
+        this.getActions().forEach(act => {
+          if (act.trim()) formData.append('mitigation_actions[]', act.trim());
+        });
+        this.remarks.forEach(rem => {
+          if (rem.trim()) formData.append('status_remarks[]', rem.trim());
+        });
+        
+        try {
+          const response = await fetch(`/fmea/department/{{ active_dept.id }}/save-mitigation/${this.recordId}/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-CSRFToken': '{{ csrf_token }}'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            // Trigger parent layout toast notification
+            window.location.reload(); // Quickest way to sync all statuses & badges in expanded UI
+          } else {
+            alert('Failed to save mitigation actions.');
+          }
+        } catch (e) {
+          console.error(e);
+          alert('Network error during mitigation save.');
+        }
+      }
+    };
+  }
+</script>
+{% endblock %}

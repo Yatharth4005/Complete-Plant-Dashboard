@@ -1,0 +1,80 @@
+{% extends "fmea/base.html" %}
+
+{% block title %}EFMEA History — {{ active_dept.name }}{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+  <div style="margin-bottom: 25px;">
+    <h1 class="portal-page-title">EFMEA Upload History</h1>
+    <p class="portal-page-subtitle">Track past Excel uploads and sheet version history</p>
+  </div>
+
+  <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 40px;">
+    <div class="table-responsive">
+      <table class="dashboard-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Uploaded By</th>
+            <th>Excel File Name</th>
+            <th>Sheet Date</th>
+            <th>Action</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for upload in uploads %}
+          <tr class="{% cycle '' 'stripe-row' %}">
+            <td class="mono" style="font-size: 0.8rem; font-weight: 600;">{{ upload.uploaded_at|date:"d M Y, H:i:s" }}</td>
+            <td><b>{{ upload.uploaded_by.get_display_name|default:upload.uploaded_by.username }}</b> ({{ upload.uploaded_by.email }})</td>
+            <td style="font-weight: 600;">{{ upload.filename }}</td>
+            <td class="mono" style="font-weight: 700; color: var(--jspl-navy);">{{ upload.sheet_date|date:"d.m.Y"|default:"—" }}</td>
+            <td>
+              <span class="action-tag" style="background-color: #f3e8ff; color: #7c3aed;">
+                EXCEL_UPLOADED
+              </span>
+            </td>
+             <td style="font-size: 0.82rem; color: var(--jspl-text); display: flex; align-items: center; gap: 8px;">
+              <span>Imported {{ upload.num_records }} records.</span>
+              <a href="{% url 'fmea:report' active_dept.id %}?upload_id={{ upload.id }}" class="btn" style="padding: 4px 10px; font-size: 0.75rem; background-color: var(--jspl-blue) !important; color: white !important; font-weight: bold; border: none; height: 28px; line-height: 1; border-radius: 4px;">
+                👁 View Sheet
+              </a>
+              <a href="#" @click.prevent="showConfirm('Confirm Delete', 'Are you sure you want to delete this sheet and all its {{ upload.num_records }} records? This cannot be undone.', () => { window.location.href = '{% url 'fmea:delete_upload' active_dept.id upload.id %}'; })" class="btn" style="padding: 4px 10px; font-size: 0.75rem; background-color: var(--status-red) !important; color: white !important; font-weight: bold; border: none; height: 28px; line-height: 1; border-radius: 4px;">
+                🗑 Delete
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--jspl-muted); padding: 40px;">
+              No Excel uploads recorded yet.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if manual_count > 0 %}
+  <div class="card" style="padding: 20px; margin-bottom: 40px; border: 1px solid var(--jspl-border); background-color: var(--jspl-white); display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <h3 style="font-size: 1rem; color: var(--jspl-navy); font-weight: 700; margin-bottom: 4px;">📝 Manual EFMEA Entries</h3>
+      <p style="font-size: 0.82rem; color: var(--jspl-muted); margin: 0;">
+        You have <b>{{ manual_count }}</b> manual EFMEA records created directly in the system (not imported from Excel).
+      </p>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <a href="{% url 'fmea:report' active_dept.id %}?upload_id=new_file" class="btn" style="padding: 6px 12px; font-size: 0.8rem; background-color: var(--jspl-blue) !important; color: white !important; font-weight: bold; border: none; border-radius: var(--radius-sm);">
+        👁 View Manual Entries
+      </a>
+      <a href="#" @click.prevent="showConfirm('Clear Manual Entries', 'Are you sure you want to delete all {{ manual_count }} manual EFMEA entries? This cannot be undone.', () => { window.location.href = '{% url 'fmea:clear_manual_records' active_dept.id %}'; })" class="btn" style="padding: 6px 12px; font-size: 0.8rem; background-color: var(--status-red) !important; color: white !important; font-weight: bold; border: none; border-radius: var(--radius-sm);">
+        🗑 Clear Manual Entries
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

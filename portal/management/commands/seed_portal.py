@@ -111,11 +111,11 @@ class Command(BaseCommand):
             },
             {
                 'key': 'FMEA',
-                'label': 'FMEA',
+                'label': 'EFMEA',
                 'description': 'Failure Mode and Effects Analysis for risk identification and mitigation',
                 'icon': 'shield',
                 'color_class': 'module-fmea',
-                'redirect_url_template': '/department/{dept_id}/coming-soon/FMEA/',
+                'redirect_url_template': '/fmea/department/{dept_id}/',
                 'sort_order': 7,
             },
             {

@@ -1,0 +1,223 @@
+{% extends "fmea/base.html" %}
+
+{% block title %}EFMEA Dashboard — {{ active_dept.name }}{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">EFMEA Dashboard</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+  <!-- Header Row -->
+  <div class="dashboard-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div>
+      <h1 class="portal-page-title">EFMEA Dashboard</h1>
+      <p class="portal-page-subtitle">Interactive EFMEA matrix &amp; failure modes overview for <b>{{ active_dept.name }}</b></p>
+    </div>
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 0.85rem; font-weight: bold; color: var(--jspl-navy);">Select Sheet:</span>
+        <select class="input-mono" style="width: 260px; height: 36px; padding: 4px 10px;" onchange="window.location.href='?upload_id=' + this.value">
+          <option value="new_file" {% if selected_upload_id == 'new_file' %}selected{% endif %}>New file</option>
+          {% for upload in uploads %}
+            <option value="{{ upload.id }}" {% if selected_upload_id == upload.id %}selected{% endif %}>
+              {{ upload.sheet_date|date:"d.m.Y"|default:"No Date" }} ({{ upload.filename|truncatechars:20 }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metric Summary Cards Grid -->
+  <div class="kpi-grid" style="margin-bottom: 30px;">
+    <div class="kpi-card" style="border-left: 5px solid #0057A8; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="kpi-title" style="color: #64748b;">Total EFMEAs</span>
+        <span style="font-size: 1.5rem;">🛡</span>
+      </div>
+      <div class="kpi-value" style="color: #0057A8; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ total_risks }}</div>
+      <div class="kpi-subtext">Identified across active registers</div>
+    </div>
+    
+    <div class="kpi-card" style="border-left: 5px solid #e11d48; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="kpi-title" style="color: #64748b;">High EFMEAs</span>
+        <span style="font-size: 1.5rem; color: #e11d48;">⚠️</span>
+      </div>
+      <div class="kpi-value" style="color: #e11d48; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ high_risks }}</div>
+      <div class="kpi-subtext">RPN rating of 301 - 1000</div>
+    </div>
+
+    <div class="kpi-card" style="border-left: 5px solid #f97316; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="kpi-title" style="color: #64748b;">Medium EFMEAs</span>
+        <span style="font-size: 1.5rem; color: #f97316;">🔔</span>
+      </div>
+      <div class="kpi-value" style="color: #f97316; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ medium_risks }}</div>
+      <div class="kpi-subtext">RPN rating of 101 - 300</div>
+    </div>
+
+    <div class="kpi-card" style="border-left: 5px solid #10b981; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="kpi-title" style="color: #64748b;">Low EFMEAs</span>
+        <span style="font-size: 1.5rem; color: #10b981;">✅</span>
+      </div>
+      <div class="kpi-value" style="color: #10b981; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ low_risks }}</div>
+      <div class="kpi-subtext">RPN rating of 1 - 100</div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 24px; margin-bottom: 30px;">
+    
+    <!-- Bar Chart Card -->
+    <div class="card" style="padding: 20px;">
+      <h3 class="card-section-title">EFMEA Distribution by Department</h3>
+      <div style="position: relative; height: 260px;">
+        <canvas id="deptRiskChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Donut Chart Card -->
+    <div class="card" style="padding: 20px;">
+      <h3 class="card-section-title">Mitigation Status Overview</h3>
+      <div style="position: relative; height: 260px; display: flex; align-items: center; justify-content: center;">
+        <canvas id="statusDonutChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Critical Risks Table Card -->
+  <div class="card" style="padding: 20px; margin-bottom: 40px;">
+    <h3 class="card-section-title">🔥 Top Critical EFMEAs (Sorted by Active RPN)</h3>
+    <div class="table-responsive">
+      <table class="dashboard-table">
+        <thead>
+          <tr>
+            <th>EFMEA ID</th>
+            <th>Equipment</th>
+            <th>Failure Mode</th>
+            <th style="text-align: center;">Initial RPN</th>
+            <th style="text-align: center;">Revised RPN</th>
+            <th>Target Date</th>
+            <th>Trend</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in top_critical %}
+          <tr>
+            <td class="mono" style="font-weight: 700;">{{ r.risk_id }}</td>
+            <td><b>{{ r.main_equipment }}</b></td>
+            <td>{{ r.potential_failure_mode|truncatechars:60 }}</td>
+            <td style="text-align: center;">
+              <span class="rpn-badge rpn-{% if r.rpn >= 301 %}high{% elif r.rpn >= 101 %}med{% else %}low{% endif %}">
+                {{ r.rpn }}
+              </span>
+            </td>
+            <td style="text-align: center;">
+              {% if r.action_rpn %}
+                <span class="rpn-badge rpn-{% if r.action_rpn >= 301 %}high{% elif r.action_rpn >= 101 %}med{% else %}low{% endif %}">
+                  {{ r.action_rpn }}
+                </span>
+              {% else %}
+                <span style="color: var(--jspl-muted); font-size: 0.8rem;">—</span>
+              {% endif %}
+            </td>
+            <td>{{ r.target_date|date:"Y-m-d"|default:"N/A" }}</td>
+            <td style="font-weight: 600;">
+              {% if r.action_rpn and r.action_rpn < r.rpn %}
+                <span style="color: var(--status-green);">▼ Improved</span>
+              {% elif r.action_rpn and r.action_rpn == r.rpn %}
+                <span style="color: var(--jspl-muted);">— Stable</span>
+              {% else %}
+                <span style="color: var(--jspl-muted);">— Pending</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" style="text-align: center; color: var(--jspl-muted); padding: 30px;">
+              No EFMEAs identified yet. Please use the <b>EFMEA Manual Entry</b> page to add EFMEAs.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Risk distribution chart
+    const deptCtx = document.getElementById('deptRiskChart').getContext('2d');
+    const deptLabels = {{ dept_chart_labels|safe }};
+    const deptData = {{ dept_chart_data|safe }};
+    
+    // Fallback if empty
+    const finalLabels = deptLabels.length ? deptLabels : ['{{ active_dept.code }}'];
+    const finalData = deptData.length ? deptData : [0];
+    
+    new Chart(deptCtx, {
+      type: 'bar',
+      data: {
+        labels: finalLabels,
+        datasets: [{
+          label: 'Number of EFMEAs',
+          data: finalData,
+          backgroundColor: '#0057A8',
+          borderRadius: 4,
+          maxBarThickness: 40
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+    
+    // Status donut chart
+    const statusCtx = document.getElementById('statusDonutChart').getContext('2d');
+    const statusData = {{ status_chart_data|safe }};
+    
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Completed', 'Under Progress', 'Not Started'],
+        datasets: [{
+          data: statusData,
+          backgroundColor: ['#10b981', '#f97316', '#cbd5e1'],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, padding: 15 }
+          }
+        },
+        cutout: '65%'
+      }
+    });
+  });
+</script>
+{% endblock %}

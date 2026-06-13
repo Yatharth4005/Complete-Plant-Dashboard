@@ -1,0 +1,261 @@
+{% extends "fmea/base.html" %}
+
+{% block title %}EFMEA Manual Entry — {{ active_dept.name }}{% endblock %}
+
+{% block content %}
+<div class="page-container" x-data="riskIdentForm()">
+
+  <div style="margin-bottom: 25px;">
+    <h1 class="portal-page-title">EFMEA Manual Entry</h1>
+    <p class="portal-page-subtitle">Register and evaluate a new failure mode EFMEA entry manually for <b>{{ active_dept.name }}</b></p>
+  </div>
+
+  <div class="card" style="max-width: 800px; margin: 0 auto 40px; padding: 30px;">
+    <form action="{% url 'fmea:save_risk' active_dept.id %}" method="POST">
+      {% csrf_token %}
+
+      <!-- Department selection -->
+      <div style="margin-bottom: 20px;">
+        <label class="form-label-bold">Department</label>
+        <select name="department_select" class="input-mono" disabled style="background-color: var(--jspl-gray); height: 40px;">
+          <option value="{{ active_dept.id }}">{{ active_dept.name }} ({{ active_dept.code }})</option>
+        </select>
+        <input type="hidden" name="department" value="{{ active_dept.id }}">
+      </div>
+
+      <!-- Identification Date & Owner -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <div>
+          <label class="form-label-bold">Identification Date</label>
+          <input type="date" name="identification_date" class="input-mono" value="{{ today }}" required style="height: 40px;">
+        </div>
+        <div>
+          <label class="form-label-bold">EFMEA Owner / Responsible Person</label>
+          <select name="risk_owner" class="input-mono" required style="height: 40px; padding: 4px 10px;">
+            <option value="">Select Owner...</option>
+            {% for o in owners %}
+              <option value="{{ o.get_display_name }}">{{ o.get_display_name }} ({{ o.email }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Main Equipment & Sub-Equipment -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <div>
+          <label class="form-label-bold">Main Equipment</label>
+          <input type="text" name="main_equipment" class="input-mono" placeholder="e.g. Overhead Crane" required style="height: 40px;">
+        </div>
+        <div>
+          <label class="form-label-bold">Sub-Equipment / Assembly</label>
+          <input type="text" name="sub_equipment" class="input-mono" placeholder="e.g. Hoist Gearbox" style="height: 40px;">
+        </div>
+      </div>
+
+      <!-- Main Equipment Function & Functional Failure -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <div>
+          <label class="form-label-bold">Main Equipment Function</label>
+          <input type="text" name="main_equipment_function" class="input-mono" placeholder="e.g. Hoisting and transporting liquid steel" style="height: 40px;">
+        </div>
+        <div>
+          <label class="form-label-bold">Functional Failure</label>
+          <input type="text" name="functional_failure" class="input-mono" placeholder="e.g. Total hoist failure during lifting" style="height: 40px;">
+        </div>
+      </div>
+
+      <!-- Component & Component Function -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <div>
+          <label class="form-label-bold">Component Name</label>
+          <input type="text" name="component" class="input-mono" placeholder="e.g. Pinion Shaft" style="height: 40px;">
+        </div>
+        <div>
+          <label class="form-label-bold">Component / Equipment Function</label>
+          <input type="text" name="component_function" class="input-mono" placeholder="e.g. Transmits torque to main gear" style="height: 40px;">
+        </div>
+      </div>
+
+      <!-- Failure Description -->
+      <div style="margin-bottom: 20px;">
+        <label class="form-label-bold">Potential Failure Mode / EFMEA Description</label>
+        <textarea name="potential_failure_mode" class="input-mono" rows="3" placeholder="Describe the failure mode..." required style="padding: 10px;"></textarea>
+      </div>
+
+      <!-- Potential Causes, Current Controls & Recommended Improvement -->
+      <div style="margin-bottom: 20px;">
+        <label class="form-label-bold">Potential Cause(s)/Mechanism(s) of Failures</label>
+        <textarea name="potential_causes" class="input-mono" rows="2" placeholder="e.g. Fatigue crack, lack of lubrication, load fluctuation..." style="padding: 10px;"></textarea>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label class="form-label-bold">Current Controls for Prevention/ Detection</label>
+        <textarea name="current_controls" class="input-mono" rows="2" placeholder="e.g. Monthly NDT testing, daily visual checks..." style="padding: 10px;"></textarea>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label class="form-label-bold">Recommended Improvement / Action Plan for Detection</label>
+        <textarea name="recommended_actions" class="input-mono" rows="2" placeholder="e.g. Install on-line vibration sensors, upgrade seal grade..." style="padding: 10px;"></textarea>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label class="form-label-bold">Contingency Plan</label>
+        <textarea name="contingency_plan" class="input-mono" rows="2" placeholder="e.g. Standard operating procedure in case of breakdown..." style="padding: 10px;"></textarea>
+      </div>
+
+      <!-- Event Consequences (Dynamic List) -->
+      <div style="margin-bottom: 20px;">
+        <label class="form-label-bold" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Potential Effect(s) of Failures / Event Consequences</span>
+          <button type="button" @click="addConsequence()" class="btn btn-secondary" style="padding: 3px 10px; font-size: 0.75rem; border-radius: 4px;">
+            ➕ Add Row
+          </button>
+        </label>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <template x-for="(conseq, index) in consequences" :key="index">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span class="mono" style="font-size: 0.85rem; font-weight: bold; width: 20px;" x-text="getLetter(index) + ')'"></span>
+              <input type="text" name="event_consequences[]" class="input-mono" required 
+                     placeholder="e.g. Injury to operator, production stoppage..." x-model="consequences[index]" style="height: 38px; flex-grow: 1;">
+              <button type="button" @click="removeConsequence(index)" class="btn" 
+                      style="background-color: #fee2e2; color: #dc2626 !important; border: 1px solid #fca5a5; padding: 6px 12px; height: 38px;"
+                      :disabled="consequences.length <= 1">
+                ❌
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid var(--jspl-border); margin: 25px 0;">
+
+      <!-- Severity, Occurrence, Detection Sliders -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+        <!-- Severity -->
+        <div>
+          <label class="form-label-bold">Severity (S)</label>
+          <select name="severity" class="input-mono" x-model.number="severity" style="height: 40px; font-size: 0.95rem; font-weight: 700;">
+            <template x-for="i in 10" :key="i">
+              <option :value="i" x-text="i"></option>
+            </template>
+          </select>
+          <div class="rpn-desc-box" style="margin-top: 8px;">
+            <span style="font-weight: bold; color: var(--jspl-navy);" x-text="getSeverityText(severity).title"></span>
+            <p style="font-size: 0.72rem; color: var(--jspl-muted); margin-top: 2px;" x-text="getSeverityText(severity).desc"></p>
+          </div>
+        </div>
+
+        <!-- Occurrence -->
+        <div>
+          <label class="form-label-bold">Occurrence (O)</label>
+          <select name="occurrence" class="input-mono" x-model.number="occurrence" style="height: 40px; font-size: 0.95rem; font-weight: 700;">
+            <template x-for="i in 10" :key="i">
+              <option :value="i" x-text="i"></option>
+            </template>
+          </select>
+          <div class="rpn-desc-box" style="margin-top: 8px;">
+            <span style="font-weight: bold; color: var(--jspl-navy);" x-text="getOccurrenceText(occurrence).title"></span>
+            <p style="font-size: 0.72rem; color: var(--jspl-muted); margin-top: 2px;" x-text="getOccurrenceText(occurrence).desc"></p>
+          </div>
+        </div>
+
+        <!-- Detection -->
+        <div>
+          <label class="form-label-bold">Detection (D)</label>
+          <select name="detection" class="input-mono" x-model.number="detection" style="height: 40px; font-size: 0.95rem; font-weight: 700;">
+            <template x-for="i in 10" :key="i">
+              <option :value="i" x-text="i"></option>
+            </template>
+          </select>
+          <div class="rpn-desc-box" style="margin-top: 8px;">
+            <span style="font-weight: bold; color: var(--jspl-navy);" x-text="getDetectionText(detection).title"></span>
+            <p style="font-size: 0.72rem; color: var(--jspl-muted); margin-top: 2px;" x-text="getDetectionText(detection).desc"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- RPN Display Badge -->
+      <div :class="'rpn-total-row rpn-row-' + getRpnClass(rpn())" style="display: flex; flex-direction: column; align-items: center; padding: 16px; border-radius: 8px; margin-bottom: 25px; transition: all 0.3s;">
+        <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Calculated RPN (Initial)</span>
+        <div style="font-size: 2.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;" x-text="rpn()"></div>
+        <span style="font-size: 0.85rem; font-weight: bold;" x-text="getRpnMeaning(rpn())"></span>
+      </div>
+
+      <!-- Submit button -->
+      <div style="display: flex; justify-content: flex-end; gap: 15px;">
+        <a href="{% url 'fmea:register' active_dept.id %}" class="btn btn-secondary" style="height: 40px;">Cancel</a>
+        <button type="submit" class="btn btn-primary" style="height: 40px; background-color: var(--status-green) !important;">
+          💾 SAVE EFMEA
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function riskIdentForm() {
+    return {
+      severity: 5,
+      occurrence: 5,
+      detection: 5,
+      consequences: [''],
+      
+      rpn() {
+        return this.severity * this.occurrence * this.detection;
+      },
+      
+      addConsequence() {
+        this.consequences.push('');
+      },
+      
+      removeConsequence(index) {
+        if (this.consequences.length > 1) {
+          this.consequences.splice(index, 1);
+        }
+      },
+      
+      getLetter(index) {
+        return String.fromCharCode(97 + index); // a, b, c, ...
+      },
+      
+      getRpnClass(rpnVal) {
+        if (rpnVal >= 301) return 'high';
+        if (rpnVal >= 101) return 'med';
+        return 'low';
+      },
+      
+      getRpnMeaning(rpnVal) {
+        if (rpnVal >= 301) return 'Critical EFMEA - Abnormality Detection & CAPA Required';
+        if (rpnVal >= 101) return 'Alarm EFMEA - Control measures need strengthening';
+        return 'Normal EFMEA - Continue with current controls';
+      },
+      
+      getSeverityText(s) {
+        if (s >= 9) return { title: 'Catastrophic Effect (9-10)', desc: 'Failure leads to extreme safety hazard, major environmental harm, or complete system collapse.' };
+        if (s >= 7) return { title: 'Major Effect (7-8)', desc: 'High breakdown hours, severe component damage, or potential operator injury.' };
+        if (s >= 4) return { title: 'Moderate Effect (4-6)', desc: 'System function is reduced, minor damage, requires repair but stays safe.' };
+        return { title: 'Minor Effect (1-3)', desc: 'Slight inconvenience, zero safety risk, repaired during normal schedules.' };
+      },
+      
+      getOccurrenceText(o) {
+        if (o >= 9) return { title: 'Extremely High (9-10)', desc: 'Failure occurs multiple times a week; almost inevitable.' };
+        if (o >= 7) return { title: 'Moderately High (7-8)', desc: 'Failure expected to happen frequently (weekly to biweekly).' };
+        if (o >= 4) return { title: 'Occasional (4-6)', desc: 'Failure occurs occasionally (monthly/quarterly).' };
+        return { title: 'Remote/Unlikely (1-3)', desc: 'Failure is rare, practically never seen in similar applications.' };
+      },
+      
+      getDetectionText(d) {
+        if (d >= 9) return { title: 'No Detection (9-10)', desc: 'Extremely difficult to detect failure before it occurs; no checks in place.' };
+        if (d >= 7) return { title: 'Low Detection (7-8)', desc: 'Low probability of detection; checks are manual and irregular.' };
+        if (d >= 4) return { title: 'Moderate Detection (4-6)', desc: 'Likely to detect failure via inspections or standard sensors.' };
+        return { title: 'Highly Certain (1-3)', desc: 'Automated warnings or continuous interlocks will catch it immediately.' };
+      }
+    };
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,156 @@
+/* FMEA & Risk Management Sub-Portal Custom Stylesheet */
+
+/* Sidebar theme override for Risk Management App */
+.fmea-sidebar {
+  background: #1e293b !important; /* Slate 800 for dark professional theme */
+  border-right: 1px solid #334155 !important;
+}
+
+.fmea-sidebar .sidebar-divider {
+  color: #94a3b8 !important;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+}
+
+.fmea-sidebar .sidebar-link {
+  color: #cbd5e1 !important;
+}
+
+.fmea-sidebar .sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+}
+
+.fmea-sidebar .sidebar-link.active {
+  background: var(--jspl-blue) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+/* RPN Badges */
+.rpn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.rpn-badge.rpn-high {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.rpn-badge.rpn-med {
+  background-color: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fde047;
+}
+
+.rpn-badge.rpn-low {
+  background-color: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+/* Forms descriptions and helpers */
+.rpn-desc-box {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 6px;
+  min-height: 54px;
+  box-sizing: border-box;
+}
+
+.form-label-bold {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--jspl-navy);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* RPN dynamic color banners */
+.rpn-total-row {
+  color: #ffffff !important;
+  text-align: center;
+}
+
+.rpn-row-high {
+  background-color: #ef4444 !important;
+  border: 1px solid #dc2626;
+}
+
+.rpn-row-med {
+  background-color: #f59e0b !important;
+  border: 1px solid #d97706;
+}
+
+.rpn-row-low {
+  background-color: #10b981 !important;
+  border: 1px solid #059669;
+}
+
+/* Quarterly Drawer Tabs */
+.tab-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--jspl-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.tab-btn:hover {
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--jspl-navy);
+}
+
+.tab-btn.active {
+  color: var(--jspl-blue);
+  border-bottom: 2.5px solid var(--jspl-blue);
+  background: #ffffff;
+}
+
+/* FMEA Save Toast alert */
+.fmea-toast {
+  background-color: #020617;
+  color: #ffffff;
+}
+
+.fmea-toast.success {
+  border-left: 5px solid #10b981;
+}
+
+.fmea-toast.error {
+  border-left: 5px solid #ef4444;
+}
+
+/* Collapsible drawer styling */
+.risk-register-card {
+  transition: box-shadow 0.2s;
+}
+
+.risk-register-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.rpn-rating-card {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}

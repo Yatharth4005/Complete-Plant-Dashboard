@@ -1,0 +1,693 @@
+{% extends "fmea/base.html" %}
+
+{% block title %}Master EFMEA Report — {{ active_dept.name }}{% endblock %}
+
+{% block content %}
+<div class="page-container" x-data="{
+  keyContact: '{{ sheet_metadata.key_contact|escapejs }}',
+  coreTeam: '{{ sheet_metadata.core_team|escapejs }}',
+  objective: '{{ sheet_metadata.objective|escapejs }}',
+  dateStr: '{{ sheet_metadata.date_str|escapejs }}',
+  refNo: '{{ sheet_metadata.ref_no|escapejs }}',
+  editMode: false,
+
+  init() {
+    if (!this.dateStr) {
+      const localDate = new Date();
+      const year = localDate.getFullYear();
+      const month = String(localDate.getMonth() + 1).padStart(2, '0');
+      const day = String(localDate.getDate()).padStart(2, '0');
+      this.dateStr = `${year}-${month}-${day}`;
+    }
+    if (!this.refNo) {
+      this.generateRefNo();
+    }
+  },
+
+  generateRefNo() {
+    const year = this.dateStr ? new Date(this.dateStr).getFullYear() : new Date().getFullYear();
+    const dept = '{{ active_dept.code }}';
+    const randNum = String(Math.floor(Math.random() * 99) + 1).padStart(2, '0');
+    this.refNo = 'JS-Raigarh/' + dept + '/' + year + '/EFMEA/' + randNum;
+  },
+
+  get downloadUrl() {
+    const baseUrl = '{% url "fmea:download_excel" active_dept.id %}';
+    const params = new URLSearchParams({
+      key_contact: this.keyContact,
+      core_team: this.coreTeam,
+      objective: this.objective,
+      date: this.dateStr,
+      ref_no: this.refNo,
+      upload_id: '{{ selected_upload_id }}'
+    });
+    return baseUrl + '?' + params.toString();
+  }
+}">
+
+  <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+      <h1 class="portal-page-title">Master EFMEA Report</h1>
+      <p class="portal-page-subtitle">Unified view of all failure modes, EFMEA levels, and mitigation actions</p>
+      <a href="{% url 'fmea:identification' active_dept.id %}" class="btn btn-primary" style="margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; background-color: var(--jspl-navy) !important; font-size: 0.8rem; height: 34px;">
+        ➕ Add EFMEA Manually
+      </a>
+    </div>
+    
+    <!-- Upload Excel Card trigger or small form -->
+    <div class="card" style="padding: 12px 18px; max-width: 400px; border: 1px dashed var(--jspl-blue); background: rgba(0, 87, 168, 0.02);">
+      <h4 style="font-size: 0.8rem; font-weight: 700; color: var(--jspl-navy); margin-bottom: 6px;">📥 Upload Past Data (Excel)</h4>
+      <form action="{% url 'fmea:upload_excel' active_dept.id %}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+        {% csrf_token %}
+        <input type="file" name="excel_file" accept=".xlsx" required style="font-size: 0.72rem; flex-grow:1;">
+        <button type="submit" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.72rem; background-color: var(--jspl-navy) !important;">
+          Upload
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Filters Row -->
+  <div class="card filter-card" style="padding: 16px 20px; margin-bottom: 24px;">
+    <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+      
+
+
+      <div class="filter-group" style="flex: 1; min-width: 140px;">
+        <label style="font-size: 0.75rem;">Sort By</label>
+        <select name="sort_by" class="input-mono" style="height: 36px; font-size: 0.8rem; width: 100%;">
+          <option value="rpn_desc" {% if sort_by == 'rpn_desc' %}selected{% endif %}>RPN (High to Low)</option>
+          <option value="rpn_asc" {% if sort_by == 'rpn_asc' %}selected{% endif %}>RPN (Low to High)</option>
+          <option value="sn" {% if sort_by == 'sn' %}selected{% endif %}>Serial Number (SN)</option>
+        </select>
+      </div>
+
+      <div class="filter-group" style="flex: 1.5; min-width: 180px;">
+        <label style="font-size: 0.75rem;">Select Sheet</label>
+        <select name="upload_id" class="input-mono" style="height: 36px; font-size: 0.8rem; width: 100%;" onchange="this.form.submit()">
+          <option value="new_file" {% if selected_upload_id == 'new_file' %}selected{% endif %}>New file</option>
+          {% for upload in uploads %}
+            <option value="{{ upload.id }}" {% if selected_upload_id == upload.id %}selected{% endif %}>
+              {{ upload.sheet_date|date:"d.m.Y"|default:"No Date" }} ({{ upload.filename|truncatechars:20 }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button type="submit" class="btn btn-primary" style="height: 36px; font-size: 0.8rem;">Apply</button>
+        <a href="{% url 'fmea:report' active_dept.id %}" class="btn btn-secondary" style="height: 36px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center;">Reset</a>
+        <a :href="downloadUrl" class="btn" style="height: 36px; font-size: 0.8rem; background-color: var(--status-green) !important; display: flex; align-items: center; justify-content: center; font-weight: bold; gap: 5px;">
+          📊 Download Excel
+        </a>
+        
+        {% if can_edit %}
+          <div style="display: flex; gap: 5px; align-items: center; background: rgba(0, 0, 0, 0.05); padding: 4px; border-radius: 6px; border: 1px solid #cbd5e1; height: 36px;">
+            <button type="button" @click="editMode = false" class="btn toggle-btn-active" :class="!editMode ? 'toggle-btn-active' : 'toggle-btn-inactive'" style="padding: 2px 10px; font-size: 0.75rem; height: 26px; font-weight: bold; border: none !important;">
+              👁 View
+            </button>
+            <button type="button" @click="editMode = true" class="btn toggle-btn-inactive" :class="editMode ? 'toggle-btn-active' : 'toggle-btn-inactive'" style="padding: 2px 10px; font-size: 0.75rem; height: 26px; font-weight: bold; border: none !important;">
+              ✏ Edit
+            </button>
+          </div>
+          
+          <button x-show="editMode" type="submit" form="bulk-edit-form" class="btn" style="height: 36px; font-size: 0.8rem; background-color: var(--jspl-blue) !important; color: white !important; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; border: none;">
+            💾 Save Changes
+          </button>
+        {% endif %}
+      </div>
+
+    </form>
+  </div>
+
+<style>
+  .excel-report-container {
+    border: 2px solid #000;
+    box-shadow: var(--shadow-sm);
+    background: #fff;
+    border-radius: 4px;
+    margin-top: 10px;
+  }
+  .matrix-table {
+    border-collapse: collapse !important;
+  }
+  .matrix-table th, .matrix-table td {
+    border: 1px solid #000 !important;
+    padding: 8px 10px !important;
+    color: #000 !important;
+    vertical-align: middle !important;
+    line-height: 1.35;
+  }
+  .matrix-table th {
+    background-color: #f1f5f9 !important;
+    font-weight: bold !important;
+    font-style: italic !important;
+    text-transform: none !important;
+    text-align: center !important;
+    font-size: 0.74rem !important;
+    color: #0F172A !important;
+  }
+  .rpn-red {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    font-size: 0.9rem !important;
+  }
+  .rpn-yellow {
+    background-color: #fef08a !important;
+    color: #000000 !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    font-size: 0.9rem !important;
+  }
+  .rpn-green {
+    background-color: #22c55e !important;
+    color: #ffffff !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    font-size: 0.9rem !important;
+  }
+  .editable-input {
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 2px 4px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    width: 100%;
+    border-radius: 3px;
+    outline: none;
+    transition: all 0.2s;
+    color: #000;
+    font-family: inherit;
+  }
+  .editable-input:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+  }
+  .editable-input:focus {
+    border-color: var(--jspl-blue) !important;
+    background: #f0f7ff !important;
+    box-shadow: 0 0 0 3px rgba(0, 87, 168, 0.15);
+  }
+  .editable-textarea {
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 4px 6px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    width: 100%;
+    border-radius: 3px;
+    outline: none;
+    transition: all 0.2s;
+    color: #000;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+  .editable-textarea:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+  }
+  .editable-textarea:focus {
+    border-color: var(--jspl-blue) !important;
+    background: #f0f7ff !important;
+    box-shadow: 0 0 0 3px rgba(0, 87, 168, 0.15);
+  }
+  .edit-only {
+    display: none !important;
+  }
+  .edit-mode-active .edit-only {
+    display: inline-block !important;
+  }
+  .edit-mode-active textarea.edit-only {
+    display: block !important;
+  }
+  .edit-mode-active select.edit-only {
+    display: inline-block !important;
+  }
+  .edit-mode-active .view-only {
+    display: none !important;
+  }
+  .btn.toggle-btn-active {
+    background-color: var(--jspl-blue) !important;
+    color: var(--jspl-white, #ffffff) !important;
+    box-shadow: 0 2px 4px rgba(0, 87, 168, 0.2) !important;
+  }
+  .btn.toggle-btn-inactive {
+    background-color: transparent !important;
+    color: var(--jspl-navy, #003478) !important;
+    opacity: 0.85;
+  }
+  .btn.toggle-btn-inactive:hover {
+    background-color: rgba(0, 87, 168, 0.08) !important;
+    color: var(--jspl-blue, #0057A8) !important;
+    opacity: 1;
+  }
+  .component-clevis {
+    background-color: #fee2e2 !important;
+    color: #dc2626 !important;
+  }
+  .component-yellow {
+    background-color: #fef9c3 !important;
+  }
+  .status-badge.status-completed {
+    background-color: #dcfce7 !important;
+    color: var(--status-green) !important;
+  }
+  .status-badge.status-progress {
+    background-color: #fef3c7 !important;
+    color: var(--status-amber) !important;
+  }
+  .status-badge.status-notstarted {
+    background-color: #f1f5f9 !important;
+    color: var(--jspl-muted) !important;
+  }
+</style>
+
+  <!-- Master EFMEA Report Grid/Table -->
+  <form id="bulk-edit-form" :class="editMode ? 'edit-mode-active' : 'view-mode-active'" action="{% url 'fmea:save_report_rows' active_dept.id %}" method="POST">
+    {% csrf_token %}
+    <input type="hidden" name="upload_id" value="{{ selected_upload_id }}">
+    <div class="excel-report-container" style="overflow-x: auto; margin-bottom: 40px;">
+    
+    <!-- Top Spreadsheet Header matching Excel format -->
+    <div style="min-width: 2900px; border-bottom: 2px solid #000; font-family: 'Sora', sans-serif;">
+      <!-- Row 1: Logo, Title, Reference Details -->
+      <div style="display: grid; grid-template-columns: 280px 1fr 350px; border-bottom: 1px solid #000; background: #fff;">
+        <!-- Left: JSP Logo -->
+        <div style="padding: 15px; border-right: 1px solid #000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+          <div style="font-weight: 800; font-size: 1.35rem; color: #002D62; letter-spacing: 0.5px; line-height: 1;">JINDAL</div>
+          <div style="font-size: 0.68rem; letter-spacing: 1.5px; color: #64748b; font-weight: 700; margin-top: 2px;">STEEL & POWER</div>
+          <div style="font-size: 0.95rem; font-weight: 800; margin-top: 12px; color: #000; text-transform: uppercase;">{{ active_dept.name }}</div>
+          <div style="font-size: 0.72rem; color: #64748b; font-weight: 600;">JSP-Raigarh</div>
+        </div>
+        <!-- Center: Document Title -->
+        <div style="padding: 20px; border-right: 1px solid #000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+          <h2 style="font-size: 1.5rem; font-weight: 800; color: #000; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Equipment Failure Mode Effect Analysis</h2>
+          <span style="font-size: 0.95rem; font-weight: 700; color: #475569; margin-top: 8px;">(Vertical Roll Balancing Cylinder)</span>
+        </div>
+        <!-- Right: Reference Info -->
+        <div style="padding: 15px; font-size: 0.78rem; display: flex; flex-direction: column; justify-content: center; gap: 8px; line-height: 1.4; color: #000;">
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <b style="min-width: 80px;">Reference:</b>
+            <span x-show="!editMode" style="font-weight: 700; font-size: 0.78rem; padding: 2px 4px;">{{ sheet_metadata.ref_no|default:"—" }}</span>
+            <input x-show="editMode" type="text" name="ref_no" x-model="refNo" class="editable-input" style="font-weight: 700; font-size: 0.78rem; height: 26px;">
+          </div>
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 6px; display: flex; align-items: center; gap: 5px;">
+            <b style="min-width: 80px;">Date:</b>
+            <span x-show="!editMode" style="font-weight: 700; font-size: 0.78rem; padding: 2px 4px;">{{ sheet_metadata.date_str|default:"—" }}</span>
+            <input x-show="editMode" type="date" name="date" x-model="dateStr" @change="generateRefNo()" class="editable-input" style="font-weight: 700; font-size: 0.78rem; height: 26px; padding: 2px 5px;">
+          </div>
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 6px;"><b>PAGES:</b> 01 OF 01</div>
+        </div>
+      </div>
+      
+      <!-- Row 2: Key Contact, Core Team, Objective -->
+      <div style="display: grid; grid-template-columns: 280px 1fr 350px; font-size: 0.8rem; background: #fff;">
+        <!-- Key Contact -->
+        <div style="border-right: 1px solid #000; display: grid; grid-template-columns: 100px 1fr;">
+          <div style="padding: 12px 10px; font-weight: 800; border-right: 1px solid #e2e8f0; display: flex; align-items: center; background: #f8fafc; color: #334155; text-transform: uppercase; font-size: 0.72rem;">Key Contact</div>
+          <div style="padding: 6px; display: flex; align-items: center; width: 100%;">
+            <span x-show="!editMode" style="font-weight: 700; font-size: 0.8rem; padding: 2px 4px;">{{ sheet_metadata.key_contact|default:"—" }}</span>
+            <input x-show="editMode" type="text" name="key_contact" x-model="keyContact" class="editable-input" style="font-weight: 700;">
+          </div>
+        </div>
+        <!-- Core Team -->
+        <div style="border-right: 1px solid #000; display: grid; grid-template-columns: 100px 1fr;">
+          <div style="padding: 12px 10px; font-weight: 800; border-right: 1px solid #e2e8f0; display: flex; align-items: center; background: #f8fafc; color: #334155; text-transform: uppercase; font-size: 0.72rem;">Core Team</div>
+          <div style="padding: 6px; display: flex; align-items: center; width: 100%;">
+            <span x-show="!editMode" style="font-weight: 700; font-size: 0.8rem; padding: 2px 4px; white-space: pre-wrap;">{{ sheet_metadata.core_team|default:"—" }}</span>
+            <textarea x-show="editMode" name="core_team" x-model="coreTeam" class="editable-textarea" rows="2" style="font-weight: 700;"></textarea>
+          </div>
+        </div>
+        <!-- Objective -->
+        <div style="display: grid; grid-template-columns: 90px 1fr;">
+          <div style="padding: 12px 10px; font-weight: 800; border-right: 1px solid #e2e8f0; display: flex; align-items: center; background: #f8fafc; color: #334155; text-transform: uppercase; font-size: 0.72rem; text-align: center; justify-content: center; line-height: 1.2;">Objective</div>
+          <div style="padding: 6px; display: flex; align-items: center; width: 100%;">
+            <span x-show="!editMode" style="font-weight: 700; font-size: 0.78rem; padding: 2px 4px; white-space: pre-wrap;">{{ sheet_metadata.objective|default:"—" }}</span>
+            <textarea x-show="editMode" name="objective" x-model="objective" class="editable-textarea" rows="2" style="font-weight: 700; font-size: 0.76rem;"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Table -->
+    <table class="dashboard-table matrix-table" style="width: 100%; min-width: 2900px; border-collapse: collapse; table-layout: fixed;">
+      <colgroup>
+        <col style="width: 50px;"> <!-- SN -->
+        <col style="width: 150px;"> <!-- Equipment -->
+        <col style="width: 180px;"> <!-- Equipment Function -->
+        <col style="width: 150px;"> <!-- Functional Failure -->
+        <col style="width: 140px;"> <!-- Sub-Equipment -->
+        <col style="width: 140px;"> <!-- Component -->
+        <col style="width: 160px;"> <!-- Component Function -->
+        <col style="width: 200px;"> <!-- Potential Failure Mode -->
+        <col style="width: 200px;"> <!-- Potential Effect(s) of Failures -->
+        <col style="width: 45px;"> <!-- Sev -->
+        <col style="width: 200px;"> <!-- Potential Cause(s)/Mechanism(s) -->
+        <col style="width: 45px;"> <!-- Occur -->
+        <col style="width: 180px;"> <!-- Current Controls -->
+        <col style="width: 200px;"> <!-- Recommended Improvement -->
+        <col style="width: 45px;"> <!-- Det -->
+        <col style="width: 75px;"> <!-- RPN -->
+        <col style="width: 160px;"> <!-- Contingency Plan -->
+        <col style="width: 100px;"> <!-- Status -->
+        <col style="width: 180px;"> <!-- Action Taken -->
+        <col style="width: 45px;"> <!-- Action Sev -->
+        <col style="width: 45px;"> <!-- Action Occ -->
+        <col style="width: 45px;"> <!-- Action Det -->
+        <col style="width: 75px;"> <!-- Action RPN -->
+      </colgroup>
+      <thead>
+        <tr>
+          <th rowspan="2">S<br>N</th>
+          <th rowspan="2">Equipment</th>
+          <th rowspan="2">Equipment Function</th>
+          <th rowspan="2">Functional Failure</th>
+          <th rowspan="2">Sub-Equipment</th>
+          <th rowspan="2">Component</th>
+          <th rowspan="2">Component Function</th>
+          <th rowspan="2">Potential Failure Mode</th>
+          <th rowspan="2">Potential Effect(s) of Failures</th>
+          <th rowspan="2">S<br>e<br>v</th>
+          <th rowspan="2">Potential Cause(s)/Mechanism(s) of Failures</th>
+          <th rowspan="2">O<br>c<br>c<br>u<br>r</th>
+          <th rowspan="2">Current Controls for Prevention/<br>Detection</th>
+          <th rowspan="2">Recommended Improvement/Action Plan for Detection</th>
+          <th rowspan="2">D<br>e<br>t</th>
+          <th rowspan="2" style="background-color: #fee2e2 !important; color: #000 !important;">R<br>P<br>N</th>
+          <th rowspan="2">Contingency Plan</th>
+          <th rowspan="2">Status</th>
+          <th colspan="5" style="background-color: #e2e8f0 !important; color: #000 !important; text-align: center;">Action Results</th>
+        </tr>
+        <tr>
+          <th>Action Taken</th>
+          <th>S<br>e<br>v</th>
+          <th>O<br>c<br>c</th>
+          <th>D<br>e<br>t</th>
+          <th style="background-color: #dcfce7 !important; color: #000 !important;">R<br>P<br>N</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in records_data %}
+          {% with r=row.record %}
+          <tr style="background-color: #fff;">
+            
+            <!-- Merged Columns -->
+            {% if row.is_equip_lead %}
+              <td class="mono" rowspan="{{ row.equip_rowspan }}" style="font-weight: 700; text-align: center; background: #fff; vertical-align: middle;">
+                <span class="view-only">{{ r.sn|default:forloop.counter }}</span>
+                <input class="edit-only editable-input" type="text" name="sn_{{ r.id }}" value="{{ r.sn|default:forloop.counter }}" style="text-align: center; font-weight: 700;">
+              </td>
+              <td rowspan="{{ row.equip_rowspan }}" style="font-weight: 700; background: #fff; vertical-align: middle;">
+                <span class="view-only">{{ r.main_equipment }}</span>
+                <input class="edit-only editable-input" type="text" name="main_equipment_{{ r.id }}" value="{{ r.main_equipment }}" style="font-weight: 700;">
+              </td>
+              <td rowspan="{{ row.equip_rowspan }}" style="font-size: 0.8rem; background: #fff; word-wrap: break-word; vertical-align: middle;">
+                <span class="view-only">{{ r.main_equipment_function|linebreaksbr }}</span>
+                <textarea class="edit-only editable-textarea" name="main_equipment_function_{{ r.id }}" rows="3">{{ r.main_equipment_function }}</textarea>
+              </td>
+              <td rowspan="{{ row.equip_rowspan }}" style="font-weight: bold; font-size: 0.85rem; color: #dc2626; text-align: center; background: #fff; word-wrap: break-word; vertical-align: middle;">
+                <span class="view-only">{{ r.functional_failure|linebreaksbr }}</span>
+                <textarea class="edit-only editable-textarea" name="functional_failure_{{ r.id }}" rows="3" style="color: #dc2626; font-weight: bold;">{{ r.functional_failure }}</textarea>
+              </td>
+            {% endif %}
+            
+            <!-- Standard Row Columns -->
+            <td style="font-size: 0.8rem; vertical-align: middle;">
+              <span class="view-only">{{ r.sub_equipment|default:"—" }}</span>
+              <input class="edit-only editable-input" type="text" name="sub_equipment_{{ r.id }}" value="{{ r.sub_equipment }}">
+            </td>
+            <td style="font-size: 0.8rem; font-weight: 600; vertical-align: middle;" 
+                class="{% if r.component == 'Clevis-Checknut Assembly' %}component-clevis{% elif r.component == 'Power Pack' or r.component == 'Solenoid Coils' or r.component == 'Base Support/ Structure' %}component-yellow{% endif %}">
+              <span class="view-only">{{ r.component|default:"—" }}</span>
+              <input class="edit-only editable-input" type="text" name="component_{{ r.id }}" value="{{ r.component }}" style="font-weight: 600;">
+            </td>
+            <td style="font-size: 0.8rem; word-wrap: break-word; vertical-align: middle;">
+              <span class="view-only">{{ r.component_function|linebreaksbr }}</span>
+              <textarea class="edit-only editable-textarea" name="component_function_{{ r.id }}" rows="2">{{ r.component_function }}</textarea>
+            </td>
+            <td style="font-size: 0.8rem; word-wrap: break-word; vertical-align: middle;">
+              <span class="view-only">{{ r.potential_failure_mode|linebreaksbr }}</span>
+              <textarea class="edit-only editable-textarea" name="potential_failure_mode_{{ r.id }}" rows="2">{{ r.potential_failure_mode }}</textarea>
+            </td>
+            <td style="font-size: 0.78rem; word-wrap: break-word; vertical-align: middle;">
+              <div class="view-only">
+                <ol style="margin: 0; padding-left: 14px;">
+                  {% for c in row.consequences %}
+                    <li>{{ c }}</li>
+                  {% empty %}
+                    <li>{{ r.potential_effects }}</li>
+                  {% endfor %}
+                </ol>
+              </div>
+              <textarea class="edit-only editable-textarea" name="potential_effects_{{ r.id }}" rows="3">{{ r.potential_effects }}</textarea>
+            </td>
+            <td style="text-align: center; font-size: 0.85rem; font-weight: bold; vertical-align: middle;">
+              <span class="view-only">{{ r.severity }}</span>
+              <select class="edit-only editable-input" name="severity_{{ r.id }}" style="padding: 2px;">
+                {% for i in "123456789"|make_list %}
+                  <option value="{{ i }}" {% if r.severity == i|add:"0" %}selected{% endif %}>{{ i }}</option>
+                {% endfor %}
+                <option value="10" {% if r.severity == 10 %}selected{% endif %}>10</option>
+              </select>
+            </td>
+            <td style="font-size: 0.8rem; word-wrap: break-word; vertical-align: middle;">
+              <span class="view-only">{{ r.potential_causes|linebreaksbr }}</span>
+              <textarea class="edit-only editable-textarea" name="potential_causes_{{ r.id }}" rows="2">{{ r.potential_causes }}</textarea>
+            </td>
+            <td style="text-align: center; font-size: 0.85rem; font-weight: bold; vertical-align: middle;">
+              <span class="view-only">{{ r.occurrence }}</span>
+              <select class="edit-only editable-input" name="occurrence_{{ r.id }}" style="padding: 2px;">
+                {% for i in "123456789"|make_list %}
+                  <option value="{{ i }}" {% if r.occurrence == i|add:"0" %}selected{% endif %}>{{ i }}</option>
+                {% endfor %}
+                <option value="10" {% if r.occurrence == 10 %}selected{% endif %}>10</option>
+              </select>
+            </td>
+            <td style="font-size: 0.8rem; word-wrap: break-word; vertical-align: middle;">
+              <span class="view-only">{{ r.current_controls|linebreaksbr }}</span>
+              <textarea class="edit-only editable-textarea" name="current_controls_{{ r.id }}" rows="2">{{ r.current_controls }}</textarea>
+            </td>
+            <td style="font-size: 0.78rem; font-weight: 500; word-wrap: break-word; vertical-align: middle;">
+              <span class="view-only">{{ row.q_mitigation|default:r.recommended_actions|linebreaksbr }}</span>
+              <textarea class="edit-only editable-textarea" name="recommended_actions_{{ r.id }}" rows="2">{{ r.recommended_actions }}</textarea>
+            </td>
+            <td style="text-align: center; font-size: 0.85rem; font-weight: bold; vertical-align: middle;">
+              <span class="view-only">{{ r.detection }}</span>
+              <select class="edit-only editable-input" name="detection_{{ r.id }}" style="padding: 2px;">
+                {% for i in "123456789"|make_list %}
+                  <option value="{{ i }}" {% if r.detection == i|add:"0" %}selected{% endif %}>{{ i }}</option>
+                {% endfor %}
+                <option value="10" {% if r.detection == 10 %}selected{% endif %}>10</option>
+              </select>
+            </td>
+            
+            <!-- RPN with Background Colors -->
+            <td class="{% if r.rpn >= 301 %}rpn-red{% elif r.rpn >= 101 %}rpn-yellow{% else %}rpn-green{% endif %}" style="vertical-align: middle;">{{ r.rpn }}</td>
+            
+            <td style="font-size: 0.8rem; word-wrap: break-word; vertical-align: middle;">
+              <span class="view-only">{{ r.contingency_plan|default:"—" }}</span>
+              <textarea class="edit-only editable-textarea" name="contingency_plan_{{ r.id }}" rows="2">{{ r.contingency_plan }}</textarea>
+            </td>
+            <td style="text-align: center; vertical-align: middle;">
+              <span class="view-only status-badge {% if row.q_status == 'Completed' %}status-completed{% elif row.q_status == 'Under Progress' %}status-progress{% else %}status-notstarted{% endif %}" style="font-size: 0.7rem; font-weight: bold;">
+                {{ row.q_status }}
+              </span>
+              <select class="edit-only editable-input" name="status_{{ r.id }}" style="padding: 2px;">
+                <option value="Not Started" {% if r.status == 'Not Started' %}selected{% endif %}>Not Started</option>
+                <option value="Under Progress" {% if r.status == 'Under Progress' %}selected{% endif %}>Under Progress</option>
+                <option value="Completed" {% if r.status == 'Completed' %}selected{% endif %}>Completed</option>
+              </select>
+            </td>
+            
+            <!-- Action Results columns -->
+            <td style="font-size: 0.8rem; word-wrap: break-word; vertical-align: middle;">
+              <span class="view-only">{{ r.action_taken|default:"—" }}</span>
+              <textarea class="edit-only editable-textarea" name="action_taken_{{ r.id }}" rows="2">{{ r.action_taken }}</textarea>
+            </td>
+            <td style="text-align: center; font-size: 0.85rem; vertical-align: middle;">
+              <span class="view-only">{{ r.action_severity|default:"—" }}</span>
+              <select class="edit-only editable-input" name="action_severity_{{ r.id }}" style="padding: 2px;">
+                <option value="">—</option>
+                {% for i in "123456789"|make_list %}
+                  <option value="{{ i }}" {% if r.action_severity == i|add:"0" %}selected{% endif %}>{{ i }}</option>
+                {% endfor %}
+                <option value="10" {% if r.action_severity == 10 %}selected{% endif %}>10</option>
+              </select>
+            </td>
+            <td style="text-align: center; font-size: 0.85rem; vertical-align: middle;">
+              <span class="view-only">{{ r.action_occurrence|default:"—" }}</span>
+              <select class="edit-only editable-input" name="action_occurrence_{{ r.id }}" style="padding: 2px;">
+                <option value="">—</option>
+                {% for i in "123456789"|make_list %}
+                  <option value="{{ i }}" {% if r.action_occurrence == i|add:"0" %}selected{% endif %}>{{ i }}</option>
+                {% endfor %}
+                <option value="10" {% if r.action_occurrence == 10 %}selected{% endif %}>10</option>
+              </select>
+            </td>
+            <td style="text-align: center; font-size: 0.85rem; vertical-align: middle;">
+              <span class="view-only">{{ r.action_detection|default:"—" }}</span>
+              <select class="edit-only editable-input" name="action_detection_{{ r.id }}" style="padding: 2px;">
+                <option value="">—</option>
+                {% for i in "123456789"|make_list %}
+                  <option value="{{ i }}" {% if r.action_detection == i|add:"0" %}selected{% endif %}>{{ i }}</option>
+                {% endfor %}
+                <option value="10" {% if r.action_detection == 10 %}selected{% endif %}>10</option>
+              </select>
+            </td>
+            
+            <!-- Action RPN with Colors -->
+            {% if r.action_rpn %}
+              <td class="{% if r.action_rpn >= 301 %}rpn-red{% elif r.action_rpn >= 101 %}rpn-yellow{% else %}rpn-green{% endif %}" style="vertical-align: middle;">{{ r.action_rpn }}</td>
+            {% else %}
+              <td style="text-align: center; color: #64748b; font-size: 0.8rem; vertical-align: middle;">—</td>
+            {% endif %}
+            
+          </tr>
+          {% endwith %}
+        {% empty %}
+          <tr>
+            <td colspan="23" style="text-align: center; color: var(--jspl-muted); padding: 40px; background: #fff;">
+              No EFMEA records found.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Bottom Section: Legends and Critical Spares -->
+  <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 30px; margin-top: 30px; margin-bottom: 50px; font-family: 'Sora', sans-serif;">
+    <!-- Left Column: Legends -->
+    <div class="card" style="padding: 20px; border: 1px solid #000; background: #fff; border-radius: 4px;">
+      <h3 style="font-size: 0.95rem; font-weight: 800; color: #000; margin-bottom: 12px; border-bottom: 2px solid #000; padding-bottom: 6px;">Legends:</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; color: #000;">
+        <thead>
+          <tr style="background: #f1f5f9;">
+            <th style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; width: 80px;">Colour</th>
+            <th style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; width: 100px;">RPN Range</th>
+            <th style="border: 1px solid #000; padding: 6px; text-align: left; font-weight: bold;">Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; background-color: #dc2626; color: #fff; font-weight: bold;">Red</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; background-color: #fee2e2;">301 - 1000</td>
+            <td style="border: 1px solid #000; padding: 6px; font-weight: 500;">Critical - Major contributor to the identified Problem - Abnormality Detection System needs to be introduced/ strengthened followed by CAPA</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; background-color: #fef08a; color: #000; font-weight: bold;">Yellow</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; background-color: #fef9c3;">101 - 300</td>
+            <td style="border: 1px solid #000; padding: 6px; font-weight: 500;">Alarm - Medium contributor to the identified Problem - Abnormality Detection System needs to be strengthened followed by CAPA</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; background-color: #22c55e; color: #fff; font-weight: bold;">Green</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; background-color: #dcfce7;">1 - 100</td>
+            <td style="border: 1px solid #000; padding: 6px; font-weight: 500;">Normal - Least contributor to the identified Problem - To continue with the current Controls of Prevention/Detection</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Right Column: Critical Spares (1 Year) -->
+    <div class="card" style="padding: 20px; border: 1px solid #000; background: #fff; border-radius: 4px;" x-data="{
+      spares: [
+        {% for spare in critical_spares %}
+        {
+          id: '{{ spare.id }}',
+          desc: '{{ spare.spare_description|escapejs }}',
+          qty: '{{ spare.qty|escapejs }}',
+          remarks1: '{{ spare.remarks_1|escapejs }}',
+          leadTime: '{{ spare.lead_time|escapejs }}',
+          remarks2: '{{ spare.remarks_2|escapejs }}'
+        },
+        {% empty %}
+          {% if selected_upload_id == 'new_file' %}
+            { id: '', desc: '', qty: '', remarks1: '', leadTime: '', remarks2: '' }
+          {% endif %}
+        {% endfor %}
+      ],
+      addSpare() {
+        this.spares.push({ id: '', desc: '', qty: '', remarks1: '', leadTime: '', remarks2: '' });
+      },
+      removeSpare(index) {
+        this.spares.splice(index, 1);
+      }
+    }">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 12px;">
+        <h3 style="font-size: 0.95rem; font-weight: 800; color: #000; margin: 0;">Critical Spares (1 Year)</h3>
+        <button x-show="editMode" type="button" @click="addSpare()" class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--jspl-border) !important; height: 24px;">
+          ➕ Add Spare Row
+        </button>
+      </div>
+      
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; color: #000;">
+        <thead>
+          <tr style="background: #f1f5f9;">
+            <th style="border: 1px solid #000; padding: 6px; text-align: left; font-weight: bold;">Spare Description</th>
+            <th style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; width: 60px;">Qty</th>
+            <th style="border: 1px solid #000; padding: 6px; text-align: left; font-weight: bold; width: 130px;">Remarks</th>
+            <th style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; width: 100px;">Lead Time (Months)</th>
+            <th style="border: 1px solid #000; padding: 6px; text-align: left; font-weight: bold; width: 130px;">Remarks</th>
+            <th x-show="editMode" style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; width: 40px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- View Mode -->
+          <template x-if="!editMode">
+            <template x-for="(spare, index) in spares" :key="index">
+              <tr>
+                <td style="border: 1px solid #000; padding: 6px; font-weight: 600;" x-text="spare.desc || '—'"></td>
+                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: 700;" x-text="spare.qty || '—'"></td>
+                <td style="border: 1px solid #000; padding: 6px;" x-text="spare.remarks1 || '—'"></td>
+                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: 600;" x-text="spare.leadTime || '—'"></td>
+                <td style="border: 1px solid #000; padding: 6px;" x-text="spare.remarks2 || '—'"></td>
+              </tr>
+            </template>
+          </template>
+          
+          <template x-if="!editMode && spares.length === 0">
+            <tr>
+              <td colspan="5" style="border: 1px solid #000; padding: 15px; text-align: center; color: var(--jspl-muted);">
+                No critical spares recorded for this sheet.
+              </td>
+            </tr>
+          </template>
+
+          <!-- Edit Mode -->
+          <template x-if="editMode">
+            <template x-for="(spare, index) in spares" :key="index">
+              <tr>
+                <td style="border: 1px solid #000; padding: 4px;">
+                  <input type="text" name="spare_description[]" x-model="spare.desc" class="editable-input" style="font-weight: 600;" placeholder="Spare name">
+                </td>
+                <td style="border: 1px solid #000; padding: 4px;">
+                  <input type="text" name="spare_qty[]" x-model="spare.qty" class="editable-input" style="text-align: center; font-weight: 700;" placeholder="Qty">
+                </td>
+                <td style="border: 1px solid #000; padding: 4px;">
+                  <input type="text" name="spare_remarks_1[]" x-model="spare.remarks1" class="editable-input" placeholder="Remarks 1">
+                </td>
+                <td style="border: 1px solid #000; padding: 4px;">
+                  <input type="text" name="spare_lead_time[]" x-model="spare.leadTime" class="editable-input" style="text-align: center; font-weight: 600;" placeholder="Months">
+                </td>
+                <td style="border: 1px solid #000; padding: 4px;">
+                  <input type="text" name="spare_remarks_2[]" x-model="spare.remarks2" class="editable-input" placeholder="Remarks 2">
+                </td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">
+                  <button type="button" @click="removeSpare(index)" class="btn" style="background: #fee2e2; color: #dc2626 !important; border: 1px solid #fca5a5; padding: 2px 6px; font-size: 0.7rem;">
+                    ❌
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  </form>
+
+</div>
+{% endblock %}
