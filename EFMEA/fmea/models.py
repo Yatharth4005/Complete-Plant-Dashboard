@@ -9,6 +9,7 @@ class FMEAExcelUpload(models.Model):
     sheet_date = models.DateField(null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    is_manual = models.BooleanField(default=False)
     
     key_contact = models.CharField(max_length=255, default="", blank=True)
     core_team = models.TextField(default="", blank=True)

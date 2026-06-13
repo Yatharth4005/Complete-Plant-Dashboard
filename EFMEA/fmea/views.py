@@ -111,6 +111,10 @@ def risk_identification(request, dept_id):
     # Gather potential risk owners
     owners = User.objects.filter(is_active=True).order_by('first_name')
     
+    # Retrieve uploads for file association dropdown
+    uploads = FMEAExcelUpload.objects.filter(department=active_dept).order_by('-sheet_date', '-uploaded_at')
+    selected_upload_id = request.GET.get('upload_id')
+    
     context = {
         'active_dept_id': dept_id,
         'active_dept': active_dept,
@@ -119,6 +123,8 @@ def risk_identification(request, dept_id):
         'departments': departments,
         'owners': owners,
         'today': datetime.now().strftime('%Y-%m-%d'),
+        'uploads': uploads,
+        'selected_upload_id': selected_upload_id,
     }
     return render(request, 'fmea/identification.html', context)
 
@@ -374,11 +380,16 @@ def risk_history(request, dept_id):
     active_dept = get_object_or_404(Department, id=dept_id)
     
     # Query uploaded excels annotated with record counts
-    uploads = FMEAExcelUpload.objects.filter(department=active_dept).annotate(
+    uploaded_files = FMEAExcelUpload.objects.filter(department=active_dept, is_manual=False).annotate(
         num_records=Count('records')
     ).select_related('uploaded_by').order_by('-uploaded_at')
     
-    # Query manual records count for deletion functionality
+    # Query manually created sheets
+    manual_sheets = FMEAExcelUpload.objects.filter(department=active_dept, is_manual=True).annotate(
+        num_records=Count('records')
+    ).select_related('uploaded_by').order_by('-uploaded_at')
+    
+    # Query manual records count for deletion functionality (scratchpad records)
     manual_count = FMEARecord.objects.filter(department=active_dept, excel_upload=None).count()
     
     context = {
@@ -386,7 +397,8 @@ def risk_history(request, dept_id):
         'active_dept': active_dept,
         'active_module': 'FMEA',
         'active_tab': 'history',
-        'uploads': uploads,
+        'uploaded_files': uploaded_files,
+        'manual_sheets': manual_sheets,
         'manual_count': manual_count,
     }
     return render(request, 'fmea/history.html', context)
@@ -475,9 +487,41 @@ def save_risk(request, dept_id, record_id=None):
     except ValueError:
         record.detection = 1
         
+    # Handle File Association if it is a new record
+    if action_type == 'CREATED':
+        association_type = request.POST.get('association_type', 'default')
+        if association_type == 'new':
+            new_file_name = request.POST.get('new_file_name', '').strip()
+            if not new_file_name:
+                new_file_name = f"Manual_Entry_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            if not new_file_name.endswith('.xlsx'):
+                new_file_name += '.xlsx'
+                
+            upload = FMEAExcelUpload.objects.create(
+                department=active_dept,
+                filename=new_file_name,
+                sheet_date=record.identification_date or datetime.now().date(),
+                uploaded_by=request.user,
+                is_manual=True,
+                key_contact=record.risk_owner,
+                core_team=f"{active_dept.name} Operations Team",
+                objective=f"Minimize Production Loss Time due to {active_dept.name} issues"
+            )
+            record.excel_upload = upload
+        elif association_type == 'existing':
+            existing_file_id = request.POST.get('existing_file_id', '').strip()
+            if existing_file_id:
+                try:
+                    upload = FMEAExcelUpload.objects.get(id=int(existing_file_id), department=active_dept)
+                    record.excel_upload = upload
+                except (ValueError, FMEAExcelUpload.DoesNotExist):
+                    pass
+        else:
+            record.excel_upload = None
+
     # Generate automatic Serial Number if empty
     if not record.sn:
-        max_sn = FMEARecord.objects.filter(department=active_dept).count() + 1
+        max_sn = FMEARecord.objects.filter(department=active_dept, excel_upload=record.excel_upload).count() + 1
         record.sn = f"{max_sn:02d}"
         
     record.save()
@@ -491,7 +535,12 @@ def save_risk(request, dept_id, record_id=None):
     )
     
     messages.success(request, f"Risk {record.risk_id} successfully saved.")
-    return redirect('fmea:register', dept_id=dept_id)
+    
+    if record.excel_upload:
+        from django.urls import reverse
+        return redirect(reverse('fmea:report', args=[dept_id]) + f'?upload_id={record.excel_upload.id}')
+    else:
+        return redirect('fmea:report', dept_id=dept_id)
 
 
 @login_required
@@ -700,51 +749,136 @@ def download_excel(request, dept_id):
     # Determine the range of rows we need to clear/write to
     max_touch_row = max(11, 6 + num_records)
 
+    # Load openpyxl styles to apply beautiful, clean borders and vertical alignment
+    from openpyxl.styles import Border, Side, Alignment, Font
+    from copy import copy
+    
+    thin_border = Border(
+        left=Side(style='thin', color='000000'),
+        right=Side(style='thin', color='000000'),
+        top=Side(style='thin', color='000000'),
+        bottom=Side(style='thin', color='000000')
+    )
+    
+    # Copy column styles from row 7 of the template (before clearing) to preserve colors & styles
+    col_styles = {}
+    for c in range(1, 24):
+        ref_cell = sheet.cell(row=7, column=c)
+        col_styles[c] = {
+            'font': copy(ref_cell.font),
+            'fill': copy(ref_cell.fill),
+            'alignment': copy(ref_cell.alignment),
+            'border': copy(ref_cell.border) if ref_cell.border else thin_border
+        }
+
     # Clear columns 1 to 23 for rows 7 to max_touch_row before writing to ensure clean data
     for r in range(7, max_touch_row + 1):
         for c in range(1, 24):
             sheet.cell(row=r, column=c).value = None
 
-    row_idx = 7
+    # Style all rows from 7 to max_touch_row to ensure consistent gridlines and fonts
+    align_center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    align_left = Alignment(horizontal='left', vertical='center', wrap_text=True)
+    
+    for r in range(7, max_touch_row + 1):
+        for c in range(1, 24):
+            cell = sheet.cell(row=r, column=c)
+            style = col_styles[c]
+            if style['font']:
+                cell.font = style['font']
+            if style['fill']:
+                cell.fill = style['fill']
+            if c in [1, 10, 12, 15, 16, 18, 20, 21, 22, 23]:
+                cell.alignment = align_center
+            else:
+                cell.alignment = align_left
+            cell.border = style['border'] if style['border'] else thin_border
+
+    # Group records by (main_equipment, main_equipment_function, functional_failure) for vertical merging
+    groups = []
+    current_group = []
     for rec in records:
-        sheet.cell(row=row_idx, column=1).value = rec.sn or str(row_idx - 6)
-        sheet.cell(row=row_idx, column=2).value = rec.main_equipment
-        sheet.cell(row=row_idx, column=3).value = rec.main_equipment_function
-        sheet.cell(row=row_idx, column=4).value = rec.functional_failure
-        sheet.cell(row=row_idx, column=5).value = rec.sub_equipment
-        sheet.cell(row=row_idx, column=6).value = rec.component
-        sheet.cell(row=row_idx, column=7).value = rec.component_function
-        sheet.cell(row=row_idx, column=8).value = rec.potential_failure_mode
-        sheet.cell(row=row_idx, column=9).value = rec.potential_effects
-        sheet.cell(row=row_idx, column=10).value = int(rec.severity or 1)
-        sheet.cell(row=row_idx, column=11).value = rec.potential_causes
-        sheet.cell(row=row_idx, column=12).value = int(rec.occurrence or 1)
-        sheet.cell(row=row_idx, column=13).value = rec.current_controls
-        sheet.cell(row=row_idx, column=14).value = rec.recommended_actions
-        sheet.cell(row=row_idx, column=15).value = int(rec.detection or 1)
-        sheet.cell(row=row_idx, column=16).value = f"=J{row_idx}*L{row_idx}*O{row_idx}"
-        sheet.cell(row=row_idx, column=17).value = rec.contingency_plan
-        sheet.cell(row=row_idx, column=18).value = rec.status
-        sheet.cell(row=row_idx, column=19).value = rec.action_taken
-        if rec.action_severity is not None:
-            sheet.cell(row=row_idx, column=20).value = int(rec.action_severity)
+        if not current_group:
+            current_group = [rec]
+        elif (current_group[0].main_equipment == rec.main_equipment and 
+              current_group[0].main_equipment_function == rec.main_equipment_function and 
+              current_group[0].functional_failure == rec.functional_failure):
+            current_group.append(rec)
         else:
-            sheet.cell(row=row_idx, column=20).value = None
-        if rec.action_occurrence is not None:
-            sheet.cell(row=row_idx, column=21).value = int(rec.action_occurrence)
-        else:
-            sheet.cell(row=row_idx, column=21).value = None
-        if rec.action_detection is not None:
-            sheet.cell(row=row_idx, column=22).value = int(rec.action_detection)
-        else:
-            sheet.cell(row=row_idx, column=22).value = None
-        sheet.cell(row=row_idx, column=23).value = f"=T{row_idx}*U{row_idx}*V{row_idx}"
+            groups.append(current_group)
+            current_group = [rec]
+    if current_group:
+        groups.append(current_group)
+
+    # Write records group by group
+    row_idx = 7
+    for group in groups:
+        group_size = len(group)
+        for offset, rec in enumerate(group):
+            r = row_idx + offset
+            
+            # Write unique fields
+            sheet.cell(row=r, column=5).value = rec.sub_equipment or "—"
+            sheet.cell(row=r, column=6).value = rec.component or "—"
+            sheet.cell(row=r, column=7).value = rec.component_function or "—"
+            sheet.cell(row=r, column=8).value = rec.potential_failure_mode or "—"
+            sheet.cell(row=r, column=9).value = rec.potential_effects or "—"
+            sheet.cell(row=r, column=10).value = int(rec.severity or 1)
+            sheet.cell(row=r, column=11).value = rec.potential_causes or "—"
+            sheet.cell(row=r, column=12).value = int(rec.occurrence or 1)
+            sheet.cell(row=r, column=13).value = rec.current_controls or "—"
+            sheet.cell(row=r, column=14).value = rec.recommended_actions or "—"
+            sheet.cell(row=r, column=15).value = int(rec.detection or 1)
+            sheet.cell(row=r, column=16).value = f"=J{r}*L{r}*O{r}"
+            sheet.cell(row=r, column=17).value = rec.contingency_plan or "—"
+            sheet.cell(row=r, column=18).value = rec.status or "Not Started"
+            sheet.cell(row=r, column=19).value = rec.action_taken or "—"
+            
+            if rec.action_severity is not None:
+                sheet.cell(row=r, column=20).value = int(rec.action_severity)
+            else:
+                sheet.cell(row=r, column=20).value = None
+            if rec.action_occurrence is not None:
+                sheet.cell(row=r, column=21).value = int(rec.action_occurrence)
+            else:
+                sheet.cell(row=r, column=21).value = None
+            if rec.action_detection is not None:
+                sheet.cell(row=r, column=22).value = int(rec.action_detection)
+            else:
+                sheet.cell(row=r, column=22).value = None
+            sheet.cell(row=r, column=23).value = f"=T{r}*U{r}*V{r}"
+            
+        # Write merged fields to the first row of the group, and merge vertically
+        lead_rec = group[0]
+        sheet.cell(row=row_idx, column=1).value = lead_rec.sn or str(row_idx - 6)
+        sheet.cell(row=row_idx, column=2).value = lead_rec.main_equipment
+        sheet.cell(row=row_idx, column=3).value = lead_rec.main_equipment_function
+        sheet.cell(row=row_idx, column=4).value = lead_rec.functional_failure
         
-        row_idx += 1
+        if group_size > 1:
+            sheet.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx + group_size - 1, end_column=1)
+            sheet.merge_cells(start_row=row_idx, start_column=2, end_row=row_idx + group_size - 1, end_column=2)
+            sheet.merge_cells(start_row=row_idx, start_column=3, end_row=row_idx + group_size - 1, end_column=3)
+            sheet.merge_cells(start_row=row_idx, start_column=4, end_row=row_idx + group_size - 1, end_column=4)
+        row_idx += group_size
         
-    filename = f"EFMEA_{active_dept.code}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    filename = None
+    if upload_id and upload_id != 'new_file':
+        try:
+            upload_obj = FMEAExcelUpload.objects.get(id=int(upload_id), department=active_dept)
+            filename = upload_obj.filename
+        except (ValueError, FMEAExcelUpload.DoesNotExist):
+            pass
+            
+    if not filename:
+        filename = f"EFMEA_{active_dept.code}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        
+    if not filename.endswith('.xlsx'):
+        filename += '.xlsx'
+        
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    wb.force_full_calculation = True
     wb.save(response)
     return response
 
@@ -1208,6 +1342,12 @@ def save_report_rows(request, dept_id):
             upload_obj.core_team = request.POST.get('core_team', '').strip()
             upload_obj.objective = request.POST.get('objective', '').strip()
             upload_obj.ref_no = request.POST.get('ref_no', '').strip()
+            
+            filename = request.POST.get('filename', '').strip()
+            if filename:
+                if not filename.endswith('.xlsx'):
+                    filename += '.xlsx'
+                upload_obj.filename = filename
             
             date_str = request.POST.get('date', '').strip()
             if date_str:

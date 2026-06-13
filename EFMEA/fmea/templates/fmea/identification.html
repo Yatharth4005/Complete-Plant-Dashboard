@@ -23,6 +23,51 @@
         <input type="hidden" name="department" value="{{ active_dept.id }}">
       </div>
 
+      <!-- File Association / Target File -->
+      <div style="margin-bottom: 25px; padding: 20px; border-radius: 8px; background: rgba(0, 87, 168, 0.03); border: 1px solid rgba(0, 87, 168, 0.15);">
+        <label class="form-label-bold" style="color: var(--jspl-navy); font-size: 0.95rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          📁 Save Target File / Association
+        </label>
+        
+        <div style="display: flex; gap: 24px; margin-bottom: 15px; flex-wrap: wrap;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: var(--jspl-navy);">
+            <input type="radio" name="association_type" value="default" x-model="associationType" style="width: 16px; height: 16px; accent-color: var(--jspl-blue);">
+            Default manual list
+          </label>
+          
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: var(--jspl-navy);">
+            <input type="radio" name="association_type" value="new" x-model="associationType" style="width: 16px; height: 16px; accent-color: var(--jspl-blue);">
+            Create a new file
+          </label>
+          
+          {% if uploads %}
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: var(--jspl-navy);">
+              <input type="radio" name="association_type" value="existing" x-model="associationType" style="width: 16px; height: 16px; accent-color: var(--jspl-blue);">
+              Add data in saved file
+            </label>
+          {% endif %}
+        </div>
+        
+        <!-- Option: Create New File -->
+        <div x-show="associationType === 'new'" style="margin-top: 15px;" x-transition>
+          <label class="form-label-bold" style="font-size: 0.78rem; color: #475569; margin-bottom: 6px;">New File / Sheet Name</label>
+          <input type="text" name="new_file_name" class="input-mono" placeholder="e.g. PP3 FMEA Revision 2026" style="height: 40px; border: 1px solid #cbd5e1; background: #fff;" :required="associationType === 'new'">
+        </div>
+        
+        <!-- Option: Add to Existing Saved File -->
+        {% if uploads %}
+          <div x-show="associationType === 'existing'" style="margin-top: 15px;" x-transition>
+            <label class="form-label-bold" style="font-size: 0.78rem; color: #475569; margin-bottom: 6px;">Select Saved File</label>
+            <select name="existing_file_id" class="input-mono" style="height: 40px; padding: 4px 10px; border: 1px solid #cbd5e1; background: #fff;" x-model="existingFileId" :required="associationType === 'existing'">
+              <option value="">Select a saved file...</option>
+              {% for upload in uploads %}
+                <option value="{{ upload.id }}">{{ upload.sheet_date|date:"d.m.Y"|default:"No Date" }} — {{ upload.filename }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
+      </div>
+
       <!-- Identification Date & Owner -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
         <div>
@@ -204,6 +249,8 @@
       occurrence: 5,
       detection: 5,
       consequences: [''],
+      associationType: '{% if selected_upload_id and selected_upload_id != "new_file" %}existing{% else %}default{% endif %}',
+      existingFileId: '{{ selected_upload_id|default:"" }}',
       
       rpn() {
         return this.severity * this.occurrence * this.detection;
