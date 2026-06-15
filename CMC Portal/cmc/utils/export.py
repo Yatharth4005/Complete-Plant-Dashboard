@@ -34,7 +34,7 @@ def generate_pdf_report(department, month, year):
     body_style = styles['BodyText']
 
     # Title
-    story.append(Paragraph(f"Jindal Steels Operations Portal Condition Monitoring Cell (CMC) Report", title_style))
+    story.append(Paragraph(f"Jindal Steel Operations Portal Condition Monitoring Cell (CMC) Report", title_style))
     story.append(Paragraph(f"Department: {department.name} | Period: {calendar_month_name(month)} {year}", body_style))
     story.append(Spacer(1, 15))
 
@@ -120,7 +120,7 @@ def generate_excel_report(department, month, year):
     
     # Headers
     ws1.merge_cells("A1:G1")
-    ws1["A1"] = f"Jindal Steels Operations Portal CMC Predictive Maintenance Schedule - {department.name} - {calendar_month_name(month)} {year}"
+    ws1["A1"] = f"Jindal Steel Operations Portal CMC Predictive Maintenance Schedule - {department.name} - {calendar_month_name(month)} {year}"
     ws1["A1"].font = Font(name="Segoe UI", size=14, bold=True, color="003478")
     
     headers = ["S.No.", "Equipment", "Class", "Frequency", "Scheduled Days", "Status", "Done Date"]

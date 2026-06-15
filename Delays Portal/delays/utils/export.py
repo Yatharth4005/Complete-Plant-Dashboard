@@ -64,7 +64,7 @@ def generate_delays_pdf(department):
     )
 
     # Title
-    story.append(Paragraph("Jindal Steels Operations Portal", title_style))
+    story.append(Paragraph("Jindal Steel Operations Portal", title_style))
     story.append(Paragraph(f"Department: {department.name} | Delay Breakdown & Analytics Report", subtitle_style))
     story.append(Paragraph(f"Generated on: {timezone.now().strftime('%d-%b-%Y %H:%M:%S')}", subtitle_style))
     story.append(Spacer(1, 10))
