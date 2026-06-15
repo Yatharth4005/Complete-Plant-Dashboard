@@ -89,11 +89,21 @@
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
         <div>
           <label class="form-label-bold">Main Equipment</label>
-          <input type="text" name="main_equipment" class="input-mono" placeholder="e.g. Overhead Crane" required style="height: 40px;">
+          <select name="main_equipment" class="input-mono" required style="height: 40px; padding: 4px 10px;">
+            <option value="">Select Main Equipment...</option>
+            {% for eq in equipments %}
+              <option value="{{ eq }}">{{ eq }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div>
           <label class="form-label-bold">Sub-Equipment / Assembly</label>
-          <input type="text" name="sub_equipment" class="input-mono" placeholder="e.g. Hoist Gearbox" style="height: 40px;">
+          <select name="sub_equipment" class="input-mono" style="height: 40px; padding: 4px 10px;">
+            <option value="">Select Sub-Equipment...</option>
+            {% for seq in sub_equipments %}
+              <option value="{{ seq }}">{{ seq }}</option>
+            {% endfor %}
+          </select>
         </div>
       </div>
 

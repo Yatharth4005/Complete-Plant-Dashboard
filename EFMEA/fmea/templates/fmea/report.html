@@ -418,7 +418,12 @@
               </td>
               <td rowspan="{{ row.equip_rowspan }}" style="font-weight: 700; background: #fff; vertical-align: middle;">
                 <span class="view-only">{{ r.main_equipment }}</span>
-                <input class="edit-only editable-input" type="text" name="main_equipment_{{ r.id }}" value="{{ r.main_equipment }}" style="font-weight: 700;">
+                <select class="edit-only editable-input" name="main_equipment_{{ r.id }}" style="font-weight: 700; padding: 2px;">
+                  <option value="">Select Main Equipment...</option>
+                  {% for eq in equipments %}
+                    <option value="{{ eq }}" {% if r.main_equipment == eq %}selected{% endif %}>{{ eq }}</option>
+                  {% endfor %}
+                </select>
               </td>
               <td rowspan="{{ row.equip_rowspan }}" style="font-size: 0.8rem; background: #fff; word-wrap: break-word; vertical-align: middle;">
                 <span class="view-only">{{ r.main_equipment_function|linebreaksbr }}</span>
@@ -433,7 +438,12 @@
             <!-- Standard Row Columns -->
             <td style="font-size: 0.8rem; vertical-align: middle;">
               <span class="view-only">{{ r.sub_equipment|default:"—" }}</span>
-              <input class="edit-only editable-input" type="text" name="sub_equipment_{{ r.id }}" value="{{ r.sub_equipment }}">
+              <select class="edit-only editable-input" name="sub_equipment_{{ r.id }}" style="padding: 2px;">
+                <option value="">Select Sub-Equipment...</option>
+                {% for seq in sub_equipments %}
+                  <option value="{{ seq }}" {% if r.sub_equipment == seq %}selected{% endif %}>{{ seq }}</option>
+                {% endfor %}
+              </select>
             </td>
             <td style="font-size: 0.8rem; font-weight: 600; vertical-align: middle;" 
                 class="{% if r.component == 'Clevis-Checknut Assembly' %}component-clevis{% elif r.component == 'Power Pack' or r.component == 'Solenoid Coils' or r.component == 'Base Support/ Structure' %}component-yellow{% endif %}">

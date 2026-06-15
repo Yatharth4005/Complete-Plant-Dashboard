@@ -86,6 +86,9 @@ class FMEARecord(models.Model):
     mitigation_q2_status = models.CharField(max_length=30, default="Not Started", blank=True)
     mitigation_q3_status = models.CharField(max_length=30, default="Not Started", blank=True)
     mitigation_q4_status = models.CharField(max_length=30, default="Not Started", blank=True)
+
+    # Unified Action Plan data stored as a JSON array of objects
+    action_plan_data = models.TextField(default="[]", blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

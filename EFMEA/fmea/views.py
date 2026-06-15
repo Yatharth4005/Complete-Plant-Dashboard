@@ -142,6 +142,29 @@ def risk_identification(request, dept_id):
     uploads = FMEAExcelUpload.objects.filter(department=active_dept).order_by('-sheet_date', '-uploaded_at')
     selected_upload_id = request.GET.get('upload_id')
     
+    # Fetch unique main_equipment and sub_equipment values from database for this department
+    db_equipments = FMEARecord.objects.filter(department=active_dept).exclude(main_equipment='').values_list('main_equipment', flat=True).distinct()
+    db_sub_equipments = FMEARecord.objects.filter(department=active_dept).exclude(sub_equipment='').values_list('sub_equipment', flat=True).distinct()
+    
+    # Predefined equipment lists (common categories)
+    predefined_sub_equipments = [
+        'CABLE', 'EBT', 'PURGING', 'SNORKEL', 'DSL', 'GUIDE', 'GUIDE ROLL',
+        'ELECTRODE', 'SEN', 'RAIL TRACK', 'KT BLOCK', 'HOOTER', 'CYLINDER',
+        'ROLLER', 'MOTOR', 'CASTING POWDER', 'HYDRAULIC LINE', 'CHOCKING',
+        'ROPE DRUM', 'PANEL', 'GUNNING MACHINE', 'REFRACTORY', 'LADLE GATE',
+        'LADLE LATE', 'CHEMISTRY', 'WITHDRAWAL', 'GANTRY', 'GANATRY'
+    ]
+    
+    predefined_equipments = [
+        'Overhead Crane', 'Ladle Furnace', 'Continuous Caster', 'Electric Arc Furnace',
+        'Argon Rinsing Station', 'Vacuum Degasser', 'Tundish', 'Mold Assembly',
+        'Withdrawal Straightener', 'Runout Table', 'Reheating Furnace', 'Roughing Mill',
+        'Finishing Mill', 'Cooling Bed', 'Straightening Machine', 'Cold Shear'
+    ]
+    
+    equipments = sorted(list(set(list(db_equipments) + predefined_equipments)))
+    sub_equipments = sorted(list(set([s.upper() for s in db_sub_equipments] + predefined_sub_equipments)))
+
     context = {
         'active_dept_id': dept_id,
         'active_dept': active_dept,
@@ -152,6 +175,8 @@ def risk_identification(request, dept_id):
         'today': datetime.now().strftime('%Y-%m-%d'),
         'uploads': uploads,
         'selected_upload_id': selected_upload_id,
+        'equipments': equipments,
+        'sub_equipments': sub_equipments,
     }
     return render(request, 'fmea/identification.html', context)
 
@@ -185,34 +210,47 @@ def risk_register(request, dept_id):
         # Decode consequences list
         consequences = [c.strip() for c in r.potential_effects.split('\n') if c.strip()]
         
-        # Decode mitigation JSON lists
+        # Decode action plan JSON list
         try:
-            q1_actions = json.loads(r.mitigation_q1 or '[]')
+            action_plan_items = json.loads(r.action_plan_data or '[]')
         except:
-            q1_actions = []
-        try:
-            q2_actions = json.loads(r.mitigation_q2 or '[]')
-        except:
-            q2_actions = []
-        try:
-            q3_actions = json.loads(r.mitigation_q3 or '[]')
-        except:
-            q3_actions = []
-        try:
-            q4_actions = json.loads(r.mitigation_q4 or '[]')
-        except:
-            q4_actions = []
-            
+            action_plan_items = []
+
+        if not action_plan_items:
+            # On-the-fly migration from legacy quarterly fields
+            legacy_items = []
+            for q, field_val, target_val, status_val in [
+                ('q1', r.mitigation_q1, r.mitigation_q1_target, r.mitigation_q1_status),
+                ('q2', r.mitigation_q2, r.mitigation_q2_target, r.mitigation_q2_status),
+                ('q3', r.mitigation_q3, r.mitigation_q3_target, r.mitigation_q3_status),
+                ('q4', r.mitigation_q4, r.mitigation_q4_target, r.mitigation_q4_status),
+            ]:
+                try:
+                    acts = json.loads(field_val or '[]')
+                    for a in acts:
+                        if a.strip():
+                            legacy_items.append({
+                                'action': a.strip(),
+                                'responsibility': r.risk_owner or '',
+                                'plan_term': 'Short' if q in ['q1', 'q2'] else 'Medium',
+                                'target_date': target_val.strftime('%Y-%m-%d') if target_val else '',
+                                'status': status_val or 'Not Started'
+                            })
+                except:
+                    pass
+            if legacy_items:
+                action_plan_items = legacy_items
+                # Save to database to persist
+                r.action_plan_data = json.dumps(action_plan_items)
+                r.save(update_fields=['action_plan_data'])
+
         # Remarks
         remarks = [rem.strip() for rem in r.status_remarks.split('\n') if rem.strip()]
         
         records_data.append({
             'record': r,
             'consequences': consequences,
-            'q1_actions': q1_actions,
-            'q2_actions': q2_actions,
-            'q3_actions': q3_actions,
-            'q4_actions': q4_actions,
+            'action_plan_items': action_plan_items,
             'remarks': remarks,
         })
         
@@ -380,6 +418,29 @@ def risk_report(request, dept_id):
     else:
         critical_spares = FMEACriticalSpare.objects.filter(excel_upload=None, department=active_dept)
         
+    # Fetch unique main_equipment and sub_equipment values from database for this department
+    db_equipments = FMEARecord.objects.filter(department=active_dept).exclude(main_equipment='').values_list('main_equipment', flat=True).distinct()
+    db_sub_equipments = FMEARecord.objects.filter(department=active_dept).exclude(sub_equipment='').values_list('sub_equipment', flat=True).distinct()
+    
+    # Predefined equipment lists (common categories)
+    predefined_sub_equipments = [
+        'CABLE', 'EBT', 'PURGING', 'SNORKEL', 'DSL', 'GUIDE', 'GUIDE ROLL',
+        'ELECTRODE', 'SEN', 'RAIL TRACK', 'KT BLOCK', 'HOOTER', 'CYLINDER',
+        'ROLLER', 'MOTOR', 'CASTING POWDER', 'HYDRAULIC LINE', 'CHOCKING',
+        'ROPE DRUM', 'PANEL', 'GUNNING MACHINE', 'REFRACTORY', 'LADLE GATE',
+        'LADLE LATE', 'CHEMISTRY', 'WITHDRAWAL', 'GANTRY', 'GANATRY'
+    ]
+    
+    predefined_equipments = [
+        'Overhead Crane', 'Ladle Furnace', 'Continuous Caster', 'Electric Arc Furnace',
+        'Argon Rinsing Station', 'Vacuum Degasser', 'Tundish', 'Mold Assembly',
+        'Withdrawal Straightener', 'Runout Table', 'Reheating Furnace', 'Roughing Mill',
+        'Finishing Mill', 'Cooling Bed', 'Straightening Machine', 'Cold Shear'
+    ]
+    
+    equipments = sorted(list(set(list(db_equipments) + predefined_equipments)))
+    sub_equipments = sorted(list(set([s.upper() for s in db_sub_equipments] + predefined_sub_equipments)))
+
     context = {
         'active_dept_id': dept_id,
         'active_dept': active_dept,
@@ -396,6 +457,8 @@ def risk_report(request, dept_id):
         'selected_upload_id': selected_upload_id,
         'sheet_metadata': sheet_metadata,
         'critical_spares': critical_spares,
+        'equipments': equipments,
+        'sub_equipments': sub_equipments,
     }
     return render(request, 'fmea/report.html', context)
 
@@ -580,22 +643,14 @@ def save_mitigation(request, dept_id, record_id):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
         
-    quarter = request.POST.get('quarter') # 'q1', 'q2', 'q3', 'q4'
-    if quarter not in ['q1', 'q2', 'q3', 'q4']:
-        return JsonResponse({'status': 'error', 'message': 'Invalid quarter parameter.'}, status=400)
-        
-    # Mitigation actions lists
-    actions = request.POST.getlist('mitigation_actions[]')
-    actions_json = json.dumps([a.strip() for a in actions if a.strip()])
-    
-    # Target date
-    target_date_str = request.POST.get('target_date', '').strip()
-    target_date = None
-    if target_date_str:
-        try:
-            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
-        except ValueError:
-            pass
+    # Get action plan data
+    action_plan_data_str = request.POST.get('action_plan_data', '[]')
+    try:
+        # validate json
+        json.loads(action_plan_data_str)
+        record.action_plan_data = action_plan_data_str
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Invalid action plan data: {str(e)}'}, status=400)
             
     # Status
     status = request.POST.get('status', 'Not Started').strip()
@@ -611,24 +666,6 @@ def save_mitigation(request, dept_id, record_id):
         except ValueError:
             pass
             
-    # Save quarter specific values
-    if quarter == 'q1':
-        record.mitigation_q1 = actions_json
-        record.mitigation_q1_target = target_date
-        record.mitigation_q1_status = status
-    elif quarter == 'q2':
-        record.mitigation_q2 = actions_json
-        record.mitigation_q2_target = target_date
-        record.mitigation_q2_status = status
-    elif quarter == 'q3':
-        record.mitigation_q3 = actions_json
-        record.mitigation_q3_target = target_date
-        record.mitigation_q3_status = status
-    elif quarter == 'q4':
-        record.mitigation_q4 = actions_json
-        record.mitigation_q4_target = target_date
-        record.mitigation_q4_status = status
-        
     # Also save overall status
     record.status = status
     record.status_remarks = remarks
@@ -655,7 +692,7 @@ def save_mitigation(request, dept_id, record_id):
         record=record,
         user=request.user,
         action='MITIGATED',
-        details=f"Updated mitigation details for {quarter.upper()}. Current Status: {status}. Revised RPN: {record.action_rpn or 'N/A'}"
+        details=f"Updated Action Plan details. Current Status: {status}. Revised RPN: {record.action_rpn or 'N/A'}"
     )
     
     return JsonResponse({'status': 'success', 'message': 'Mitigation updated successfully.'})
@@ -903,6 +940,101 @@ def download_excel(request, dept_id):
     if not filename.endswith('.xlsx'):
         filename += '.xlsx'
         
+    # Write to Action Plan sheet if present in template
+    action_sheet = None
+    for name in wb.sheetnames:
+        if name.lower().strip() == 'action plan':
+            action_sheet = wb[name]
+            break
+            
+    if action_sheet:
+        # Clear rows 4 to max row to clean up template placeholders
+        for r in range(4, action_sheet.max_row + 1):
+            for c in range(1, 9):
+                action_sheet.cell(row=r, column=c).value = None
+                
+        # Copy style from row 4 if exists, or use default thin border
+        action_col_styles = {}
+        for c in range(2, 8): # columns B (2) to G (7)
+            ref_cell = action_sheet.cell(row=4, column=c)
+            action_col_styles[c] = {
+                'font': copy(ref_cell.font) if ref_cell.font else None,
+                'fill': copy(ref_cell.fill) if ref_cell.fill else None,
+                'alignment': copy(ref_cell.alignment) if ref_cell.alignment else Alignment(vertical='center', wrap_text=True),
+                'border': copy(ref_cell.border) if ref_cell.border else thin_border
+            }
+            
+        action_row_idx = 4
+        for rec in records:
+            # Decode action_plan_data
+            try:
+                items = json.loads(rec.action_plan_data or '[]')
+            except:
+                items = []
+                
+            # Fallback migration to export legacy quarterly fields if new Action Plan is empty
+            if not items:
+                legacy_items = []
+                for q, field_val, target_val, status_val in [
+                    ('q1', rec.mitigation_q1, rec.mitigation_q1_target, rec.mitigation_q1_status),
+                    ('q2', rec.mitigation_q2, rec.mitigation_q2_target, rec.mitigation_q2_status),
+                    ('q3', rec.mitigation_q3, rec.mitigation_q3_target, rec.mitigation_q3_status),
+                    ('q4', rec.mitigation_q4, rec.mitigation_q4_target, rec.mitigation_q4_status),
+                ]:
+                    try:
+                        acts = json.loads(field_val or '[]')
+                        for a in acts:
+                            if a.strip():
+                                legacy_items.append({
+                                    'action': a.strip(),
+                                    'responsibility': rec.risk_owner or '',
+                                    'plan_term': 'Short' if q in ['q1', 'q2'] else 'Medium',
+                                    'target_date': target_val.strftime('%Y-%m-%d') if target_val else '',
+                                    'status': status_val or 'Not Started'
+                                })
+                    except:
+                        pass
+                items = legacy_items
+                
+            for item in items:
+                # Column B (2): SN
+                action_sheet.cell(row=action_row_idx, column=2).value = rec.sn or str(rec.id)
+                # Column C (3): Actions Required
+                action_sheet.cell(row=action_row_idx, column=3).value = item.get('action', '')
+                # Column D (4): Responsibility
+                action_sheet.cell(row=action_row_idx, column=4).value = item.get('responsibility', rec.risk_owner or '')
+                # Column E (5): Plan Term
+                action_sheet.cell(row=action_row_idx, column=5).value = item.get('plan_term', 'Short')
+                
+                # Column F (6): Target Date
+                t_date = item.get('target_date', '')
+                if t_date:
+                    try:
+                        parsed_t_date = datetime.strptime(t_date, '%Y-%m-%d')
+                        formatted_t_date = parsed_t_date.strftime('%d.%m.%Y')
+                        action_sheet.cell(row=action_row_idx, column=6).value = formatted_t_date
+                    except ValueError:
+                        action_sheet.cell(row=action_row_idx, column=6).value = t_date
+                else:
+                    action_sheet.cell(row=action_row_idx, column=6).value = ""
+                    
+                # Column G (7): Status as on Date
+                action_sheet.cell(row=action_row_idx, column=7).value = item.get('status', 'Pending')
+                
+                # Apply styles
+                for c in range(2, 8):
+                    cell = action_sheet.cell(row=action_row_idx, column=c)
+                    style = action_col_styles.get(c, {})
+                    if style.get('font'):
+                        cell.font = style['font']
+                    if style.get('fill'):
+                        cell.fill = style['fill']
+                    if style.get('alignment'):
+                        cell.alignment = style['alignment']
+                    cell.border = style.get('border') or thin_border
+                    
+                action_row_idx += 1
+
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     wb.force_full_calculation = True
@@ -1185,6 +1317,60 @@ def upload_excel(request, dept_id):
         messages.error(request, f"Sheet '{sheet_name}' does not contain recognized column headers on row {header_row} (e.g. 'Equipment', 'Failure Mode').")
         return redirect('fmea:report', dept_id=dept_id)
 
+    # Helper to normalize SN for linking FMEA records with their action plans
+    def normalize_sn(val):
+        if val is None:
+            return ""
+        val_str = str(val).strip()
+        if val_str.endswith('.0'):
+            val_str = val_str[:-2]
+        if val_str.isdigit():
+            return str(int(val_str))
+        return val_str.lower()
+        
+    action_sheet = None
+    for name in wb.sheetnames:
+        if name.lower().strip() == 'action plan':
+            action_sheet = wb[name]
+            break
+            
+    action_plans_by_sn = {}
+    if action_sheet:
+        for r in range(4, action_sheet.max_row + 1):
+            sn_val = action_sheet.cell(row=r, column=2).value
+            action_val = action_sheet.cell(row=r, column=3).value
+            resp_val = action_sheet.cell(row=r, column=4).value
+            term_val = action_sheet.cell(row=r, column=5).value
+            target_val = action_sheet.cell(row=r, column=6).value
+            status_val = action_sheet.cell(row=r, column=7).value
+            
+            if sn_val is None and action_val is None:
+                continue
+                
+            normalized_sn = normalize_sn(sn_val)
+            if not normalized_sn:
+                continue
+                
+            target_date_str = ""
+            if target_val:
+                parsed_date = parse_sheet_date(target_val)
+                if parsed_date:
+                    target_date_str = parsed_date.strftime('%Y-%m-%d')
+                else:
+                    target_date_str = str(target_val).strip()
+                    
+            item = {
+                'action': str(action_val or '').strip(),
+                'responsibility': str(resp_val or '').strip(),
+                'plan_term': str(term_val or 'Short').strip(),
+                'target_date': target_date_str,
+                'status': str(status_val or 'Pending').strip()
+            }
+            
+            if normalized_sn not in action_plans_by_sn:
+                action_plans_by_sn[normalized_sn] = []
+            action_plans_by_sn[normalized_sn].append(item)
+
     start_row = 7
     rows_created = 0
     
@@ -1256,6 +1442,11 @@ def upload_excel(request, dept_id):
         # Create new record for this upload
         record = FMEARecord(department=active_dept, excel_upload=upload, sn=sn)
         rows_created += 1
+        
+        # Link action plan items by matching SN
+        normalized_record_sn = normalize_sn(sn)
+        if normalized_record_sn in action_plans_by_sn:
+            record.action_plan_data = json.dumps(action_plans_by_sn[normalized_record_sn])
             
         record.main_equipment = main_eq
         record.main_equipment_function = main_eq_function
