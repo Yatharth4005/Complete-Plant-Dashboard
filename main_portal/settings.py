@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'cmc',
     'delays',
     'fmea',
+    'capa',
 ]
 
 MIDDLEWARE = [

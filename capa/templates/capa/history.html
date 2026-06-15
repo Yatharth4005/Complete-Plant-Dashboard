@@ -1,0 +1,118 @@
+{% extends "capa/base.html" %}
+
+{% block title %}CAPA History — {{ active_dept.name }}{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <a href="{% url 'capa:dashboard' active_dept.id %}">CAPA Dashboard</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">CAPA History</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+  <div style="margin-bottom: 25px;">
+    <h1 class="portal-page-title">CAPA Upload &amp; Session History</h1>
+    <p class="portal-page-subtitle">Manage uploaded Word files, manual revisions, and data logs inside <b>{{ active_dept.name }}</b></p>
+  </div>
+
+  <!-- Section 1: Docx Upload Logs -->
+  <div class="card" style="padding: 24px; margin-bottom: 30px;">
+    <h3 class="card-section-title" style="margin-top: 0; margin-bottom: 15px; color: var(--jspl-navy); border-bottom: 2px solid var(--jspl-border); padding-bottom: 8px;">
+      📄 Uploaded Word Documents (.docx)
+    </h3>
+    <div class="table-responsive">
+      <table class="dashboard-table">
+        <thead>
+          <tr style="background: #f8fafc;">
+            <th style="text-align: left;">File Name</th>
+            <th style="text-align: center; width: 150px;">Date of Upload</th>
+            <th style="text-align: center; width: 140px;">No. of Records</th>
+            <th style="text-align: left; width: 180px;">Uploaded By</th>
+            <th style="text-align: center; width: 180px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for file in uploaded_files %}
+            <tr>
+              <td style="text-align: left; font-weight: 700; color: var(--jspl-navy);">{{ file.filename }}</td>
+              <td style="text-align: center;" class="mono">{{ file.uploaded_at|date:"d M Y, H:i" }}</td>
+              <td style="text-align: center; font-weight: bold;">{{ file.num_records }}</td>
+              <td style="text-align: left;">{{ file.uploaded_by.get_display_name|default:file.uploaded_by.username }}</td>
+              <td style="text-align: center;">
+                <div style="display: flex; gap: 8px; justify-content: center;">
+                  <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ file.id }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; line-height: 26px; display: inline-block;">
+                    View
+                  </a>
+                  <form id="delete-form-{{ file.id }}" action="{% url 'capa:delete_upload' active_dept.id file.id %}" method="POST" style="display: none;">
+                    {% csrf_token %}
+                  </form>
+                  <button type="button" @click="showConfirm('Delete CAPA Sheet', 'Are you sure you want to delete the CAPA session \'{{ file.filename|escapejs }}\'? This will delete all associated CAPA reports and is irreversible.', () => { document.getElementById('delete-form-{{ file.id }}').submit(); })" class="btn" style="background-color: var(--status-red) !important; color: white !important; padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; border: none;">
+                    Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">No uploaded Word documents found.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Section 2: Manual Revisions -->
+  <div class="card" style="padding: 24px;">
+    <h3 class="card-section-title" style="margin-top: 0; margin-bottom: 15px; color: var(--jspl-navy); border-bottom: 2px solid var(--jspl-border); padding-bottom: 8px;">
+      📝 Manually Entered Sessions
+    </h3>
+    <div class="table-responsive">
+      <table class="dashboard-table">
+        <thead>
+          <tr style="background: #f8fafc;">
+            <th style="text-align: left;">Session Title</th>
+            <th style="text-align: center; width: 150px;">Created Date</th>
+            <th style="text-align: center; width: 140px;">No. of Records</th>
+            <th style="text-align: left; width: 180px;">Created By</th>
+            <th style="text-align: center; width: 180px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sheet in manual_sheets %}
+            <tr>
+              <td style="text-align: left; font-weight: 700; color: var(--jspl-navy);">{{ sheet.filename }}</td>
+              <td style="text-align: center;" class="mono">{{ sheet.uploaded_at|date:"d M Y, H:i" }}</td>
+              <td style="text-align: center; font-weight: bold;">{{ sheet.num_records }}</td>
+              <td style="text-align: left;">{{ sheet.uploaded_by.get_display_name|default:sheet.uploaded_by.username }}</td>
+              <td style="text-align: center;">
+                <div style="display: flex; gap: 8px; justify-content: center;">
+                  <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ sheet.id }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; line-height: 26px; display: inline-block;">
+                    View
+                  </a>
+                  <form id="delete-form-{{ sheet.id }}" action="{% url 'capa:delete_upload' active_dept.id sheet.id %}" method="POST" style="display: none;">
+                    {% csrf_token %}
+                  </form>
+                  <button type="button" @click="showConfirm('Delete CAPA Sheet', 'Are you sure you want to delete the CAPA session \'{{ sheet.filename|escapejs }}\'? This will delete all associated CAPA reports and is irreversible.', () => { document.getElementById('delete-form-{{ sheet.id }}').submit(); })" class="btn" style="background-color: var(--status-red) !important; color: white !important; padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; border: none;">
+                    Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">No manually entered CAPA sessions found.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}

@@ -1,0 +1,66 @@
+/* CAPA Sub-Portal Custom Stylesheet */
+
+/* Sidebar theme override for CAPA App */
+.capa-sidebar {
+  background: #0f172a !important; /* Slate 900 for dark professional theme */
+  border-right: 1px solid #1e293b !important;
+}
+
+.capa-sidebar .sidebar-divider {
+  color: #64748b !important;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+}
+
+.capa-sidebar .sidebar-link {
+  color: #94a3b8 !important;
+}
+
+.capa-sidebar .sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+}
+
+.capa-sidebar .sidebar-link.active {
+  background: var(--jspl-blue) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+.form-label-bold {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--jspl-navy);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-badge.status-completed {
+  background-color: #dcfce7 !important;
+  color: var(--status-green) !important;
+}
+
+.status-badge.status-progress {
+  background-color: #fef3c7 !important;
+  color: var(--status-amber) !important;
+}
+
+.status-badge.status-open {
+  background-color: #f1f5f9 !important;
+  color: var(--jspl-muted) !important;
+}

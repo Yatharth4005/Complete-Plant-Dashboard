@@ -1,0 +1,835 @@
+{% extends "capa/base.html" %}
+{% load static %}
+
+{% block title %}Master CAPA Report — {{ active_dept.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .capa-form-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 25px;
+  }
+  .capa-form-table td {
+    border: 1px solid #000000;
+    padding: 10px;
+    vertical-align: top;
+    font-size: 0.85rem;
+    color: #000000;
+  }
+  .capa-hdr-label {
+    background-color: #f8fafc;
+    font-weight: bold;
+    color: var(--jspl-navy);
+    width: 20%;
+    vertical-align: middle !important;
+  }
+  .capa-input {
+    width: 100%;
+    height: 34px;
+    padding: 4px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    outline: none;
+    font-size: 0.85rem;
+    background: #fff;
+    box-sizing: border-box;
+  }
+  .capa-input:focus {
+    border-color: var(--jspl-blue);
+    box-shadow: 0 0 0 3px rgba(0, 87, 168, 0.1);
+  }
+  .capa-textarea {
+    width: 100%;
+    height: 70px;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    resize: vertical;
+    outline: none;
+    font-size: 0.85rem;
+    background: #fff;
+    box-sizing: border-box;
+  }
+  .capa-textarea:focus {
+    border-color: var(--jspl-blue);
+    box-shadow: 0 0 0 3px rgba(0, 87, 168, 0.1);
+  }
+  .section-header-row {
+    font-weight: bold;
+    color: #FFFFFF;
+    background-color: var(--jspl-navy) !important;
+    padding: 8px 12px;
+    font-size: 0.95rem;
+  }
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .view-value {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: #0f172a;
+    min-height: 20px;
+    display: block;
+    word-break: break-word;
+  }
+  .view-value-bold {
+    font-weight: 700;
+  }
+  .tick-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background-color: rgba(0, 87, 168, 0.08);
+    color: var(--jspl-navy);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    border: 1px solid rgba(0, 87, 168, 0.15);
+  }
+  .tick-badge.inactive {
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    border: 1px solid #e2e8f0;
+    text-decoration: line-through;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <a href="{% url 'capa:dashboard' active_dept.id %}">CAPA Dashboard</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">CAPA Report</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+  <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+      <h1 class="portal-page-title">Master CAPA Report</h1>
+      <p class="portal-page-subtitle">Official vertical format grid of Corrective and Preventive Action parameters</p>
+      <a href="{% url 'capa:identification' active_dept.id %}" class="btn btn-primary" style="margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; background-color: var(--jspl-navy) !important; font-size: 0.8rem; height: 34px;">
+        ➕ Add CAPA Manually
+      </a>
+    </div>
+    
+    <!-- Upload Document Card -->
+    <div class="card" style="padding: 12px 18px; max-width: 450px; border: 1px dashed var(--jspl-blue); background: rgba(0, 87, 168, 0.02);">
+      <h4 style="font-size: 0.8rem; font-weight: 700; color: var(--jspl-navy); margin-bottom: 6px;">📥 Upload Past Data (.docx, .doc, .pdf)</h4>
+      <form action="{% url 'capa:upload_file' active_dept.id %}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+        {% csrf_token %}
+        <input type="file" name="capa_file" accept=".docx,.doc,.pdf" required style="font-size: 0.72rem; flex-grow:1;">
+        <button type="submit" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.72rem; background-color: var(--jspl-navy) !important;">
+          Upload
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Filters Row -->
+  <div class="card filter-card" style="padding: 16px 20px; margin-bottom: 24px;">
+    <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; width: 100%;">
+      
+      <div class="filter-group" style="flex: 1.5; min-width: 180px;">
+        <label style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 4px; display: block;">Select CAPA Report / Sheet</label>
+        <select name="upload_id" class="capa-input" style="height: 36px; font-size: 0.8rem; width: 100%;" onchange="this.form.submit()">
+          <option value="new_file" {% if selected_upload_id == 'new_file' %}selected{% endif %}>Default manual list</option>
+          {% for upload in uploads %}
+            <option value="{{ upload.id }}" {% if selected_upload_id == upload.id %}selected{% endif %}>
+              {{ upload.upload_date|date:"d.m.Y"|default:"No Date" }} — {{ upload.filename|truncatechars:45 }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button type="submit" class="btn btn-primary" style="height: 36px; font-size: 0.8rem; background-color: var(--jspl-navy) !important;">Apply</button>
+        <a href="{% url 'capa:report' active_dept.id %}" class="btn btn-secondary" style="height: 36px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; border: 1px solid var(--jspl-border) !important;">Reset</a>
+      </div>
+
+    </form>
+  </div>
+
+  {% if reports_data %}
+    {% for r_data in reports_data %}
+      {% with r=r_data.record %}
+        
+        <!-- JSON script tags for Alpine binding -->
+        <script id="team-{{ r.id }}" type="application/json">
+          {{ r.responsible_team|default:"[]"|safe }}
+        </script>
+        <script id="corrective-{{ r.id }}" type="application/json">
+          {{ r.corrective_actions|default:"[]"|safe }}
+        </script>
+        <script id="preventive-{{ r.id }}" type="application/json">
+          {{ r.preventive_actions|default:"[]"|safe }}
+        </script>
+        <script id="fivem-{{ r.id }}" type="application/json">
+          {{ r.five_m_applicable|default:"[]"|safe }}
+        </script>
+        <script id="modifieddocs-{{ r.id }}" type="application/json">
+          {{ r.modified_documents|default:"[]"|safe }}
+        </script>
+
+        <div class="card" style="padding: 25px; max-width: 950px; margin: 0 auto 40px; border: 1px solid var(--jspl-border);"
+             x-data="{
+                editMode: false,
+                documentNo: '{{ r.document_no|escapejs }}',
+                issueNo: '{{ r.issue_no|escapejs }}',
+                issueDate: '{{ r.issue_date|escapejs }}',
+                areaSection: '{{ r.area_section|escapejs }}',
+                dateIncident: '{{ r.date_incident|escapejs }}',
+                capaNo: '{{ r.capa_no|escapejs }}',
+                status: '{{ r.status|escapejs }}',
+                
+                problemWhat: '{{ r.problem_what|escapejs }}',
+                problemWhere: '{{ r.problem_where|escapejs }}',
+                problemWhen: '{{ r.problem_when|escapejs }}',
+                problemExtent: '{{ r.problem_extent|escapejs }}',
+                
+                breakdownApplicable: '{{ r.breakdown_applicable|escapejs }}',
+                breakdownHrs: '{{ r.breakdown_hrs|escapejs }}',
+                breakdownFrom: '{{ r.breakdown_from|escapejs }}',
+                breakdownTo: '{{ r.breakdown_to|escapejs }}',
+                
+                immediateAction: '{{ r.immediate_action|escapejs }}',
+                actionTimeframe: '{{ r.action_timeframe|escapejs }}',
+                actionResponsibility: '{{ r.action_responsibility|escapejs }}',
+                
+                why1: '{{ r.why_1|escapejs }}',
+                why2: '{{ r.why_2|escapejs }}',
+                why3: '{{ r.why_3|escapejs }}',
+                why4: '{{ r.why_4|escapejs }}',
+                why5: '{{ r.why_5|escapejs }}',
+                conclusion: '{{ r.conclusion|escapejs }}',
+                
+                detailedPlan: '{{ r.detailed_plan|escapejs }}',
+                modifiedDocsOther: '{{ r.modified_documents_other|escapejs }}',
+                trainingDetails: '{{ r.training_details|escapejs }}',
+                dateImplementation: '{{ r.date_implementation|escapejs }}',
+                effectivenessEvaluation: '{{ r.effectiveness_evaluation|escapejs }}',
+                
+                preparedBy: '{{ r.prepared_by|escapejs }}',
+                reviewedBy: '{{ r.reviewed_by|escapejs }}',
+                approvedBy: '{{ r.approved_by|escapejs }}',
+
+                team: [],
+                corrective: [],
+                preventive: [],
+                fiveM: [],
+                modifiedDocs: [],
+
+                init() {
+                  this.team = JSON.parse(document.getElementById('team-{{ r.id }}').textContent || '[]');
+                  while(this.team.length < 3) {
+                    const idx = this.team.length;
+                    const role = idx === 0 ? 'Team Leader' : `Team Member ${idx}`;
+                    this.team.push({ role: role, name: '', contact: '' });
+                  }
+                  this.corrective = JSON.parse(document.getElementById('corrective-{{ r.id }}').textContent || '[]');
+                  this.preventive = JSON.parse(document.getElementById('preventive-{{ r.id }}').textContent || '[]');
+                  this.fiveM = JSON.parse(document.getElementById('fivem-{{ r.id }}').textContent || '[]');
+                  this.modifiedDocs = JSON.parse(document.getElementById('modifieddocs-{{ r.id }}').textContent || '[]');
+                },
+
+                toggleEdit() {
+                  this.editMode = true;
+                },
+                cancelEdit() {
+                  this.editMode = false;
+                  this.documentNo = '{{ r.document_no|escapejs }}';
+                  this.issueNo = '{{ r.issue_no|escapejs }}';
+                  this.issueDate = '{{ r.issue_date|escapejs }}';
+                  this.areaSection = '{{ r.area_section|escapejs }}';
+                  this.dateIncident = '{{ r.date_incident|escapejs }}';
+                  this.capaNo = '{{ r.capa_no|escapejs }}';
+                  this.status = '{{ r.status|escapejs }}';
+                  
+                  this.problemWhat = '{{ r.problem_what|escapejs }}';
+                  this.problemWhere = '{{ r.problem_where|escapejs }}';
+                  this.problemWhen = '{{ r.problem_when|escapejs }}';
+                  this.problemExtent = '{{ r.problem_extent|escapejs }}';
+                  
+                  this.breakdownApplicable = '{{ r.breakdown_applicable|escapejs }}';
+                  this.breakdownHrs = '{{ r.breakdown_hrs|escapejs }}';
+                  this.breakdownFrom = '{{ r.breakdown_from|escapejs }}';
+                  this.breakdownTo = '{{ r.breakdown_to|escapejs }}';
+                  
+                  this.immediateAction = '{{ r.immediate_action|escapejs }}';
+                  this.actionTimeframe = '{{ r.action_timeframe|escapejs }}';
+                  this.actionResponsibility = '{{ r.action_responsibility|escapejs }}';
+                  
+                  this.why1 = '{{ r.why_1|escapejs }}';
+                  this.why2 = '{{ r.why_2|escapejs }}';
+                  this.why3 = '{{ r.why_3|escapejs }}';
+                  this.why4 = '{{ r.why_4|escapejs }}';
+                  this.why5 = '{{ r.why_5|escapejs }}';
+                  this.conclusion = '{{ r.conclusion|escapejs }}';
+                  
+                  this.detailedPlan = '{{ r.detailed_plan|escapejs }}';
+                  this.modifiedDocsOther = '{{ r.modified_documents_other|escapejs }}';
+                  this.trainingDetails = '{{ r.training_details|escapejs }}';
+                  this.dateImplementation = '{{ r.date_implementation|escapejs }}';
+                  this.effectivenessEvaluation = '{{ r.effectiveness_evaluation|escapejs }}';
+                  
+                  this.preparedBy = '{{ r.prepared_by|escapejs }}';
+                  this.reviewedBy = '{{ r.reviewed_by|escapejs }}';
+                  this.approvedBy = '{{ r.approved_by|escapejs }}';
+
+                  this.team = JSON.parse(document.getElementById('team-{{ r.id }}').textContent || '[]');
+                  while(this.team.length < 3) {
+                    const idx = this.team.length;
+                    const role = idx === 0 ? 'Team Leader' : `Team Member ${idx}`;
+                    this.team.push({ role: role, name: '', contact: '' });
+                  }
+                  this.corrective = JSON.parse(document.getElementById('corrective-{{ r.id }}').textContent || '[]');
+                  this.preventive = JSON.parse(document.getElementById('preventive-{{ r.id }}').textContent || '[]');
+                  this.fiveM = JSON.parse(document.getElementById('fivem-{{ r.id }}').textContent || '[]');
+                  this.modifiedDocs = JSON.parse(document.getElementById('modifieddocs-{{ r.id }}').textContent || '[]');
+                },
+
+                addCorrectiveRow() {
+                  this.corrective.push({ action: '', responsibility: '', target_date: '' });
+                },
+                removeCorrectiveRow(idx) {
+                  this.corrective.splice(idx, 1);
+                },
+                addPreventiveRow() {
+                  this.preventive.push({ action: '', responsibility: '', target_date: '' });
+                },
+                removePreventiveRow(idx) {
+                  this.preventive.splice(idx, 1);
+                }
+             }">
+          
+          <!-- View / Edit Mode Action Bar -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px;">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="font-weight: 800; font-size: 1rem; color: var(--jspl-navy);">CAPA No: {{ r.capa_no|default:"Draft" }}</span>
+              <span class="status-badge" style="background-color: #f1f5f9; font-size: 0.72rem; padding: 2px 8px;"
+                    :class="status === 'Closed' ? 'status-completed' : (status === 'In Progress' ? 'status-progress' : 'status-open')"
+                    x-text="status">
+              </span>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+              <!-- Download PDF -->
+              <a href="{% url 'capa:download_pdf' active_dept.id r.id %}" class="btn" style="background-color: var(--status-red) !important; color: white !important; font-size: 0.8rem; font-weight: bold; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px;">
+                📄 Download PDF
+              </a>
+
+              <!-- Toggle Edit -->
+              <button type="button" class="btn btn-secondary" @click="toggleEdit()" x-show="!editMode" style="border: 1px solid var(--jspl-border) !important; font-size: 0.8rem;">
+                ✏️ Edit Report
+              </button>
+            </div>
+          </div>
+
+          <form action="{% url 'capa:save_capa_id' active_dept.id r.id %}" method="POST">
+            {% csrf_token %}
+
+            <table class="capa-form-table">
+              <!-- Header Section -->
+              <tr>
+                <td colspan="4" style="text-align: center; vertical-align: middle; background-color: var(--jspl-navy); color: #FFFFFF; padding: 15px;">
+                  <h2 style="color: #FFFFFF; margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: 1px;">CORRECTIVE AND PREVENTIVE ACTION REPORT (CAPA)</h2>
+                  <span style="font-size: 0.72rem; opacity: 0.85; font-weight: bold;">JINDAL STEEL LIMITED, RAIGARH</span>
+                </td>
+              </tr>
+              
+              <!-- Document Meta Details -->
+              <tr>
+                <td style="width: 25%; font-weight: bold; background-color: #f8fafc; color: var(--jspl-navy); vertical-align: middle;">Document No:</td>
+                <td style="width: 25%; vertical-align: middle;">
+                  <span x-show="!editMode" class="view-value view-value-bold" x-text="documentNo"></span>
+                  <input x-show="editMode" type="text" name="document_no" class="capa-input" x-model="documentNo" required style="font-weight: bold;">
+                </td>
+                <td style="width: 25%; font-weight: bold; background-color: #f8fafc; color: var(--jspl-navy); vertical-align: middle;">Issue No / Date:</td>
+                <td style="width: 25%; vertical-align: middle;">
+                  <span x-show="!editMode" class="view-value view-value-bold" x-text="issueNo + ' / ' + issueDate"></span>
+                  <div x-show="editMode" style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" name="issue_no" class="capa-input" x-model="issueNo" required style="width: 60px; font-weight: bold;" placeholder="Issue No">
+                    <span>/</span>
+                    <input type="text" name="issue_date" class="capa-input" x-model="issueDate" required style="font-weight: bold;" placeholder="DD.MM.YYYY">
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Standard Fields -->
+              <tr>
+                <td class="capa-hdr-label">Department</td>
+                <td style="vertical-align: middle;">
+                  <span class="view-value">{{ active_dept.name }}</span>
+                </td>
+                <td class="capa-hdr-label">Area / Section</td>
+                <td style="vertical-align: middle;">
+                  <span x-show="!editMode" class="view-value" x-text="areaSection || '—'"></span>
+                  <input x-show="editMode" type="text" name="area_section" class="capa-input" x-model="areaSection" placeholder="e.g. Mill Electrical">
+                </td>
+              </tr>
+              
+              <tr>
+                <td class="capa-hdr-label">Date of Incident</td>
+                <td style="vertical-align: middle;">
+                  <span x-show="!editMode" class="view-value mono" x-text="dateIncident || '—'"></span>
+                  <input x-show="editMode" type="text" name="date_incident" class="capa-input" x-model="dateIncident" placeholder="e.g. 12.09.2024">
+                </td>
+                <td class="capa-hdr-label">CAPA No.</td>
+                <td style="vertical-align: middle;">
+                  <span x-show="!editMode" class="view-value view-value-bold mono" x-text="capaNo || '—'"></span>
+                  <input x-show="editMode" type="text" name="capa_no" class="capa-input" x-model="capaNo" required style="font-weight: bold;">
+                </td>
+              </tr>
+
+              <tr>
+                <td class="capa-hdr-label">Status</td>
+                <td colspan="3" style="vertical-align: middle;">
+                  <span x-show="!editMode" class="view-value" x-text="status"></span>
+                  <select x-show="editMode" name="status" class="capa-input" x-model="status" style="max-width: 200px;">
+                    <option value="Open">Open</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                </td>
+              </tr>
+
+              <!-- 1. Problem Description -->
+              <tr>
+                <td colspan="4" class="section-header-row">1. Problem description (what/where/when/how extensive?)</td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">What:</td>
+                <td colspan="3">
+                  <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="problemWhat || '—'"></span>
+                  <textarea x-show="editMode" name="problem_what" class="capa-textarea" x-model="problemWhat" required></textarea>
+                </td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">Where:</td>
+                <td colspan="3">
+                  <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="problemWhere || '—'"></span>
+                  <textarea x-show="editMode" name="problem_where" class="capa-textarea" x-model="problemWhere"></textarea>
+                </td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">When:</td>
+                <td colspan="3">
+                  <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="problemWhen || '—'"></span>
+                  <textarea x-show="editMode" name="problem_when" class="capa-textarea" x-model="problemWhen"></textarea>
+                </td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">Extent:</td>
+                <td colspan="3">
+                  <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="problemExtent || '—'"></span>
+                  <textarea x-show="editMode" name="problem_extent" class="capa-textarea" x-model="problemExtent"></textarea>
+                </td>
+              </tr>
+
+              <!-- Breakdown Info -->
+              <tr>
+                <td colspan="4" style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy);">In Case of Breakdown:</td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">Breakdown Duration:</td>
+                <td colspan="3" style="vertical-align: middle;">
+                  <div x-show="!editMode" class="view-value">
+                    <span class="view-value-bold" x-text="breakdownApplicable || '—'"></span>
+                  </div>
+                  <div x-show="editMode" style="display: flex; gap: 20px;">
+                    <label><input type="radio" name="breakdown_applicable" value="≥ 4 Hrs." x-model="breakdownApplicable"> ≥ 4 Hrs.</label>
+                    <label><input type="radio" name="breakdown_applicable" value="2 – 4 Hrs." x-model="breakdownApplicable"> 2 – 4 Hrs.</label>
+                    <label><input type="radio" name="breakdown_applicable" value="1 – 2 Hrs." x-model="breakdownApplicable"> 1 – 2 Hrs.</label>
+                    <label><input type="radio" name="breakdown_applicable" value="≤ 1 Hrs." x-model="breakdownApplicable"> ≤ 1 Hrs.</label>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">Breakdown Details:</td>
+                <td colspan="3" style="vertical-align: middle;">
+                  <span x-show="!editMode" class="view-value" x-text="'Duration: ' + (breakdownHrs || '0') + ' Hrs.   |   Time: ' + (breakdownFrom || '—') + ' to ' + (breakdownTo || '—')"></span>
+                  <div x-show="editMode" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <span>Duration (Hrs):</span>
+                    <input type="text" name="breakdown_hrs" class="capa-input" style="width: 80px;" x-model="breakdownHrs" placeholder="e.g. 4.5">
+                    <span>From Time:</span>
+                    <input type="text" name="breakdown_from" class="capa-input" style="width: 120px;" x-model="breakdownFrom" placeholder="HH:MM AM/PM">
+                    <span>To Time:</span>
+                    <input type="text" name="breakdown_to" class="capa-input" style="width: 120px;" x-model="breakdownTo" placeholder="HH:MM AM/PM">
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 2. Responsible Team -->
+              <tr>
+                <td colspan="4" class="section-header-row">2. Responsible Team for Corrective/Preventive Actions</td>
+              </tr>
+              <tr>
+                <td colspan="4" style="padding: 0;">
+                  <table style="width: 100%; border-collapse: collapse; border: none;">
+                    <thead>
+                      <tr style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy);">
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 30%; padding: 8px;">Role Designation</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 40%; padding: 8px;">Name</td>
+                        <td style="border: none; border-bottom: 1px solid #000; width: 30%; padding: 8px;">Contact No</td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="(member, idx) in team" :key="idx">
+                        <tr>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 8px; font-weight: bold; vertical-align: middle;">
+                            <span x-text="member.role"></span>
+                            <input type="hidden" name="t_role" :value="member.role">
+                          </td>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px; vertical-align: middle;">
+                            <span x-show="!editMode" class="view-value" x-text="member.name || '—'"></span>
+                            <input x-show="editMode" type="text" name="t_name" class="capa-input" x-model="member.name" placeholder="Name" style="height: 32px;" :required="editMode">
+                          </td>
+                          <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
+                            <span x-show="!editMode" class="view-value mono" x-text="member.contact || '—'"></span>
+                            <input x-show="editMode" type="text" name="t_contact" class="capa-input" x-model="member.contact" placeholder="Contact number" style="height: 32px;">
+                          </td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- 3. Immediate Actions -->
+              <tr>
+                <td colspan="4" class="section-header-row">3. Correction/ Immediate Actions taken</td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">Actions taken:</td>
+                <td colspan="3">
+                  <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="immediateAction || '—'"></span>
+                  <textarea x-show="editMode" name="immediate_action" class="capa-textarea" x-model="immediateAction"></textarea>
+                </td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">Time Frame:</td>
+                <td style="vertical-align: middle;">
+                  <span x-show="!editMode" class="view-value mono" x-text="actionTimeframe || '—'"></span>
+                  <input x-show="editMode" type="text" name="action_timeframe" class="capa-input" x-model="actionTimeframe" placeholder="e.g. 270 Minutes">
+                </td>
+                <td class="capa-hdr-label">Responsibility:</td>
+                <td style="vertical-align: middle;">
+                  <span x-show="!editMode" class="view-value" x-text="actionResponsibility || '—'"></span>
+                  <input x-show="editMode" type="text" name="action_responsibility" class="capa-input" x-model="actionResponsibility" placeholder="Responsibility name">
+                </td>
+              </tr>
+
+              <!-- 4. Root Cause 5 Whys & 5M -->
+              <tr>
+                <td colspan="4" class="section-header-row">4. Root cause analysis - Analysis finding</td>
+              </tr>
+              <tr>
+                <td colspan="4" style="padding: 0;">
+                  <table style="width: 100%; border-collapse: collapse; border: none;">
+                    <tr>
+                      <td style="border: none; border-right: 1px solid #000; width: 70%; padding: 0;">
+                        <table style="width: 100%; border-collapse: collapse; border: none;">
+                          <tr>
+                            <td style="border: none; border-bottom: 1px solid #000; width: 20%; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">1st Why?</td>
+                            <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
+                              <span x-show="!editMode" class="view-value" x-text="why1 || '—'"></span>
+                              <input x-show="editMode" type="text" name="why_1" class="capa-input" x-model="why1" style="height: 32px;">
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="border: none; border-bottom: 1px solid #000; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">2nd Why?</td>
+                            <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
+                              <span x-show="!editMode" class="view-value" x-text="why2 || '—'"></span>
+                              <input x-show="editMode" type="text" name="why_2" class="capa-input" x-model="why2" style="height: 32px;">
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="border: none; border-bottom: 1px solid #000; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">3rd Why?</td>
+                            <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
+                              <span x-show="!editMode" class="view-value" x-text="why3 || '—'"></span>
+                              <input x-show="editMode" type="text" name="why_3" class="capa-input" x-model="why3" style="height: 32px;">
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="border: none; border-bottom: 1px solid #000; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">4th Why?</td>
+                            <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
+                              <span x-show="!editMode" class="view-value" x-text="why4 || '—'"></span>
+                              <input x-show="editMode" type="text" name="why_4" class="capa-input" x-model="why4" style="height: 32px;">
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="border: none; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">5th Why?</td>
+                            <td style="border: none; padding: 4px; vertical-align: middle;">
+                              <span x-show="!editMode" class="view-value" x-text="why5 || '—'"></span>
+                              <input x-show="editMode" type="text" name="why_5" class="capa-input" x-model="why5" style="height: 32px;">
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                      <td style="border: none; width: 30%; padding: 8px; vertical-align: top;">
+                        <div style="font-weight: bold; margin-bottom: 8px; color: var(--jspl-navy);">Applicable 5 M's (Tick):</div>
+                        
+                        <div x-show="!editMode" style="display: flex; flex-direction: column; gap: 6px;">
+                          <template x-for="m in ['1M Material', '2M Man', '3M Machine', '4M Measure', '5M Method']">
+                            <span class="tick-badge" :class="fiveM.includes(m) ? '' : 'inactive'">
+                              <span x-text="fiveM.includes(m) ? '✔️' : '❌'"></span>
+                              <span x-text="m"></span>
+                            </span>
+                          </template>
+                        </div>
+
+                        <div x-show="editMode" style="display: flex; flex-direction: column; gap: 6px;">
+                          <label class="checkbox-item"><input type="checkbox" name="five_m_applicable" value="1M Material" x-model="fiveM"> 1M Material</label>
+                          <label class="checkbox-item"><input type="checkbox" name="five_m_applicable" value="2M Man" x-model="fiveM"> 2M Man</label>
+                          <label class="checkbox-item"><input type="checkbox" name="five_m_applicable" value="3M Machine" x-model="fiveM"> 3M Machine</label>
+                          <label class="checkbox-item"><input type="checkbox" name="five_m_applicable" value="4M Measure" x-model="fiveM"> 4M Measure</label>
+                          <label class="checkbox-item"><input type="checkbox" name="five_m_applicable" value="5M Method" x-model="fiveM"> 5M Method</label>
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">Conclusion:</td>
+                <td colspan="3">
+                  <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="conclusion || '—'"></span>
+                  <textarea x-show="editMode" name="conclusion" class="capa-textarea" x-model="conclusion" placeholder="Brainstorming analysis findings conclusion..."></textarea>
+                </td>
+              </tr>
+
+              <!-- 5. Recommended Corrective actions -->
+              <tr>
+                <td colspan="4" class="section-header-row">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>5. Recommended Corrective action(s)</span>
+                    <button x-show="editMode" type="button" @click="addCorrectiveRow()" class="btn btn-secondary" style="font-size: 0.7rem; padding: 2px 8px; height: 22px; line-height: 22px;">+ Add Row</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="4" style="padding: 0;">
+                  <table style="width: 100%; border-collapse: collapse; border: none;">
+                    <thead>
+                      <tr style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy); text-align: center;">
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 45%; padding: 8px;">Corrective Action</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 20%; padding: 8px;">Responsibility</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 15%; padding: 8px;">Target Date</td>
+                        <td style="border: none; border-bottom: 1px solid #000; width: 20%; padding: 8px;" x-show="editMode">Action</td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="(act, idx) in corrective" :key="idx">
+                        <tr>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
+                            <span x-show="!editMode" class="view-value" x-text="act.action || '—'"></span>
+                            <input x-show="editMode" type="text" name="c_action" class="capa-input" x-model="act.action" placeholder="Corrective Action" style="height: 32px;" :required="editMode">
+                          </td>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
+                            <span x-show="!editMode" class="view-value" x-text="act.responsibility || '—'"></span>
+                            <input x-show="editMode" type="text" name="c_responsibility" class="capa-input" x-model="act.responsibility" placeholder="Responsible" style="height: 32px;">
+                          </td>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
+                            <span x-show="!editMode" class="view-value mono" x-text="act.target_date || '—'"></span>
+                            <input x-show="editMode" type="text" name="c_target_date" class="capa-input" x-model="act.target_date" placeholder="DD.MM.YYYY" style="height: 32px;">
+                          </td>
+                          <td style="border: none; border-bottom: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;" x-show="editMode">
+                            <button type="button" @click="removeCorrectiveRow(idx)" class="btn" style="background-color: var(--status-red) !important; color: white !important; font-size: 0.7rem; padding: 2px 8px; height: 24px; border: none; border-radius: 4px;">Remove</button>
+                          </td>
+                        </tr>
+                      </template>
+                      <tr x-show="corrective.length === 0">
+                        <td colspan="4" style="text-align: center; padding: 12px; color: #64748b;">No corrective actions recommended.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- 6. Recommended Preventive actions -->
+              <tr>
+                <td colspan="4" class="section-header-row">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>6. Recommended Preventive action(s)</span>
+                    <button x-show="editMode" type="button" @click="addPreventiveRow()" class="btn btn-secondary" style="font-size: 0.7rem; padding: 2px 8px; height: 22px; line-height: 22px;">+ Add Row</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="4" style="padding: 0;">
+                  <table style="width: 100%; border-collapse: collapse; border: none;">
+                    <thead>
+                      <tr style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy); text-align: center;">
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 45%; padding: 8px;">Preventive Action</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 20%; padding: 8px;">Responsibility</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 15%; padding: 8px;">Target Date</td>
+                        <td style="border: none; border-bottom: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;" x-show="editMode">Action</td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="(act, idx) in preventive" :key="idx">
+                        <tr>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
+                            <span x-show="!editMode" class="view-value" x-text="act.action || '—'"></span>
+                            <input x-show="editMode" type="text" name="p_action" class="capa-input" x-model="act.action" placeholder="Preventive Action" style="height: 32px;" :required="editMode">
+                          </td>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
+                            <span x-show="!editMode" class="view-value" x-text="act.responsibility || '—'"></span>
+                            <input x-show="editMode" type="text" name="p_responsibility" class="capa-input" x-model="act.responsibility" placeholder="Responsible" style="height: 32px;">
+                          </td>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
+                            <span x-show="!editMode" class="view-value mono" x-text="act.target_date || '—'"></span>
+                            <input x-show="editMode" type="text" name="p_target_date" class="capa-input" x-model="act.target_date" placeholder="DD.MM.YYYY" style="height: 32px;">
+                          </td>
+                          <td style="border: none; border-bottom: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;" x-show="editMode">
+                            <button type="button" @click="removePreventiveRow(idx)" class="btn" style="background-color: var(--status-red) !important; color: white !important; font-size: 0.7rem; padding: 2px 8px; height: 24px; border: none; border-radius: 4px;">Remove</button>
+                          </td>
+                        </tr>
+                      </template>
+                      <tr x-show="preventive.length === 0">
+                        <td colspan="4" style="text-align: center; padding: 12px; color: #64748b;">No preventive actions recommended.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- 7. Detailed Plan -->
+              <tr>
+                <td colspan="4" class="section-header-row">7. Detailed Implementation Plan</td>
+              </tr>
+              <tr>
+                <td colspan="4">
+                  <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="detailedPlan || '—'"></span>
+                  <textarea x-show="editMode" name="detailed_plan" class="capa-textarea" style="height: 90px;" x-model="detailedPlan" placeholder="Outline the detailed implementation steps..."></textarea>
+                </td>
+              </tr>
+
+              <!-- 8. Modified Documents & Training & Date of Implementation -->
+              <tr>
+                <td colspan="4" class="section-header-row">8. Modified documents & 9. Training Details & 10. Date of Implementation</td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">8. Modified documents:</td>
+                <td colspan="3" style="vertical-align: middle;">
+                  
+                  <div x-show="!editMode" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                    <template x-for="d in ['MOC', 'SOP / SMP', 'Risk and Opportunity Register', 'Register of Environmental Aspect Impact and OH & S Risks', 'Training Need Identification']">
+                      <span class="tick-badge" :class="modifiedDocs.includes(d) ? '' : 'inactive'">
+                        <span x-text="modifiedDocs.includes(d) ? '✔️' : '❌'"></span>
+                        <span x-text="d"></span>
+                      </span>
+                    </template>
+                  </div>
+                  <div x-show="!editMode" class="view-value" style="margin-top: 6px;">
+                    <strong>Others: </strong> <span x-text="modifiedDocsOther || 'None'"></span>
+                  </div>
+
+                  <div x-show="editMode">
+                    <div class="checkbox-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 8px;">
+                      <label class="checkbox-item"><input type="checkbox" name="modified_documents" value="MOC" x-model="modifiedDocs"> MOC</label>
+                      <label class="checkbox-item"><input type="checkbox" name="modified_documents" value="SOP / SMP" x-model="modifiedDocs"> SOP / SMP</label>
+                      <label class="checkbox-item"><input type="checkbox" name="modified_documents" value="Risk and Opportunity Register" x-model="modifiedDocs"> Risk and Opportunity Register</label>
+                      <label class="checkbox-item"><input type="checkbox" name="modified_documents" value="Register of Environmental Aspect Impact and OH & S Risks" x-model="modifiedDocs"> Register of Environmental Aspect Impact and OH & S Risks</label>
+                      <label class="checkbox-item"><input type="checkbox" name="modified_documents" value="Training Need Identification" x-model="modifiedDocs"> Training Need Identification</label>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                      <span>Others (Please specify):</span>
+                      <input type="text" name="modified_documents_other" class="capa-input" style="flex: 1; height: 32px;" x-model="modifiedDocsOther">
+                    </div>
+                  </div>
+
+                </td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">9. Training Details:</td>
+                <td colspan="3">
+                  <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="trainingDetails || '—'"></span>
+                  <textarea x-show="editMode" name="training_details" class="capa-textarea" x-model="trainingDetails" placeholder="Training details given to team..."></textarea>
+                </td>
+              </tr>
+              <tr>
+                <td class="capa-hdr-label">10. Date of Implementation:</td>
+                <td colspan="3" style="vertical-align: middle;">
+                  <span x-show="!editMode" class="view-value mono" x-text="dateImplementation || '—'"></span>
+                  <input x-show="editMode" type="text" name="date_implementation" class="capa-input" x-model="dateImplementation" placeholder="e.g. 12.09.2024">
+                </td>
+              </tr>
+
+              <!-- 11. Effectiveness -->
+              <tr>
+                <td colspan="4" class="section-header-row">11. Effectiveness evaluation of implemented Correction, Corrective Action / Preventive Action</td>
+              </tr>
+              <tr>
+                <td colspan="4">
+                  <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="effectivenessEvaluation || '—'"></span>
+                  <textarea x-show="editMode" name="effectiveness_evaluation" class="capa-textarea" style="height: 90px;" x-model="effectivenessEvaluation" placeholder="Verification activities that prove actions were effective..."></textarea>
+                </td>
+              </tr>
+
+              <!-- Approvals -->
+              <tr>
+                <td colspan="4" class="section-header-row">Approvals Sign-off Names</td>
+              </tr>
+              <tr>
+                <td colspan="4" style="padding: 0;">
+                  <table style="width: 100%; border-collapse: collapse; border: none;">
+                    <thead>
+                      <tr style="background-color: #f8fafc; font-weight: bold; text-align: center; color: var(--jspl-navy);">
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 33.3%; padding: 8px;">Prepared By (Initiator)</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 33.3%; padding: 8px;">Reviewed By (Reviewer)</td>
+                        <td style="border: none; border-bottom: 1px solid #000; width: 33.3%; padding: 8px;">Approved By (HOD)</td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style="border: none; border-right: 1px solid #000; padding: 8px; vertical-align: middle;">
+                          <span x-show="!editMode" class="view-value" style="text-align: center;" x-text="preparedBy || '—'"></span>
+                          <input x-show="editMode" type="text" name="prepared_by" class="capa-input" x-model="preparedBy" placeholder="Name">
+                        </td>
+                        <td style="border: none; border-right: 1px solid #000; padding: 8px; vertical-align: middle;">
+                          <span x-show="!editMode" class="view-value" style="text-align: center;" x-text="reviewedBy || '—'"></span>
+                          <input x-show="editMode" type="text" name="reviewed_by" class="capa-input" x-model="reviewedBy" placeholder="Name">
+                        </td>
+                        <td style="border: none; padding: 8px; vertical-align: middle;">
+                          <span x-show="!editMode" class="view-value" style="text-align: center;" x-text="approvedBy || '—'"></span>
+                          <input x-show="editMode" type="text" name="approved_by" class="capa-input" x-model="approvedBy" placeholder="Name">
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Edit Mode Action Buttons -->
+            <div x-show="editMode" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;" x-transition>
+              <button type="button" @click="cancelEdit()" class="btn btn-secondary" style="height: 38px; line-height: 38px; padding: 0 20px; font-weight: bold; border: 1px solid var(--jspl-border) !important;">Cancel</button>
+              <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 20px; font-weight: bold; background-color: var(--jspl-navy) !important;">💾 Save Changes</button>
+            </div>
+          </form>
+
+        </div>
+      {% endwith %}
+    {% endfor %}
+  {% else %}
+    <div class="card" style="padding: 40px; text-align: center; color: #64748b;">
+      <h3>📭 No CAPA reports found for this selection.</h3>
+      <p style="margin-top: 10px;">Please upload a Word (.docx) CAPA document or create a CAPA manually to populate this view.</p>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

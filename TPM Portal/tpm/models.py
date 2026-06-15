@@ -194,11 +194,40 @@ class KaizenSheet(models.Model):
         return f"Kaizen {self.kaizen_no or 'Draft'} - {self.theme or 'No Theme'}"
 
 
+class CAPADocxUpload(models.Model):
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='capa_uploads')
+    filename = models.CharField(max_length=255)
+    upload_date = models.DateField(null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    is_manual = models.BooleanField(default=False)
+    key_contact = models.CharField(max_length=255, default="", blank=True)
+    core_team = models.TextField(default="", blank=True)
+    objective = models.TextField(default="", blank=True)
+    ref_no = models.CharField(max_length=100, default="", blank=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        date_str = self.upload_date.strftime('%Y-%m-%d') if self.upload_date else "No Date"
+        return f"{self.filename} ({date_str})"
+
+
 class CAPAReport(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='capa_reports')
+    docx_upload = models.ForeignKey(CAPADocxUpload, on_delete=models.CASCADE, null=True, blank=True, related_name='reports')
     area_section = models.CharField(max_length=255, blank=True)
     date_incident = models.CharField(max_length=50, blank=True)
     capa_no = models.CharField(max_length=50, blank=True)
+    document_no = models.CharField(max_length=100, blank=True)
+    issue_no = models.CharField(max_length=50, blank=True)
+    issue_date = models.CharField(max_length=50, blank=True)
+    status = models.CharField(
+        max_length=30, 
+        default='Open', 
+        choices=[('Open', 'Open'), ('In Progress', 'In Progress'), ('Closed', 'Closed')]
+    )
     
     # 1. Problem Description
     problem_what = models.TextField(blank=True)

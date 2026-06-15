@@ -111,7 +111,7 @@ class Command(BaseCommand):
             },
             {
                 'key': 'FMEA',
-                'label': 'EFMEA',
+                'label': 'FMEA',
                 'description': 'Failure Mode and Effects Analysis for risk identification and mitigation',
                 'icon': 'shield',
                 'color_class': 'module-fmea',
@@ -124,7 +124,7 @@ class Command(BaseCommand):
                 'description': 'Corrective Action and Preventive Action tracking and report generation',
                 'icon': 'clipboard',
                 'color_class': 'module-capa',
-                'redirect_url_template': '/department/{dept_id}/coming-soon/CAPA/',
+                'redirect_url_template': '/capa/department/{dept_id}/',
                 'sort_order': 8,
             },
         ]

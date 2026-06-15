@@ -1,0 +1,594 @@
+{% extends "capa/base.html" %}
+
+{% block title %}CAPA Manual Entry — {{ active_dept.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .capa-form-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 25px;
+  }
+  .capa-form-table td {
+    border: 1px solid #000000;
+    padding: 10px;
+    vertical-align: top;
+    font-size: 0.85rem;
+  }
+  .capa-hdr-label {
+    background-color: #f8fafc;
+    font-weight: bold;
+    color: var(--jspl-navy);
+    width: 20%;
+    vertical-align: middle !important;
+  }
+  .capa-input {
+    width: 100%;
+    height: 38px;
+    padding: 6px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    outline: none;
+    font-size: 0.85rem;
+    background: #fff;
+    box-sizing: border-box;
+  }
+  .capa-input:focus {
+    border-color: var(--jspl-blue);
+    box-shadow: 0 0 0 3px rgba(0, 87, 168, 0.1);
+  }
+  .capa-textarea {
+    width: 100%;
+    height: 70px;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    resize: vertical;
+    outline: none;
+    font-size: 0.85rem;
+    background: #fff;
+    box-sizing: border-box;
+  }
+  .capa-textarea:focus {
+    border-color: var(--jspl-blue);
+    box-shadow: 0 0 0 3px rgba(0, 87, 168, 0.1);
+  }
+  .section-header-row {
+    font-weight: bold;
+    color: #FFFFFF;
+    background-color: var(--jspl-navy) !important;
+    padding: 8px 12px;
+    font-size: 0.95rem;
+  }
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <a href="{% url 'capa:dashboard' active_dept.id %}">CAPA Dashboard</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">CAPA Manual Entry</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container" x-data="capaFormHandler()">
+
+  <div style="margin-bottom: 25px;">
+    <h1 class="portal-page-title">CAPA Manual Entry</h1>
+    <p class="portal-page-subtitle">Register and evaluate a new breakdown incident or quality parameter manually for <b>{{ active_dept.name }}</b></p>
+  </div>
+
+  <div class="card" style="max-width: 900px; margin: 0 auto 40px; padding: 25px; border: 1px solid var(--jspl-border);">
+    <form action="{% url 'capa:save_capa' active_dept.id %}" method="POST">
+      {% csrf_token %}
+
+      <!-- File Association / Target File -->
+      <div style="margin-bottom: 25px; padding: 20px; border-radius: 8px; background: rgba(0, 87, 168, 0.02); border: 1px solid rgba(0, 87, 168, 0.15); font-family: 'Sora', sans-serif;">
+        <label class="form-label-bold" style="color: var(--jspl-navy); font-size: 0.9rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          📁 Save Target File / Association
+        </label>
+        
+        <div style="display: flex; gap: 24px; margin-bottom: 15px; flex-wrap: wrap;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: var(--jspl-navy);">
+            <input type="radio" name="association_type" value="default" x-model="associationType" style="width: 16px; height: 16px; accent-color: var(--jspl-blue);">
+            Default manual list
+          </label>
+          
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: var(--jspl-navy);">
+            <input type="radio" name="association_type" value="new" x-model="associationType" style="width: 16px; height: 16px; accent-color: var(--jspl-blue);">
+            Create a new file
+          </label>
+          
+          {% if uploads %}
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: var(--jspl-navy);">
+              <input type="radio" name="association_type" value="existing" x-model="associationType" style="width: 16px; height: 16px; accent-color: var(--jspl-blue);">
+              Add data in saved file
+            </label>
+          {% endif %}
+        </div>
+        
+        <!-- Option: Create New File -->
+        <div x-show="associationType === 'new'" style="margin-top: 15px;" x-transition>
+          <label class="form-label-bold" style="font-size: 0.78rem; color: #475569; margin-bottom: 6px;">New File / Sheet Name</label>
+          <input type="text" name="new_file_name" class="capa-input" placeholder="e.g. Rail Mill CAPA September 2026" :required="associationType === 'new'">
+        </div>
+        
+        <!-- Option: Add to Existing Saved File -->
+        {% if uploads %}
+          <div x-show="associationType === 'existing'" style="margin-top: 15px;" x-transition>
+            <label class="form-label-bold" style="font-size: 0.78rem; color: #475569; margin-bottom: 6px;">Select Saved File</label>
+            <select name="existing_file_id" class="capa-input" x-model="existingFileId" :required="associationType === 'existing'">
+              <option value="">Select a saved file...</option>
+              {% for upload in uploads %}
+                <option value="{{ upload.id }}">{{ upload.upload_date|date:"d.m.Y"|default:"No Date" }} — {{ upload.filename }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- MAIN CAPA GRID FORM -->
+      <table class="capa-form-table">
+        <!-- Header -->
+        <tr>
+          <td colspan="4" style="text-align: center; vertical-align: middle; background-color: var(--jspl-navy); color: #FFFFFF; padding: 15px;">
+            <h2 style="color: #FFFFFF; margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: 1px;">CORRECTIVE AND PREVENTIVE ACTION REPORT (CAPA)</h2>
+            <span style="font-size: 0.72rem; opacity: 0.85; font-weight: bold;">JINDAL STEEL LIMITED, RAIGARH</span>
+          </td>
+        </tr>
+        
+        <!-- Document Meta Details -->
+        <tr>
+          <td style="width: 25%; font-weight: bold; background-color: #f8fafc; color: var(--jspl-navy); vertical-align: middle;">Document No:</td>
+          <td style="width: 25%;">
+            <input type="text" name="document_no" class="capa-input" value="{{ prefills.document_no }}" required style="font-weight: bold;">
+          </td>
+          <td style="width: 25%; font-weight: bold; background-color: #f8fafc; color: var(--jspl-navy); vertical-align: middle;">Issue No / Date:</td>
+          <td style="width: 25%;">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="text" name="issue_no" class="capa-input" value="{{ prefills.issue_no }}" required style="width: 80px; font-weight: bold;" placeholder="Issue No">
+              <span>/</span>
+              <input type="text" name="issue_date" class="capa-input" value="{{ prefills.issue_date }}" required style="font-weight: bold;" placeholder="DD.MM.YYYY">
+            </div>
+          </td>
+        </tr>
+
+        <!-- Standard Fields -->
+        <tr>
+          <td class="capa-hdr-label">Department *</td>
+          <td>
+            <input type="text" class="capa-input" value="{{ active_dept.name }}" disabled style="background-color: #e2e8f0;">
+          </td>
+          <td class="capa-hdr-label">Area / Section</td>
+          <td>
+            <input type="text" name="area_section" class="capa-input" placeholder="e.g. Mill Electrical">
+          </td>
+        </tr>
+        
+        <tr>
+          <td class="capa-hdr-label">Date of Incident</td>
+          <td>
+            <input type="text" name="date_incident" class="capa-input" placeholder="e.g. 12.09.2024" value="{{ today }}">
+          </td>
+          <td class="capa-hdr-label">CAPA No. *</td>
+          <td>
+            <input type="text" name="capa_no" class="capa-input" style="font-weight: bold; font-family: 'JetBrains Mono', monospace;" value="{{ prefills.capa_no }}" required>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="capa-hdr-label">Status *</td>
+          <td colspan="3">
+            <select name="status" class="capa-input" style="max-width: 200px;">
+              <option value="Open">Open</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </td>
+        </tr>
+
+        <!-- 1. Problem Description -->
+        <tr>
+          <td colspan="4" class="section-header-row">1. Problem description (what/where/when/how extensive?)</td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">What:</td>
+          <td colspan="3">
+            <textarea name="problem_what" class="capa-textarea" placeholder="What happened?" required></textarea>
+          </td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">Where:</td>
+          <td colspan="3">
+            <textarea name="problem_where" class="capa-textarea" placeholder="Where did it happen?"></textarea>
+          </td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">When:</td>
+          <td colspan="3">
+            <textarea name="problem_when" class="capa-textarea" placeholder="When did it happen?"></textarea>
+          </td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">Extent:</td>
+          <td colspan="3">
+            <textarea name="problem_extent" class="capa-textarea" placeholder="Extent/Duration of breakdown..."></textarea>
+          </td>
+        </tr>
+
+        <!-- Breakdown Info -->
+        <tr>
+          <td colspan="4" style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy);">In Case of Breakdown:</td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">Breakdown Duration:</td>
+          <td colspan="3">
+            <div style="display: flex; gap: 20px;">
+              <label><input type="radio" name="breakdown_applicable" value="≥ 4 Hrs."> ≥ 4 Hrs.</label>
+              <label><input type="radio" name="breakdown_applicable" value="2 – 4 Hrs."> 2 – 4 Hrs.</label>
+              <label><input type="radio" name="breakdown_applicable" value="1 – 2 Hrs."> 1 – 2 Hrs.</label>
+              <label><input type="radio" name="breakdown_applicable" value="≤ 1 Hrs."> ≤ 1 Hrs.</label>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">Breakdown Details:</td>
+          <td colspan="3">
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+              <span>Duration (Hrs):</span>
+              <input type="text" name="breakdown_hrs" class="capa-input" style="width: 80px;" placeholder="e.g. 4.5">
+              <span>From Time:</span>
+              <input type="text" name="breakdown_from" class="capa-input" style="width: 120px;" placeholder="HH:MM AM/PM">
+              <span>To Time:</span>
+              <input type="text" name="breakdown_to" class="capa-input" style="width: 120px;" placeholder="HH:MM AM/PM">
+            </div>
+          </td>
+        </tr>
+
+        <!-- 2. Responsible Team -->
+        <tr>
+          <td colspan="4" class="section-header-row">2. Responsible Team for Corrective/Preventive Actions</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="padding: 0;">
+            <table style="width: 100%; border-collapse: collapse; border: none;">
+              <thead>
+                <tr style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy);">
+                  <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 30%; padding: 8px;">Role Designation</td>
+                  <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 40%; padding: 8px;">Name</td>
+                  <td style="border: none; border-bottom: 1px solid #000; width: 30%; padding: 8px;">Contact No</td>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(member, idx) in team" :key="idx">
+                  <tr>
+                    <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 8px; font-weight: bold; vertical-align: middle;">
+                      <span x-text="member.role"></span>
+                      <input type="hidden" name="t_role" :value="member.role">
+                    </td>
+                    <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
+                      <input type="text" name="t_name" class="capa-input" placeholder="Name" style="height: 32px;" required>
+                    </td>
+                    <td style="border: none; border-bottom: 1px solid #000; padding: 4px;">
+                      <input type="text" name="t_contact" class="capa-input" placeholder="Contact number" style="height: 32px;">
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+
+        <!-- 3. Immediate Actions -->
+        <tr>
+          <td colspan="4" class="section-header-row">3. Correction/ Immediate Actions taken</td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">Actions taken:</td>
+          <td colspan="3">
+            <textarea name="immediate_action" class="capa-textarea" placeholder="Describe the immediate containment actions..."></textarea>
+          </td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">Time Frame:</td>
+          <td>
+            <input type="text" name="action_timeframe" class="capa-input" placeholder="e.g. 270 Minutes">
+          </td>
+          <td class="capa-hdr-label">Responsibility:</td>
+          <td>
+            <input type="text" name="action_responsibility" class="capa-input" placeholder="Responsibility name">
+          </td>
+        </tr>
+
+        <!-- 4. Root Cause 5 Whys & 5M -->
+        <tr>
+          <td colspan="4" class="section-header-row">4. Root cause analysis - Analysis finding</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="padding: 0;">
+            <table style="width: 100%; border-collapse: collapse; border: none;">
+              <tr>
+                <td style="border: none; border-right: 1px solid #000; width: 70%; padding: 0;">
+                  <table style="width: 100%; border-collapse: collapse; border: none;">
+                    <tr>
+                      <td style="border: none; border-bottom: 1px solid #000; width: 20%; font-weight: bold; background-color: #f8fafc; padding: 8px;">1st Why?</td>
+                      <td style="border: none; border-bottom: 1px solid #000; padding: 4px;">
+                        <input type="text" name="why_1" class="capa-input" style="height: 32px;">
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="border: none; border-bottom: 1px solid #000; font-weight: bold; background-color: #f8fafc; padding: 8px;">2nd Why?</td>
+                      <td style="border: none; border-bottom: 1px solid #000; padding: 4px;">
+                        <input type="text" name="why_2" class="capa-input" style="height: 32px;">
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="border: none; border-bottom: 1px solid #000; font-weight: bold; background-color: #f8fafc; padding: 8px;">3rd Why?</td>
+                      <td style="border: none; border-bottom: 1px solid #000; padding: 4px;">
+                        <input type="text" name="why_3" class="capa-input" style="height: 32px;">
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="border: none; border-bottom: 1px solid #000; font-weight: bold; background-color: #f8fafc; padding: 8px;">4th Why?</td>
+                      <td style="border: none; border-bottom: 1px solid #000; padding: 4px;">
+                        <input type="text" name="why_4" class="capa-input" style="height: 32px;">
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="border: none; font-weight: bold; background-color: #f8fafc; padding: 8px;">5th Why?</td>
+                      <td style="border: none; padding: 4px;">
+                        <input type="text" name="why_5" class="capa-input" style="height: 32px;">
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+                <td style="border: none; width: 30%; padding: 8px;">
+                  <div style="font-weight: bold; margin-bottom: 8px; color: var(--jspl-navy);">Applicable 5 M's (Tick):</div>
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label class="checkbox-item"><input type="checkbox" name="five_m_applicable" value="1M Material"> 1M Material</label>
+                    <label class="checkbox-item"><input type="checkbox" name="five_m_applicable" value="2M Man"> 2M Man</label>
+                    <label class="checkbox-item"><input type="checkbox" name="five_m_applicable" value="3M Machine"> 3M Machine</label>
+                    <label class="checkbox-item"><input type="checkbox" name="five_m_applicable" value="4M Measure"> 4M Measure</label>
+                    <label class="checkbox-item"><input type="checkbox" name="five_m_applicable" value="5M Method"> 5M Method</label>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">Conclusion:</td>
+          <td colspan="3">
+            <textarea name="conclusion" class="capa-textarea" placeholder="Brainstorming analysis findings conclusion..."></textarea>
+          </td>
+        </tr>
+
+        <!-- 5. Recommended Corrective actions -->
+        <tr>
+          <td colspan="4" class="section-header-row">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span>5. Recommended Corrective action(s)</span>
+              <button type="button" @click="addCorrectiveRow()" class="btn btn-secondary" style="font-size: 0.7rem; padding: 2px 8px; height: 22px; line-height: 22px;">+ Add Row</button>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="4" style="padding: 0;">
+            <table style="width: 100%; border-collapse: collapse; border: none;">
+              <thead>
+                <tr style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy); text-align: center;">
+                  <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 45%; padding: 8px;">Corrective Action</td>
+                  <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 20%; padding: 8px;">Responsibility</td>
+                  <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 15%; padding: 8px;">Target Date</td>
+                  <td style="border: none; border-bottom: 1px solid #000; width: 20%; padding: 8px;">Action</td>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(act, idx) in corrective" :key="idx">
+                  <tr>
+                    <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
+                      <input type="text" name="c_action" class="capa-input" placeholder="Corrective Action" style="height: 32px;" required>
+                    </td>
+                    <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
+                      <input type="text" name="c_responsibility" class="capa-input" placeholder="Responsible" style="height: 32px;">
+                    </td>
+                    <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
+                      <input type="text" name="c_target_date" class="capa-input" placeholder="DD.MM.YYYY" style="height: 32px;">
+                    </td>
+                    <td style="border: none; border-bottom: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;">
+                      <button type="button" @click="removeCorrectiveRow(idx)" class="btn" style="background-color: var(--status-red) !important; color: white !important; font-size: 0.7rem; padding: 2px 8px; height: 24px; border: none; border-radius: 4px;">Remove</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+
+        <!-- 6. Recommended Preventive actions -->
+        <tr>
+          <td colspan="4" class="section-header-row">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span>6. Recommended Preventive action(s)</span>
+              <button type="button" @click="addPreventiveRow()" class="btn btn-secondary" style="font-size: 0.7rem; padding: 2px 8px; height: 22px; line-height: 22px;">+ Add Row</button>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="4" style="padding: 0;">
+            <table style="width: 100%; border-collapse: collapse; border: none;">
+              <thead>
+                <tr style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy); text-align: center;">
+                  <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 45%; padding: 8px;">Preventive Action</td>
+                  <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 20%; padding: 8px;">Responsibility</td>
+                  <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 15%; padding: 8px;">Target Date</td>
+                  <td style="border: none; border-bottom: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;">Action</td>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(act, idx) in preventive" :key="idx">
+                  <tr>
+                    <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
+                      <input type="text" name="p_action" class="capa-input" placeholder="Preventive Action" style="height: 32px;" required>
+                    </td>
+                    <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
+                      <input type="text" name="p_responsibility" class="capa-input" placeholder="Responsible" style="height: 32px;">
+                    </td>
+                    <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
+                      <input type="text" name="p_target_date" class="capa-input" placeholder="DD.MM.YYYY" style="height: 32px;">
+                    </td>
+                    <td style="border: none; border-bottom: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;">
+                      <button type="button" @click="removePreventiveRow(idx)" class="btn" style="background-color: var(--status-red) !important; color: white !important; font-size: 0.7rem; padding: 2px 8px; height: 24px; border: none; border-radius: 4px;">Remove</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+
+        <!-- 7. Detailed Plan -->
+        <tr>
+          <td colspan="4" class="section-header-row">7. Detailed Implementation Plan</td>
+        </tr>
+        <tr>
+          <td colspan="4">
+            <textarea name="detailed_plan" class="capa-textarea" style="height: 90px;" placeholder="Outline the detailed implementation steps..."></textarea>
+          </td>
+        </tr>
+
+        <!-- 8. Modified Documents & Training & Date of Implementation -->
+        <tr>
+          <td colspan="4" class="section-header-row">8. Modified documents & 9. Training Details & 10. Date of Implementation</td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">8. Modified documents:</td>
+          <td colspan="3">
+            <div class="checkbox-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 8px;">
+              <label class="checkbox-item"><input type="checkbox" name="modified_documents" value="MOC"> MOC</label>
+              <label class="checkbox-item"><input type="checkbox" name="modified_documents" value="SOP / SMP"> SOP / SMP</label>
+              <label class="checkbox-item"><input type="checkbox" name="modified_documents" value="Risk and Opportunity Register"> Risk and Opportunity Register</label>
+              <label class="checkbox-item"><input type="checkbox" name="modified_documents" value="Register of Environmental Aspect Impact and OH & S Risks"> Register of Environmental Aspect Impact and OH & S Risks</label>
+              <label class="checkbox-item"><input type="checkbox" name="modified_documents" value="Training Need Identification"> Training Need Identification</label>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span>Others (Please specify):</span>
+              <input type="text" name="modified_documents_other" class="capa-input" style="flex: 1; height: 32px;">
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">9. Training Details:</td>
+          <td colspan="3">
+            <textarea name="training_details" class="capa-textarea" placeholder="Training details given to team..."></textarea>
+          </td>
+        </tr>
+        <tr>
+          <td class="capa-hdr-label">10. Date of Implementation:</td>
+          <td colspan="3">
+            <input type="text" name="date_implementation" class="capa-input" placeholder="e.g. 12.09.2024" value="{{ today }}">
+          </td>
+        </tr>
+
+        <!-- 11. Effectiveness -->
+        <tr>
+          <td colspan="4" class="section-header-row">11. Effectiveness evaluation of implemented Correction, Corrective Action / Preventive Action</td>
+        </tr>
+        <tr>
+          <td colspan="4">
+            <textarea name="effectiveness_evaluation" class="capa-textarea" style="height: 90px;" placeholder="Verification activities that prove actions were effective..."></textarea>
+          </td>
+        </tr>
+
+        <!-- Approvals -->
+        <tr>
+          <td colspan="4" class="section-header-row">Approvals Sign-off Names</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="padding: 0;">
+            <table style="width: 100%; border-collapse: collapse; border: none;">
+              <thead>
+                <tr style="background-color: #f8fafc; font-weight: bold; text-align: center; color: var(--jspl-navy);">
+                  <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 33.3%; padding: 8px;">Prepared By (Initiator)</td>
+                  <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 33.3%; padding: 8px;">Reviewed By (Reviewer)</td>
+                  <td style="border: none; border-bottom: 1px solid #000; width: 33.3%; padding: 8px;">Approved By (HOD)</td>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="border: none; border-right: 1px solid #000; padding: 8px;">
+                    <input type="text" name="prepared_by" class="capa-input" placeholder="Name">
+                  </td>
+                  <td style="border: none; border-right: 1px solid #000; padding: 8px;">
+                    <input type="text" name="reviewed_by" class="capa-input" placeholder="Name">
+                  </td>
+                  <td style="border: none; padding: 8px;">
+                    <input type="text" name="approved_by" class="capa-input" placeholder="Name">
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Buttons -->
+      <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+        <a href="{% url 'capa:report' active_dept.id %}" class="btn btn-secondary" style="height: 38px; line-height: 38px; padding: 0 20px; font-weight: bold; border: 1px solid var(--jspl-border) !important;">Cancel</a>
+        <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 20px; font-weight: bold; background-color: var(--jspl-navy) !important;">💾 Save CAPA Report</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function capaFormHandler() {
+    return {
+      associationType: 'default',
+      existingFileId: '',
+      team: [
+        { role: 'Team Leader' },
+        { role: 'Team Member 1' },
+        { role: 'Team Member 2' }
+      ],
+      corrective: [
+        { action: '', responsibility: '', target_date: '' }
+      ],
+      preventive: [
+        { action: '', responsibility: '', target_date: '' }
+      ],
+      
+      addCorrectiveRow() {
+        this.corrective.push({ action: '', responsibility: '', target_date: '' });
+      },
+      removeCorrectiveRow(idx) {
+        if (this.corrective.length > 1) {
+          this.corrective.splice(idx, 1);
+        }
+      },
+      addPreventiveRow() {
+        this.preventive.push({ action: '', responsibility: '', target_date: '' });
+      },
+      removePreventiveRow(idx) {
+        if (this.preventive.length > 1) {
+          this.preventive.splice(idx, 1);
+        }
+      }
+    }
+  }
+</script>
+{% endblock %}
