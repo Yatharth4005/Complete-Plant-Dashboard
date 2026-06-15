@@ -749,7 +749,7 @@ def download_excel(request, dept_id):
         year = datetime.now().year
         import random
         rand_num = f"{random.randint(1, 99):02d}"
-        sheet['Q1'] = f"Reference: JS-Raigarh/{active_dept.code}/{year}/EFMEA/{rand_num}"
+        sheet['Q1'] = f"Reference: JS-Raigarh/{active_dept.code}/{year}/FMEA/{rand_num}"
 
     sheet['Q2'] = f"Date : {formatted_date}"
 
@@ -935,7 +935,7 @@ def download_excel(request, dept_id):
             pass
             
     if not filename:
-        filename = f"EFMEA_{active_dept.code}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        filename = f"FMEA_{active_dept.code}_{datetime.now().strftime('%Y%m%d')}.xlsx"
         
     if not filename.endswith('.xlsx'):
         filename += '.xlsx'
@@ -1540,7 +1540,7 @@ def clear_manual_records(request, dept_id):
     records = FMEARecord.objects.filter(department=active_dept, excel_upload=None)
     count = records.count()
     records.delete()
-    messages.success(request, f"Successfully cleared all {count} manual EFMEA records.")
+    messages.success(request, f"Successfully cleared all {count} manual FMEA records.")
     return redirect('fmea:history', dept_id=dept_id)
 
 
@@ -1687,7 +1687,7 @@ def save_report_rows(request, dept_id):
                 remarks_2=rem2
             )
         
-    messages.success(request, "EFMEA report updated successfully.")
+    messages.success(request, "FMEA report updated successfully.")
     from django.urls import reverse
     return redirect(reverse('fmea:report', args=[dept_id]) + f'?upload_id={upload_id or "new_file"}')
 

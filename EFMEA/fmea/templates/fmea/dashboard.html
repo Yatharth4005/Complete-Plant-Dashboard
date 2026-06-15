@@ -1,10 +1,10 @@
 {% extends "fmea/base.html" %}
 
-{% block title %}EFMEA Dashboard — {{ active_dept.name }}{% endblock %}
+{% block title %}FMEA Dashboard — {{ active_dept.name }}{% endblock %}
 
 {% block breadcrumb_items %}
   <span class="breadcrumb-sep">›</span>
-  <span class="breadcrumb-current">EFMEA Dashboard</span>
+  <span class="breadcrumb-current">FMEA Dashboard</span>
 {% endblock %}
 
 {% block content %}
@@ -13,8 +13,8 @@
   <!-- Header Row -->
   <div class="dashboard-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
     <div>
-      <h1 class="portal-page-title">EFMEA Dashboard</h1>
-      <p class="portal-page-subtitle">Comparative EFMEA matrix &amp; combined failure modes overview for <b>{{ active_dept.name }}</b></p>
+      <h1 class="portal-page-title">FMEA Dashboard</h1>
+      <p class="portal-page-subtitle">Comparative FMEA matrix &amp; combined failure modes overview for <b>{{ active_dept.name }}</b></p>
     </div>
   </div>
 
@@ -22,7 +22,7 @@
   <div class="kpi-grid" style="margin-bottom: 30px;">
     <div class="kpi-card" style="border-left: 5px solid #0057A8; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="kpi-title" style="color: #64748b;">Total EFMEAs</span>
+        <span class="kpi-title" style="color: #64748b;">Total FMEAs</span>
         <span style="font-size: 1.5rem;">🛡</span>
       </div>
       <div class="kpi-value" style="color: #0057A8; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ total_risks }}</div>
@@ -31,30 +31,31 @@
     
     <div class="kpi-card" style="border-left: 5px solid #e11d48; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="kpi-title" style="color: #64748b;">High EFMEAs</span>
+        <span class="kpi-title" style="color: #64748b;">High FMEAs</span>
         <span style="font-size: 1.5rem; color: #e11d48;">⚠️</span>
       </div>
       <div class="kpi-value" style="color: #e11d48; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ high_risks }}</div>
       <div class="kpi-subtext">RPN rating of 301 - 1000</div>
     </div>
-
+ 
     <div class="kpi-card" style="border-left: 5px solid #f97316; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="kpi-title" style="color: #64748b;">Medium EFMEAs</span>
+        <span class="kpi-title" style="color: #64748b;">Medium FMEAs</span>
         <span style="font-size: 1.5rem; color: #f97316;">🔔</span>
       </div>
       <div class="kpi-value" style="color: #f97316; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ medium_risks }}</div>
       <div class="kpi-subtext">RPN rating of 101 - 300</div>
     </div>
-
+ 
     <div class="kpi-card" style="border-left: 5px solid #10b981; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="kpi-title" style="color: #64748b;">Low EFMEAs</span>
+        <span class="kpi-title" style="color: #64748b;">Low FMEAs</span>
         <span style="font-size: 1.5rem; color: #10b981;">✅</span>
       </div>
       <div class="kpi-value" style="color: #10b981; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ low_risks }}</div>
       <div class="kpi-subtext">RPN rating of 1 - 100</div>
     </div>
+  </div> </div>
   </div>
 
   <!-- Charts Row -->
@@ -92,7 +93,7 @@
           <tr style="background: #f8fafc;">
             <th style="text-align: left;">File / Sheet Name</th>
             <th style="text-align: center; width: 140px;">Sheet Date</th>
-            <th style="text-align: center; width: 140px;">Total EFMEAs</th>
+            <th style="text-align: center; width: 140px;">Total FMEAs</th>
             <th style="text-align: center; background-color: #fee2e2; color: #dc2626; width: 180px;">High (RPN >= 301)</th>
             <th style="text-align: center; background-color: #fffbeb; color: #d97706; width: 180px;">Medium (101-300)</th>
             <th style="text-align: center; background-color: #ecfdf5; color: #059669; width: 180px;">Low (1-100)</th>
@@ -132,12 +133,12 @@
 
   <!-- Critical Risks Table Card -->
   <div class="card" style="padding: 20px; margin-bottom: 40px;">
-    <h3 class="card-section-title">🔥 Top Critical EFMEAs (Sorted by Active RPN)</h3>
+    <h3 class="card-section-title">🔥 Top Critical FMEAs (Sorted by Active RPN)</h3>
     <div class="table-responsive">
       <table class="dashboard-table">
         <thead>
           <tr>
-            <th>EFMEA ID</th>
+            <th>FMEA ID</th>
             <th>Equipment</th>
             <th>Failure Mode</th>
             <th style="text-align: center;">Initial RPN</th>
@@ -180,7 +181,7 @@
           {% empty %}
           <tr>
             <td colspan="7" style="text-align: center; color: var(--jspl-muted); padding: 30px;">
-              No EFMEAs identified yet. Please use the <b>EFMEA Manual Entry</b> page to add EFMEAs.
+              No FMEAs identified yet. Please use the <b>FMEA Manual Entry</b> page to add FMEAs.
             </td>
           </tr>
           {% endfor %}

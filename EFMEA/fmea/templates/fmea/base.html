@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}EFMEA Dashboard — Jindal Steels Operations Portal{% endblock %}</title>
+  <title>{% block title %}FMEA Dashboard — Jindal Steels Operations Portal{% endblock %}</title>
   
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -64,7 +64,7 @@
     </nav>
 
     <div class="topbar-right">
-      <span class="active-module-badge module-fmea">🛡 EFMEA</span>
+      <span class="active-module-badge module-fmea">🛡 FMEA</span>
       
       <!-- User dropdown -->
       <div class="user-menu" x-data="{ open: false }" @click.outside="open = false">
@@ -99,7 +99,7 @@
       <div class="sidebar-nav-container">
         
         <!-- Risk Management Section -->
-        <div class="sidebar-divider" style="margin-top: 10px;">EFMEA DASHBOARD</div>
+        <div class="sidebar-divider" style="margin-top: 10px;">FMEA DASHBOARD</div>
         
         <a href="{% url 'fmea:dashboard' active_dept_id %}" 
            class="sidebar-link {% if active_tab == 'dashboard' %}active{% endif %}">
@@ -107,19 +107,19 @@
         </a>
         <a href="{% url 'fmea:identification' active_dept_id %}" 
            class="sidebar-link {% if active_tab == 'identification' %}active{% endif %}">
-          <span class="sidebar-icon">📝</span> EFMEA Manual Entry
+          <span class="sidebar-icon">📝</span> FMEA Manual Entry
         </a>
         <a href="{% url 'fmea:register' active_dept_id %}" 
            class="sidebar-link {% if active_tab == 'register' %}active{% endif %}">
-          <span class="sidebar-icon">📋</span> EFMEA Register
+          <span class="sidebar-icon">📋</span> FMEA Register
         </a>
         <a href="{% url 'fmea:report' active_dept_id %}" 
            class="sidebar-link {% if active_tab == 'report' %}active{% endif %}">
-          <span class="sidebar-icon">📄</span> EFMEA Report
+          <span class="sidebar-icon">📄</span> FMEA Report
         </a>
         <a href="{% url 'fmea:history' active_dept_id %}" 
            class="sidebar-link {% if active_tab == 'history' %}active{% endif %}">
-          <span class="sidebar-icon">🕒</span> EFMEA History
+          <span class="sidebar-icon">🕒</span> FMEA History
         </a>
 
         

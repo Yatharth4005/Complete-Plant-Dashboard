@@ -1,6 +1,6 @@
 {% extends "fmea/base.html" %}
 
-{% block title %}Master EFMEA Report — {{ active_dept.name }}{% endblock %}
+{% block title %}Master FMEA Report — {{ active_dept.name }}{% endblock %}
 
 {% block content %}
 <div class="page-container" x-data="{
@@ -28,7 +28,7 @@
     const year = this.dateStr ? new Date(this.dateStr).getFullYear() : new Date().getFullYear();
     const dept = '{{ active_dept.code }}';
     const randNum = String(Math.floor(Math.random() * 99) + 1).padStart(2, '0');
-    this.refNo = 'JS-Raigarh/' + dept + '/' + year + '/EFMEA/' + randNum;
+    this.refNo = 'JS-Raigarh/' + dept + '/' + year + '/FMEA/' + randNum;
   },
 
   get downloadUrl() {
@@ -47,10 +47,10 @@
 
   <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-start;">
     <div>
-      <h1 class="portal-page-title">Master EFMEA Report</h1>
-      <p class="portal-page-subtitle">Unified view of all failure modes, EFMEA levels, and mitigation actions</p>
+      <h1 class="portal-page-title">Master FMEA Report</h1>
+      <p class="portal-page-subtitle">Unified view of all failure modes, FMEA levels, and mitigation actions</p>
       <a href="{% url 'fmea:identification' active_dept.id %}?upload_id={{ selected_upload_id }}" class="btn btn-primary" style="margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; background-color: var(--jspl-navy) !important; font-size: 0.8rem; height: 34px;">
-        ➕ Add EFMEA Manually
+        ➕ Add FMEA Manually
       </a>
     </div>
     
@@ -265,7 +265,7 @@
   }
 </style>
 
-  <!-- Master EFMEA Report Grid/Table -->
+  <!-- Master FMEA Report Grid/Table -->
   <form id="bulk-edit-form" :class="editMode ? 'edit-mode-active' : 'view-mode-active'" action="{% url 'fmea:save_report_rows' active_dept.id %}" method="POST">
     {% csrf_token %}
     <input type="hidden" name="upload_id" value="{{ selected_upload_id }}">
@@ -576,7 +576,7 @@
         {% empty %}
           <tr>
             <td colspan="23" style="text-align: center; color: var(--jspl-muted); padding: 40px; background: #fff;">
-              No EFMEA records found.
+              No FMEA records found.
             </td>
           </tr>
         {% endfor %}

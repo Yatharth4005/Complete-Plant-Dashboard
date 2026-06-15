@@ -1,6 +1,6 @@
 {% extends "fmea/base.html" %}
 
-{% block title %}EFMEA Register — {{ active_dept.name }}{% endblock %}
+{% block title %}FMEA Register — {{ active_dept.name }}{% endblock %}
 
 {% block content %}
 <div class="page-container" x-data="riskRegister()">
@@ -13,12 +13,12 @@
 
   <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;">
     <div>
-      <h1 class="portal-page-title">EFMEA Register</h1>
-      <p class="portal-page-subtitle">Track, update, and manage mitigation progress for all failure mode EFMEAs</p>
+      <h1 class="portal-page-title">FMEA Register</h1>
+      <p class="portal-page-subtitle">Track, update, and manage mitigation progress for all failure mode FMEAs</p>
     </div>
     <div style="display: flex; gap: 10px;">
       <a href="{% url 'fmea:identification' active_dept.id %}" class="btn btn-primary" style="background-color: var(--status-green) !important;">
-        ➕ Identify New EFMEA
+        ➕ Identify New FMEA
       </a>
       <a href="{% url 'fmea:report' active_dept.id %}" class="btn btn-secondary">
         📄 View Master Report
@@ -124,12 +124,12 @@
               </div>
 
               <div class="info-block" style="margin-bottom: 15px;">
-                <span class="info-label" style="font-size: 0.72rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">EFMEA Owner / key contact</span>
+                <span class="info-label" style="font-size: 0.72rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">FMEA Owner / key contact</span>
                 <div style="font-size: 0.88rem; font-weight: 600; color: var(--jspl-navy); margin-top: 2px;">{{ r.risk_owner }}</div>
               </div>
 
               <div class="info-block" style="margin-bottom: 15px;">
-                <span class="info-label" style="font-size: 0.72rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">EFMEA Description</span>
+                <span class="info-label" style="font-size: 0.72rem; font-weight: 700; color: var(--jspl-muted); text-transform: uppercase;">FMEA Description</span>
                 <div style="font-size: 0.85rem; color: var(--jspl-text); margin-top: 4px; line-height: 1.4;">{{ r.potential_failure_mode }}</div>
               </div>
 
@@ -330,7 +330,7 @@
       {% endwith %}
     {% empty %}
       <div class="card" style="text-align: center; padding: 40px; color: var(--jspl-muted);">
-        No EFMEA records matched the search filters. Click <b>Identify New EFMEA</b> above to add one!
+        No FMEA records matched the search filters. Click <b>Identify New FMEA</b> above to add one!
       </div>
     {% endfor %}
   </div>

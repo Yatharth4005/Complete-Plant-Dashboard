@@ -1,13 +1,13 @@
 {% extends "fmea/base.html" %}
 
-{% block title %}EFMEA Manual Entry — {{ active_dept.name }}{% endblock %}
+{% block title %}FMEA Manual Entry — {{ active_dept.name }}{% endblock %}
 
 {% block content %}
 <div class="page-container" x-data="riskIdentForm()">
 
   <div style="margin-bottom: 25px;">
-    <h1 class="portal-page-title">EFMEA Manual Entry</h1>
-    <p class="portal-page-subtitle">Register and evaluate a new failure mode EFMEA entry manually for <b>{{ active_dept.name }}</b></p>
+    <h1 class="portal-page-title">FMEA Manual Entry</h1>
+    <p class="portal-page-subtitle">Register and evaluate a new failure mode FMEA entry manually for <b>{{ active_dept.name }}</b></p>
   </div>
 
   <div class="card" style="max-width: 800px; margin: 0 auto 40px; padding: 30px;">
@@ -75,7 +75,7 @@
           <input type="date" name="identification_date" class="input-mono" value="{{ today }}" required style="height: 40px;">
         </div>
         <div>
-          <label class="form-label-bold">EFMEA Owner / Responsible Person</label>
+          <label class="form-label-bold">FMEA Owner / Responsible Person</label>
           <select name="risk_owner" class="input-mono" required style="height: 40px; padding: 4px 10px;">
             <option value="">Select Owner...</option>
             {% for o in owners %}
@@ -133,7 +133,7 @@
 
       <!-- Failure Description -->
       <div style="margin-bottom: 20px;">
-        <label class="form-label-bold">Potential Failure Mode / EFMEA Description</label>
+        <label class="form-label-bold">Potential Failure Mode / FMEA Description</label>
         <textarea name="potential_failure_mode" class="input-mono" rows="3" placeholder="Describe the failure mode..." required style="padding: 10px;"></textarea>
       </div>
 
@@ -241,7 +241,7 @@
       <div style="display: flex; justify-content: flex-end; gap: 15px;">
         <a href="{% url 'fmea:register' active_dept.id %}" class="btn btn-secondary" style="height: 40px;">Cancel</a>
         <button type="submit" class="btn btn-primary" style="height: 40px; background-color: var(--status-green) !important;">
-          💾 SAVE EFMEA
+          💾 SAVE FMEA
         </button>
       </div>
 
@@ -287,9 +287,9 @@
       },
       
       getRpnMeaning(rpnVal) {
-        if (rpnVal >= 301) return 'Critical EFMEA - Abnormality Detection & CAPA Required';
-        if (rpnVal >= 101) return 'Alarm EFMEA - Control measures need strengthening';
-        return 'Normal EFMEA - Continue with current controls';
+        if (rpnVal >= 301) return 'Critical FMEA - Abnormality Detection & CAPA Required';
+        if (rpnVal >= 101) return 'Alarm FMEA - Control measures need strengthening';
+        return 'Normal FMEA - Continue with current controls';
       },
       
       getSeverityText(s) {

@@ -99,7 +99,7 @@ class FMEARecord(models.Model):
     def save(self, *args, **kwargs):
         # Generate risk_id if not present
         if not self.risk_id:
-            self.risk_id = f"EFMEA-{uuid.uuid4().hex[:8].upper()}"
+            self.risk_id = f"FMEA-{uuid.uuid4().hex[:8].upper()}"
             
         # Dynamically calculate RPN
         self.rpn = int(self.severity or 1) * int(self.occurrence or 1) * int(self.detection or 1)
