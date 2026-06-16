@@ -35,25 +35,102 @@
         </thead>
         <tbody>
           {% for file in uploaded_files %}
-            <tr>
-              <td style="text-align: left; font-weight: 700; color: var(--jspl-navy);">{{ file.filename }}</td>
-              <td style="text-align: center;" class="mono">{{ file.uploaded_at|date:"d M Y, H:i" }}</td>
-              <td style="text-align: center; font-weight: bold;">{{ file.num_records }}</td>
-              <td style="text-align: left;">{{ file.uploaded_by.get_display_name|default:file.uploaded_by.username }}</td>
-              <td style="text-align: center;">
-                <div style="display: flex; gap: 8px; justify-content: center;">
-                  <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ file.id }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; line-height: 26px; display: inline-block;">
-                    View
-                  </a>
-                  <form id="delete-form-{{ file.id }}" action="{% url 'capa:delete_upload' active_dept.id file.id %}" method="POST" style="display: none;">
-                    {% csrf_token %}
-                  </form>
-                  <button type="button" @click="showConfirm('Delete CAPA Sheet', 'Are you sure you want to delete the CAPA session \'{{ file.filename|escapejs }}\'? This will delete all associated CAPA reports and is irreversible.', () => { document.getElementById('delete-form-{{ file.id }}').submit(); })" class="btn" style="background-color: var(--status-red) !important; color: white !important; padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; border: none;">
-                    Delete
+            <tbody x-data="{ expanded: false }">
+              <tr>
+                <td style="text-align: left; font-weight: 700; color: var(--jspl-navy); vertical-align: middle;">
+                  <button type="button" @click="expanded = !expanded" style="background: none; border: none; font-size: 0.85rem; cursor: pointer; color: var(--jspl-navy); padding: 4px 8px; margin-right: 4px; outline: none;">
+                    <span x-show="!expanded" style="display: inline-block; transition: transform 0.2s;">▶</span>
+                    <span x-show="expanded" style="display: inline-block; transition: transform 0.2s;">▼</span>
                   </button>
-                </div>
-              </td>
-            </tr>
+                  {{ file.filename }}
+                </td>
+                <td style="text-align: center; vertical-align: middle;" class="mono">{{ file.uploaded_at|date:"d M Y, H:i" }}</td>
+                <td style="text-align: center; font-weight: bold; vertical-align: middle;">{{ file.num_records }}</td>
+                <td style="text-align: left; vertical-align: middle;">{{ file.uploaded_by.get_display_name|default:file.uploaded_by.username }}</td>
+                <td style="text-align: center; vertical-align: middle;">
+                  <div style="display: flex; gap: 8px; justify-content: center;">
+                    <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ file.id }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; line-height: 26px; display: inline-block;">
+                      View
+                    </a>
+                    <form id="delete-form-{{ file.id }}" action="{% url 'capa:delete_upload' active_dept.id file.id %}" method="POST" style="display: none;">
+                      {% csrf_token %}
+                    </form>
+                    <button type="button" @click="showConfirm('Delete CAPA Sheet', 'Are you sure you want to delete the CAPA session \'{{ file.filename|escapejs }}\'? This will delete all associated CAPA reports and is irreversible.', () => { document.getElementById('delete-form-{{ file.id }}').submit(); })" class="btn" style="background-color: var(--status-red) !important; color: white !important; padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; border: none;">
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row Expansion Panel -->
+              <tr x-show="expanded" x-transition style="background-color: #fafbfc;">
+                <td colspan="5" style="border-top: none; border-bottom: 2px solid #e2e8f0; padding: 20px 30px;">
+                  
+                  {% if file.reports %}
+                    {% for rep in file.reports %}
+                      <div style="margin-bottom: 25px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 20px;">
+                        <h4 style="margin: 0 0 12px; color: var(--jspl-navy); font-size: 0.95rem; font-weight: 700; text-align: left;">
+                          CAPA Ref: <span style="font-family: 'JetBrains Mono', monospace;">{{ rep.capa_no|default:"N/A" }}</span>
+                          {% if rep.area_section %} in <span style="color: #64748b;">{{ rep.area_section }}</span>{% endif %}
+                        </h4>
+                        
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; text-align: left;">
+                          <!-- Left Side: Summary Details -->
+                          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; box-shadow: var(--shadow-sm);">
+                            <h5 style="margin-top: 0; margin-bottom: 8px; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">📋 Incident Summary</h5>
+                            <div style="font-size: 0.82rem; color: #334155; line-height: 1.5; display: flex; flex-direction: column; gap: 8px;">
+                              <div><strong>Incident Date:</strong> {{ rep.date_incident|default:"—" }}</div>
+                              <div><strong>Problem Statement:</strong> {{ rep.problem_what|default:"—" }}</div>
+                              <div><strong>Root Cause (Conclusion):</strong> {{ rep.conclusion|default:"—" }}</div>
+                            </div>
+                          </div>
+                          
+                          <!-- Right Side: Action Items -->
+                          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; box-shadow: var(--shadow-sm);">
+                            <h5 style="margin-top: 0; margin-bottom: 8px; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">⚡ Actions Progress Tracker</h5>
+                            <div style="font-size: 0.82rem; line-height: 1.5;">
+                              
+                              <!-- Open Actions -->
+                              <div style="margin-bottom: 12px;">
+                                <strong style="color: #b45309; font-size: 0.76rem; text-transform: uppercase; display: block; margin-bottom: 4px;">⏳ Open / In-Progress Actions</strong>
+                                <ul style="margin: 0; padding-left: 18px; color: #475569;">
+                                  {% for act in rep.open_actions %}
+                                    <li style="margin-bottom: 3px;">
+                                      {{ act.action }} 
+                                      <span style="color: #94a3b8; font-size: 0.72rem;">(Resp: {{ act.responsibility|default:"—" }}, Target: {{ act.target_date|default:"—" }})</span>
+                                    </li>
+                                  {% empty %}
+                                    <li style="color: #94a3b8; list-style-type: none; margin-left: -18px;">No open actions.</li>
+                                  {% endfor %}
+                                </ul>
+                              </div>
+                              
+                              <!-- Closed Actions -->
+                              <div>
+                                <strong style="color: #047857; font-size: 0.76rem; text-transform: uppercase; display: block; margin-bottom: 4px;">✔️ Closed Actions</strong>
+                                <ul style="margin: 0; padding-left: 18px; color: #475569;">
+                                  {% for act in rep.closed_actions %}
+                                    <li style="margin-bottom: 3px;">
+                                      {{ act.action }} 
+                                      <span style="color: #059669; font-size: 0.72rem; font-weight: 600;">(Closed: {{ act.impl_date }})</span>
+                                    </li>
+                                  {% empty %}
+                                    <li style="color: #94a3b8; list-style-type: none; margin-left: -18px;">No closed actions.</li>
+                                  {% endfor %}
+                                </ul>
+                              </div>
+                              
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  {% else %}
+                    <span style="color: #94a3b8; font-size: 0.82rem;">No details available for this report.</span>
+                  {% endif %}
+                  
+                </td>
+              </tr>
+            </tbody>
           {% empty %}
             <tr>
               <td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">No uploaded Word documents found.</td>
@@ -82,25 +159,102 @@
         </thead>
         <tbody>
           {% for sheet in manual_sheets %}
-            <tr>
-              <td style="text-align: left; font-weight: 700; color: var(--jspl-navy);">{{ sheet.filename }}</td>
-              <td style="text-align: center;" class="mono">{{ sheet.uploaded_at|date:"d M Y, H:i" }}</td>
-              <td style="text-align: center; font-weight: bold;">{{ sheet.num_records }}</td>
-              <td style="text-align: left;">{{ sheet.uploaded_by.get_display_name|default:sheet.uploaded_by.username }}</td>
-              <td style="text-align: center;">
-                <div style="display: flex; gap: 8px; justify-content: center;">
-                  <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ sheet.id }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; line-height: 26px; display: inline-block;">
-                    View
-                  </a>
-                  <form id="delete-form-{{ sheet.id }}" action="{% url 'capa:delete_upload' active_dept.id sheet.id %}" method="POST" style="display: none;">
-                    {% csrf_token %}
-                  </form>
-                  <button type="button" @click="showConfirm('Delete CAPA Sheet', 'Are you sure you want to delete the CAPA session \'{{ sheet.filename|escapejs }}\'? This will delete all associated CAPA reports and is irreversible.', () => { document.getElementById('delete-form-{{ sheet.id }}').submit(); })" class="btn" style="background-color: var(--status-red) !important; color: white !important; padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; border: none;">
-                    Delete
+            <tbody x-data="{ expanded: false }">
+              <tr>
+                <td style="text-align: left; font-weight: 700; color: var(--jspl-navy); vertical-align: middle;">
+                  <button type="button" @click="expanded = !expanded" style="background: none; border: none; font-size: 0.85rem; cursor: pointer; color: var(--jspl-navy); padding: 4px 8px; margin-right: 4px; outline: none;">
+                    <span x-show="!expanded" style="display: inline-block; transition: transform 0.2s;">▶</span>
+                    <span x-show="expanded" style="display: inline-block; transition: transform 0.2s;">▼</span>
                   </button>
-                </div>
-              </td>
-            </tr>
+                  {{ sheet.filename }}
+                </td>
+                <td style="text-align: center; vertical-align: middle;" class="mono">{{ sheet.uploaded_at|date:"d M Y, H:i" }}</td>
+                <td style="text-align: center; font-weight: bold; vertical-align: middle;">{{ sheet.num_records }}</td>
+                <td style="text-align: left; vertical-align: middle;">{{ sheet.uploaded_by.get_display_name|default:sheet.uploaded_by.username }}</td>
+                <td style="text-align: center; vertical-align: middle;">
+                  <div style="display: flex; gap: 8px; justify-content: center;">
+                    <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ sheet.id }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; line-height: 26px; display: inline-block;">
+                      View
+                    </a>
+                    <form id="delete-form-{{ sheet.id }}" action="{% url 'capa:delete_upload' active_dept.id sheet.id %}" method="POST" style="display: none;">
+                      {% csrf_token %}
+                    </form>
+                    <button type="button" @click="showConfirm('Delete CAPA Sheet', 'Are you sure you want to delete the CAPA session \'{{ sheet.filename|escapejs }}\'? This will delete all associated CAPA reports and is irreversible.', () => { document.getElementById('delete-form-{{ sheet.id }}').submit(); })" class="btn" style="background-color: var(--status-red) !important; color: white !important; padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; border: none;">
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row Expansion Panel -->
+              <tr x-show="expanded" x-transition style="background-color: #fafbfc;">
+                <td colspan="5" style="border-top: none; border-bottom: 2px solid #e2e8f0; padding: 20px 30px;">
+                  
+                  {% if sheet.reports %}
+                    {% for rep in sheet.reports %}
+                      <div style="margin-bottom: 25px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 20px;">
+                        <h4 style="margin: 0 0 12px; color: var(--jspl-navy); font-size: 0.95rem; font-weight: 700; text-align: left;">
+                          CAPA Ref: <span style="font-family: 'JetBrains Mono', monospace;">{{ rep.capa_no|default:"N/A" }}</span>
+                          {% if rep.area_section %} in <span style="color: #64748b;">{{ rep.area_section }}</span>{% endif %}
+                        </h4>
+                        
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; text-align: left;">
+                          <!-- Left Side: Summary Details -->
+                          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; box-shadow: var(--shadow-sm);">
+                            <h5 style="margin-top: 0; margin-bottom: 8px; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">📋 Incident Summary</h5>
+                            <div style="font-size: 0.82rem; color: #334155; line-height: 1.5; display: flex; flex-direction: column; gap: 8px;">
+                              <div><strong>Incident Date:</strong> {{ rep.date_incident|default:"—" }}</div>
+                              <div><strong>Problem Statement:</strong> {{ rep.problem_what|default:"—" }}</div>
+                              <div><strong>Root Cause (Conclusion):</strong> {{ rep.conclusion|default:"—" }}</div>
+                            </div>
+                          </div>
+                          
+                          <!-- Right Side: Action Items -->
+                          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; box-shadow: var(--shadow-sm);">
+                            <h5 style="margin-top: 0; margin-bottom: 8px; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">⚡ Actions Progress Tracker</h5>
+                            <div style="font-size: 0.82rem; line-height: 1.5;">
+                              
+                              <!-- Open Actions -->
+                              <div style="margin-bottom: 12px;">
+                                <strong style="color: #b45309; font-size: 0.76rem; text-transform: uppercase; display: block; margin-bottom: 4px;">⏳ Open / In-Progress Actions</strong>
+                                <ul style="margin: 0; padding-left: 18px; color: #475569;">
+                                  {% for act in rep.open_actions %}
+                                    <li style="margin-bottom: 3px;">
+                                      {{ act.action }} 
+                                      <span style="color: #94a3b8; font-size: 0.72rem;">(Resp: {{ act.responsibility|default:"—" }}, Target: {{ act.target_date|default:"—" }})</span>
+                                    </li>
+                                  {% empty %}
+                                    <li style="color: #94a3b8; list-style-type: none; margin-left: -18px;">No open actions.</li>
+                                  {% endfor %}
+                                </ul>
+                              </div>
+                              
+                              <!-- Closed Actions -->
+                              <div>
+                                <strong style="color: #047857; font-size: 0.76rem; text-transform: uppercase; display: block; margin-bottom: 4px;">✔️ Closed Actions</strong>
+                                <ul style="margin: 0; padding-left: 18px; color: #475569;">
+                                  {% for act in rep.closed_actions %}
+                                    <li style="margin-bottom: 3px;">
+                                      {{ act.action }} 
+                                      <span style="color: #059669; font-size: 0.72rem; font-weight: 600;">(Closed: {{ act.impl_date }})</span>
+                                    </li>
+                                  {% empty %}
+                                    <li style="color: #94a3b8; list-style-type: none; margin-left: -18px;">No closed actions.</li>
+                                  {% endfor %}
+                                </ul>
+                              </div>
+                              
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  {% else %}
+                    <span style="color: #94a3b8; font-size: 0.82rem;">No details available for this report.</span>
+                  {% endif %}
+                  
+                </td>
+              </tr>
+            </tbody>
           {% empty %}
             <tr>
               <td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">No manually entered CAPA sessions found.</td>

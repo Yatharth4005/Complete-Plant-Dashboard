@@ -49,9 +49,9 @@
   <header id="portal-topbar">
     <div class="topbar-left">
       <button class="sidebar-toggle" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle Menu">☰</button>
-      <a href="{% url 'portal:root' %}" class="topbar-brand-link">
-        <span class="topbar-logo-container">🏭</span>
-        <span class="topbar-title">Jindal Steel Operations Portal</span>
+      <a href="{% url 'portal:root' %}" class="topbar-brand-link" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
+        <img src="{% static 'portal/img/jindal_logo_dark.png' %}" alt="Jindal Steel Logo" style="height: 32px; width: auto; object-fit: contain; display: block;">
+        <span style="font-weight: 700; color: var(--jspl-navy); font-size: 1.1rem; border-left: 2px solid var(--jspl-border); padding-left: 12px; height: 20px; display: inline-flex; align-items: center;">Operations Portal</span>
       </a>
     </div>
     

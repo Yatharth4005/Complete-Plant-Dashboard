@@ -243,6 +243,18 @@
         scales: {
           x: {
             stacked: true,
+            ticks: {
+              maxRotation: 0,
+              minRotation: 0,
+              autoSkip: false,
+              callback: function(value, index, values) {
+                const label = this.getLabelForValue(value);
+                if (label && label.length > 25) {
+                  return label.substring(0, 22) + '...';
+                }
+                return label;
+              }
+            }
           },
           y: {
             stacked: true,

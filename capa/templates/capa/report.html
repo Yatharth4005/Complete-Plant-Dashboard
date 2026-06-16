@@ -168,24 +168,35 @@
         
         <!-- JSON script tags for Alpine binding -->
         <script id="team-{{ r.id }}" type="application/json">
-          {{ r.responsible_team|default:"[]"|safe }}
+          {{ r_data.responsible_team_json|safe }}
         </script>
         <script id="corrective-{{ r.id }}" type="application/json">
-          {{ r.corrective_actions|default:"[]"|safe }}
+          {{ r_data.corrective_actions_json|safe }}
         </script>
         <script id="preventive-{{ r.id }}" type="application/json">
-          {{ r.preventive_actions|default:"[]"|safe }}
+          {{ r_data.preventive_actions_json|safe }}
         </script>
         <script id="fivem-{{ r.id }}" type="application/json">
-          {{ r.five_m_applicable|default:"[]"|safe }}
+          {{ r_data.five_m_applicable_json|safe }}
         </script>
         <script id="modifieddocs-{{ r.id }}" type="application/json">
-          {{ r.modified_documents|default:"[]"|safe }}
+          {{ r_data.modified_documents_json|safe }}
+        </script>
+        <script id="whys-{{ r.id }}" type="application/json">
+          {{ r_data.whys_json|safe }}
         </script>
 
         <div class="card" style="padding: 25px; max-width: 950px; margin: 0 auto 40px; border: 1px solid var(--jspl-border);"
              x-data="{
                 editMode: false,
+                isClosed(dateStr) {
+                  if (!dateStr) return false;
+                  const clean = dateStr.trim();
+                  if (clean === '' || clean.toLowerCase() === 'dd.mm.yyyy' || clean === '—' || clean === '-') {
+                    return false;
+                  }
+                  return true;
+                },
                 documentNo: '{{ r.document_no|escapejs }}',
                 issueNo: '{{ r.issue_no|escapejs }}',
                 issueDate: '{{ r.issue_date|escapejs }}',
@@ -225,19 +236,50 @@
                 reviewedBy: '{{ r.reviewed_by|escapejs }}',
                 approvedBy: '{{ r.approved_by|escapejs }}',
 
-                team: [],
+                team: { team_leader: '', team_members: '', role_function: '', contact_nos: '' },
+                whys: [],
                 corrective: [],
                 preventive: [],
                 fiveM: [],
                 modifiedDocs: [],
 
-                init() {
-                  this.team = JSON.parse(document.getElementById('team-{{ r.id }}').textContent || '[]');
-                  while(this.team.length < 3) {
-                    const idx = this.team.length;
-                    const role = idx === 0 ? 'Team Leader' : `Team Member ${idx}`;
-                    this.team.push({ role: role, name: '', contact: '' });
+                normalizeTeam(rawTeam) {
+                  if (rawTeam && !Array.isArray(rawTeam)) {
+                    return {
+                      team_leader: rawTeam.team_leader || '',
+                      team_members: rawTeam.team_members || '',
+                      role_function: rawTeam.role_function || '',
+                      contact_nos: rawTeam.contact_nos || ''
+                    };
                   }
+                  // Handle legacy list format
+                  let leader = '';
+                  let members = [];
+                  let roles = [];
+                  let contacts = [];
+                  if (Array.isArray(rawTeam)) {
+                    rawTeam.forEach(member => {
+                      if (member.role === 'Team Leader') {
+                        leader = member.name || '';
+                      } else {
+                        if (member.name) members.push(member.name);
+                        if (member.role && !member.role.startsWith('Team Member')) roles.push(member.role);
+                      }
+                      if (member.contact) contacts.push(member.contact);
+                    });
+                  }
+                  return {
+                    team_leader: leader,
+                    team_members: members.join('\n'),
+                    role_function: roles.join('\n'),
+                    contact_nos: contacts.join('\n')
+                  };
+                },
+
+                init() {
+                  const rawTeam = JSON.parse(document.getElementById('team-{{ r.id }}').textContent || '{}');
+                  this.team = this.normalizeTeam(rawTeam);
+                  this.whys = JSON.parse(document.getElementById('whys-{{ r.id }}').textContent || '[]');
                   this.corrective = JSON.parse(document.getElementById('corrective-{{ r.id }}').textContent || '[]');
                   this.preventive = JSON.parse(document.getElementById('preventive-{{ r.id }}').textContent || '[]');
                   this.fiveM = JSON.parse(document.getElementById('fivem-{{ r.id }}').textContent || '[]');
@@ -288,26 +330,39 @@
                   this.reviewedBy = '{{ r.reviewed_by|escapejs }}';
                   this.approvedBy = '{{ r.approved_by|escapejs }}';
 
-                  this.team = JSON.parse(document.getElementById('team-{{ r.id }}').textContent || '[]');
-                  while(this.team.length < 3) {
-                    const idx = this.team.length;
-                    const role = idx === 0 ? 'Team Leader' : `Team Member ${idx}`;
-                    this.team.push({ role: role, name: '', contact: '' });
-                  }
+                  const rawTeam = JSON.parse(document.getElementById('team-{{ r.id }}').textContent || '{}');
+                  this.team = this.normalizeTeam(rawTeam);
+                  this.whys = JSON.parse(document.getElementById('whys-{{ r.id }}').textContent || '[]');
                   this.corrective = JSON.parse(document.getElementById('corrective-{{ r.id }}').textContent || '[]');
                   this.preventive = JSON.parse(document.getElementById('preventive-{{ r.id }}').textContent || '[]');
                   this.fiveM = JSON.parse(document.getElementById('fivem-{{ r.id }}').textContent || '[]');
                   this.modifiedDocs = JSON.parse(document.getElementById('modifieddocs-{{ r.id }}').textContent || '[]');
                 },
 
+                addWhy() {
+                  this.whys.push('');
+                },
+                removeWhy(idx) {
+                  if (this.whys.length > 1) {
+                    this.whys.splice(idx, 1);
+                  }
+                },
+                getWhyLabel(idx) {
+                  const num = idx + 1;
+                  if (num === 1) return '1st Why?';
+                  if (num === 2) return '2nd Why?';
+                  if (num === 3) return '3rd Why?';
+                  return `${num}th Why?`;
+                },
+
                 addCorrectiveRow() {
-                  this.corrective.push({ action: '', responsibility: '', target_date: '' });
+                  this.corrective.push({ action: '', responsibility: '', target_date: '', impl_date: '' });
                 },
                 removeCorrectiveRow(idx) {
                   this.corrective.splice(idx, 1);
                 },
                 addPreventiveRow() {
-                  this.preventive.push({ action: '', responsibility: '', target_date: '' });
+                  this.preventive.push({ action: '', responsibility: '', target_date: '', impl_date: '' });
                 },
                 removePreventiveRow(idx) {
                   this.preventive.splice(idx, 1);
@@ -480,28 +535,35 @@
                   <table style="width: 100%; border-collapse: collapse; border: none;">
                     <thead>
                       <tr style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy);">
-                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 30%; padding: 8px;">Role Designation</td>
-                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 40%; padding: 8px;">Name</td>
-                        <td style="border: none; border-bottom: 1px solid #000; width: 30%; padding: 8px;">Contact No</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 25%; padding: 8px;">Team Leader</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 30%; padding: 8px;">Team Members</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 25%; padding: 8px;">Role/Function</td>
+                        <td style="border: none; border-bottom: 1px solid #000; width: 20%; padding: 8px;">Contact Nos.</td>
                       </tr>
                     </thead>
                     <tbody>
-                      <template x-for="(member, idx) in team" :key="idx">
-                        <tr>
-                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 8px; font-weight: bold; vertical-align: middle;">
-                            <span x-text="member.role"></span>
-                            <input type="hidden" name="t_role" :value="member.role">
-                          </td>
-                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px; vertical-align: middle;">
-                            <span x-show="!editMode" class="view-value" x-text="member.name || '—'"></span>
-                            <input x-show="editMode" type="text" name="t_name" class="capa-input" x-model="member.name" placeholder="Name" style="height: 32px;" :required="editMode">
-                          </td>
-                          <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
-                            <span x-show="!editMode" class="view-value mono" x-text="member.contact || '—'"></span>
-                            <input x-show="editMode" type="text" name="t_contact" class="capa-input" x-model="member.contact" placeholder="Contact number" style="height: 32px;">
-                          </td>
-                        </tr>
-                      </template>
+                      <tr>
+                        <!-- Team Leader -->
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
+                          <span x-show="!editMode" class="view-value" x-text="team.team_leader || '—'"></span>
+                          <input x-show="editMode" type="text" name="team_leader" class="capa-input" x-model="team.team_leader" placeholder="Team Leader Name" style="height: 32px;">
+                        </td>
+                        <!-- Team Members -->
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
+                          <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="team.team_members || '—'"></span>
+                          <textarea x-show="editMode" name="team_members" class="capa-textarea" x-model="team.team_members" placeholder="Team Members (one per line)" style="height: 80px;"></textarea>
+                        </td>
+                        <!-- Role/Function -->
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
+                          <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="team.role_function || '—'"></span>
+                          <textarea x-show="editMode" name="role_function" class="capa-textarea" x-model="team.role_function" placeholder="Role/Function (one per line)" style="height: 80px;"></textarea>
+                        </td>
+                        <!-- Contact Nos -->
+                        <td style="border: none; border-bottom: 1px solid #000; padding: 6px; vertical-align: top;">
+                          <span x-show="!editMode" class="view-value mono" style="white-space: pre-line;" x-text="team.contact_nos || '—'"></span>
+                          <textarea x-show="editMode" name="contact_nos" class="capa-textarea" x-model="team.contact_nos" placeholder="Contact Nos. (one per line)" style="height: 80px;"></textarea>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </td>
@@ -541,39 +603,23 @@
                     <tr>
                       <td style="border: none; border-right: 1px solid #000; width: 70%; padding: 0;">
                         <table style="width: 100%; border-collapse: collapse; border: none;">
-                          <tr>
-                            <td style="border: none; border-bottom: 1px solid #000; width: 20%; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">1st Why?</td>
-                            <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
-                              <span x-show="!editMode" class="view-value" x-text="why1 || '—'"></span>
-                              <input x-show="editMode" type="text" name="why_1" class="capa-input" x-model="why1" style="height: 32px;">
-                            </td>
-                          </tr>
-                          <tr>
-                            <td style="border: none; border-bottom: 1px solid #000; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">2nd Why?</td>
-                            <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
-                              <span x-show="!editMode" class="view-value" x-text="why2 || '—'"></span>
-                              <input x-show="editMode" type="text" name="why_2" class="capa-input" x-model="why2" style="height: 32px;">
-                            </td>
-                          </tr>
-                          <tr>
-                            <td style="border: none; border-bottom: 1px solid #000; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">3rd Why?</td>
-                            <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
-                              <span x-show="!editMode" class="view-value" x-text="why3 || '—'"></span>
-                              <input x-show="editMode" type="text" name="why_3" class="capa-input" x-model="why3" style="height: 32px;">
-                            </td>
-                          </tr>
-                          <tr>
-                            <td style="border: none; border-bottom: 1px solid #000; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">4th Why?</td>
-                            <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
-                              <span x-show="!editMode" class="view-value" x-text="why4 || '—'"></span>
-                              <input x-show="editMode" type="text" name="why_4" class="capa-input" x-model="why4" style="height: 32px;">
-                            </td>
-                          </tr>
-                          <tr>
-                            <td style="border: none; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">5th Why?</td>
-                            <td style="border: none; padding: 4px; vertical-align: middle;">
-                              <span x-show="!editMode" class="view-value" x-text="why5 || '—'"></span>
-                              <input x-show="editMode" type="text" name="why_5" class="capa-input" x-model="why5" style="height: 32px;">
+                          <template x-for="(why, idx) in whys" :key="idx">
+                            <tr>
+                              <td style="border: none; border-bottom: 1px solid #000; width: 20%; font-weight: bold; background-color: #f8fafc; padding: 8px; vertical-align: middle;">
+                                <span x-text="getWhyLabel(idx)"></span>
+                              </td>
+                              <td style="border: none; border-bottom: 1px solid #000; padding: 4px; vertical-align: middle;">
+                                <span x-show="!editMode" class="view-value" x-text="why || '—'"></span>
+                                <div x-show="editMode" style="display: flex; gap: 8px; align-items: center;">
+                                  <input type="text" name="whys" class="capa-input" x-model="whys[idx]" style="height: 32px; flex: 1;">
+                                  <button type="button" @click="removeWhy(idx)" class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.75rem; background: #fee2e2; border-color: #fca5a5; color: #b91c1c;" x-show="whys.length > 1">✕</button>
+                                </div>
+                              </td>
+                            </tr>
+                          </template>
+                          <tr x-show="editMode">
+                            <td colspan="2" style="border: none; padding: 8px; text-align: left;">
+                              <button type="button" @click="addWhy()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; background-color: #e2e8f0; border: 1px solid #cbd5e1; font-weight: bold;">➕ Add Why-Why Row</button>
                             </td>
                           </tr>
                         </table>
@@ -620,14 +666,16 @@
                 </td>
               </tr>
               <tr>
-                <td colspan="4" style="padding: 0;">
+                <td :colspan="editMode ? 6 : 5" style="padding: 0;">
                   <table style="width: 100%; border-collapse: collapse; border: none;">
                     <thead>
                       <tr style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy); text-align: center;">
-                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 45%; padding: 8px;">Corrective Action</td>
-                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 20%; padding: 8px;">Responsibility</td>
-                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 15%; padding: 8px;">Target Date</td>
-                        <td style="border: none; border-bottom: 1px solid #000; width: 20%; padding: 8px;" x-show="editMode">Action</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 32%; padding: 8px;">Corrective Action</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 18%; padding: 8px;">Responsibility</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 12%; padding: 8px;">Target Date</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 12%; padding: 8px;">Implementation Date</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 16%; padding: 8px;">Progress</td>
+                        <td style="border: none; border-bottom: 1px solid #000; width: 10%; padding: 8px;" x-show="editMode">Action</td>
                       </tr>
                     </thead>
                     <tbody>
@@ -645,13 +693,20 @@
                             <span x-show="!editMode" class="view-value mono" x-text="act.target_date || '—'"></span>
                             <input x-show="editMode" type="text" name="c_target_date" class="capa-input" x-model="act.target_date" placeholder="DD.MM.YYYY" style="height: 32px;">
                           </td>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
+                            <span x-show="!editMode" class="view-value mono" x-text="act.impl_date || '—'"></span>
+                            <input x-show="editMode" type="text" name="c_impl_date" class="capa-input" x-model="act.impl_date" placeholder="DD.MM.YYYY" style="height: 32px;">
+                          </td>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle;">
+                            <span class="status-badge" :class="isClosed(act.impl_date) ? 'status-completed' : 'status-progress'" x-text="isClosed(act.impl_date) ? 'Closed' : 'Open/In Progress'"></span>
+                          </td>
                           <td style="border: none; border-bottom: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;" x-show="editMode">
                             <button type="button" @click="removeCorrectiveRow(idx)" class="btn" style="background-color: var(--status-red) !important; color: white !important; font-size: 0.7rem; padding: 2px 8px; height: 24px; border: none; border-radius: 4px;">Remove</button>
                           </td>
                         </tr>
                       </template>
                       <tr x-show="corrective.length === 0">
-                        <td colspan="4" style="text-align: center; padding: 12px; color: #64748b;">No corrective actions recommended.</td>
+                        <td :colspan="editMode ? 6 : 5" style="text-align: center; padding: 12px; color: #64748b;">No corrective actions recommended.</td>
                       </tr>
                     </tbody>
                   </table>
@@ -668,14 +723,16 @@
                 </td>
               </tr>
               <tr>
-                <td colspan="4" style="padding: 0;">
+                <td :colspan="editMode ? 6 : 5" style="padding: 0;">
                   <table style="width: 100%; border-collapse: collapse; border: none;">
                     <thead>
                       <tr style="background-color: #f8fafc; font-weight: bold; color: var(--jspl-navy); text-align: center;">
-                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 45%; padding: 8px;">Preventive Action</td>
-                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 20%; padding: 8px;">Responsibility</td>
-                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 15%; padding: 8px;">Target Date</td>
-                        <td style="border: none; border-bottom: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;" x-show="editMode">Action</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 32%; padding: 8px;">Preventive Action</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 18%; padding: 8px;">Responsibility</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 12%; padding: 8px;">Target Date</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 12%; padding: 8px;">Implementation Date</td>
+                        <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; width: 16%; padding: 8px;">Progress</td>
+                        <td style="border: none; border-bottom: 1px solid #000; width: 10%; padding: 8px;" x-show="editMode">Action</td>
                       </tr>
                     </thead>
                     <tbody>
@@ -693,13 +750,20 @@
                             <span x-show="!editMode" class="view-value mono" x-text="act.target_date || '—'"></span>
                             <input x-show="editMode" type="text" name="p_target_date" class="capa-input" x-model="act.target_date" placeholder="DD.MM.YYYY" style="height: 32px;">
                           </td>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
+                            <span x-show="!editMode" class="view-value mono" x-text="act.impl_date || '—'"></span>
+                            <input x-show="editMode" type="text" name="p_impl_date" class="capa-input" x-model="act.impl_date" placeholder="DD.MM.YYYY" style="height: 32px;">
+                          </td>
+                          <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle;">
+                            <span class="status-badge" :class="isClosed(act.impl_date) ? 'status-completed' : 'status-progress'" x-text="isClosed(act.impl_date) ? 'Closed' : 'Open/In Progress'"></span>
+                          </td>
                           <td style="border: none; border-bottom: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;" x-show="editMode">
                             <button type="button" @click="removePreventiveRow(idx)" class="btn" style="background-color: var(--status-red) !important; color: white !important; font-size: 0.7rem; padding: 2px 8px; height: 24px; border: none; border-radius: 4px;">Remove</button>
                           </td>
                         </tr>
                       </template>
                       <tr x-show="preventive.length === 0">
-                        <td colspan="4" style="text-align: center; padding: 12px; color: #64748b;">No preventive actions recommended.</td>
+                        <td :colspan="editMode ? 6 : 5" style="text-align: center; padding: 12px; color: #64748b;">No preventive actions recommended.</td>
                       </tr>
                     </tbody>
                   </table>

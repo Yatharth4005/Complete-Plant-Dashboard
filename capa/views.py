@@ -19,6 +19,125 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
+
+def extract_date(date_str):
+    """
+    Tries to parse a date string using standard formats and returns a datetime object.
+    """
+    if not date_str:
+        return None
+    for fmt in ('%d.%m.%Y', '%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d %b %Y', '%Y/%m/%d'):
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def get_upload_date_str(u, recs):
+    """
+    Finds the chronological date associated with a CAPADocxUpload.
+    """
+    if recs.exists():
+        r = recs.first()
+        if u.is_manual:
+            date_str = r.date_implementation or r.date_incident or r.issue_date
+        else:
+            date_str = r.issue_date or r.date_incident
+        
+        parsed = extract_date(date_str)
+        if parsed:
+            return parsed
+    
+    if u.upload_date:
+        return datetime.combine(u.upload_date, datetime.min.time())
+    return u.uploaded_at
+
+
+def calculate_report_details(reports_queryset):
+    """
+    Calculates detailed counts for Corrective and Preventive Actions.
+    """
+    open_ca = 0
+    closed_ca = 0
+    open_pa = 0
+    closed_pa = 0
+    
+    for r in reports_queryset:
+        for act in (r.corrective_actions or []):
+            impl = act.get('impl_date', '').strip()
+            is_closed = impl and impl != '' and impl.lower() != 'dd.mm.yyyy' and impl != '—' and impl != '-'
+            if is_closed:
+                closed_ca += 1
+            else:
+                open_ca += 1
+                
+        for act in (r.preventive_actions or []):
+            impl = act.get('impl_date', '').strip()
+            is_closed = impl and impl != '' and impl.lower() != 'dd.mm.yyyy' and impl != '—' and impl != '-'
+            if is_closed:
+                closed_pa += 1
+            else:
+                open_pa += 1
+                
+    return {
+        'open_ca': open_ca,
+        'closed_ca': closed_ca,
+        'open_pa': open_pa,
+        'closed_pa': closed_pa
+    }
+
+
+def normalize_responsible_team(team_data):
+    """
+    Normalizes responsible_team data to a structured 4-column dictionary format:
+    {
+        'team_leader': str,
+        'team_members': str (multiline),
+        'role_function': str (multiline),
+        'contact_nos': str (multiline)
+    }
+    This helper is fully backward-compatible with the legacy list-of-dicts format.
+    """
+    if isinstance(team_data, dict):
+        return {
+            'team_leader': team_data.get('team_leader', ''),
+            'team_members': team_data.get('team_members', ''),
+            'role_function': team_data.get('role_function', ''),
+            'contact_nos': team_data.get('contact_nos', '')
+        }
+    
+    team_leader = ''
+    members = []
+    roles = []
+    contacts = []
+    
+    if isinstance(team_data, list):
+        for member in team_data:
+            if not isinstance(member, dict):
+                continue
+            role = member.get('role', '')
+            name = member.get('name', '')
+            contact = member.get('contact', '')
+            
+            if role == 'Team Leader':
+                team_leader = name
+            else:
+                if name:
+                    members.append(name)
+                if role and not role.startswith('Team Member'):
+                    roles.append(role)
+            if contact:
+                contacts.append(contact)
+                
+    return {
+        'team_leader': team_leader,
+        'team_members': '\n'.join(members),
+        'role_function': '\n'.join(roles),
+        'contact_nos': '\n'.join(contacts)
+    }
+
+
 @login_required
 @dept_visibility_required
 @module_access_required('CAPA')
@@ -30,8 +149,8 @@ def capa_dashboard(request, dept_id):
     reports = CAPAReport.objects.filter(department=active_dept)
     
     total_capas = reports.count()
-    open_capas = reports.filter(status__in=['Open', 'In Progress']).count()
-    closed_capas = reports.filter(status='Closed').count()
+    total_open_actions = 0
+    total_closed_actions = 0
     
     # Comparative sheets table data
     sheet_comparisons = []
@@ -40,35 +159,78 @@ def capa_dashboard(request, dept_id):
     for u in uploads:
         recs = u.reports.all()
         if recs.exists():
+            best_date = get_upload_date_str(u, recs)
+            details = calculate_report_details(recs)
+            
+            # File level action counts
+            file_open_actions = details['open_ca'] + details['open_pa']
+            file_closed_actions = details['closed_ca'] + details['closed_pa']
+            
+            total_open_actions += file_open_actions
+            total_closed_actions += file_closed_actions
+            
             sheet_comparisons.append({
                 'id': u.id,
                 'name': u.filename,
                 'date': u.upload_date.strftime('%d.%m.%Y') if u.upload_date else '—',
                 'total': recs.count(),
-                'open': recs.filter(status__in=['Open', 'In Progress']).count(),
-                'closed': recs.filter(status='Closed').count(),
+                'open': file_open_actions,
+                'closed': file_closed_actions,
+                'best_date': best_date or datetime.now(),
+                'details': details
             })
             
     # 2. Check default manual list
     manual_recs = reports.filter(docx_upload=None)
     if manual_recs.exists():
+        # Compute best_date for manual recs
+        best_date = None
+        r = manual_recs.first()
+        date_str = r.date_implementation or r.date_incident or r.issue_date
+        best_date = extract_date(date_str)
+        details = calculate_report_details(manual_recs)
+        
+        file_open_actions = details['open_ca'] + details['open_pa']
+        file_closed_actions = details['closed_ca'] + details['closed_pa']
+        
+        total_open_actions += file_open_actions
+        total_closed_actions += file_closed_actions
+        
         sheet_comparisons.append({
             'id': 'new_file',
             'name': 'Default manual list',
             'date': '—',
             'total': manual_recs.count(),
-            'open': manual_recs.filter(status__in=['Open', 'In Progress']).count(),
-            'closed': manual_recs.filter(status='Closed').count(),
+            'open': file_open_actions,
+            'closed': file_closed_actions,
+            'best_date': best_date or datetime.now(),
+            'details': details
         })
         
-    comp_labels = [item['name'] for item in sheet_comparisons]
-    comp_ids = [item['id'] for item in sheet_comparisons]
-    comp_total = [item['total'] for item in sheet_comparisons]
-    comp_open = [item['open'] for item in sheet_comparisons]
-    comp_closed = [item['closed'] for item in sheet_comparisons]
+    # Sort chronologically by best_date
+    sheet_comparisons.sort(key=lambda x: x['best_date'])
     
-    # Donut Chart Data
-    status_chart_data = [closed_capas, open_capas] # Closed vs Open/In-Progress
+    comp_labels = []
+    comp_ids = []
+    comp_total = []
+    comp_open = []
+    comp_closed = []
+    comp_details = {} # Mapping file ID -> detailed parameter comparison
+    
+    for item in sheet_comparisons:
+        month_str = item['best_date'].strftime('%b %Y') if item['best_date'] else '—'
+        # X-axis label format: "Month Year - Filename"
+        lbl = f"{month_str} - {item['name']}"
+        comp_labels.append(lbl)
+        comp_ids.append(item['id'])
+        comp_total.append(item['total'])
+        comp_open.append(item['open'])
+        comp_closed.append(item['closed'])
+        comp_details[item['id']] = item['details']
+        
+    open_capas = total_open_actions
+    closed_capas = total_closed_actions
+    status_chart_data = [closed_capas, open_capas]
     
     context = {
         'active_dept_id': dept_id,
@@ -90,9 +252,11 @@ def capa_dashboard(request, dept_id):
         'comp_total': json.dumps(comp_total),
         'comp_open': json.dumps(comp_open),
         'comp_closed': json.dumps(comp_closed),
+        'comp_details': json.dumps(comp_details),
         'status_chart_data': json.dumps(status_chart_data),
     }
     return render(request, 'capa/dashboard.html', context)
+
 
 @login_required
 @dept_visibility_required
@@ -109,11 +273,13 @@ def capa_identification(request, dept_id):
         'document_no': f"{datetime.now().year}/DOC-{random.randint(100, 999)}/{active_dept.code}",
         'issue_no': str(random.randint(1, 12)),
         'issue_date': datetime.now().strftime('%d.%m.%Y'),
-        'responsible_team': [
-            {'name': '', 'members': '', 'role': 'Team Leader', 'contact': ''},
-            {'name': '', 'members': '', 'role': 'Team Member 1', 'contact': ''},
-            {'name': '', 'members': '', 'role': 'Team Member 2', 'contact': ''},
-        ],
+        'responsible_team': {
+            'team_leader': '',
+            'team_members': '',
+            'role_function': '',
+            'contact_nos': ''
+        },
+        'whys': ['', '', ''],
         'corrective_actions': [
             {'action': '', 'responsibility': '', 'target_date': '', 'impl_date': ''},
         ],
@@ -133,6 +299,7 @@ def capa_identification(request, dept_id):
         'prefills': prefills,
     }
     return render(request, 'capa/manual_entry.html', context)
+
 
 @login_required
 @dept_visibility_required
@@ -173,12 +340,23 @@ def capa_report(request, dept_id):
         if modified:
             r.save()
             
+        whys_list = r.whys if (isinstance(r.whys, list) and r.whys) else [r.why_1, r.why_2, r.why_3, r.why_4, r.why_5]
+        whys_list = [w for w in whys_list if w]
+        while len(whys_list) < 3:
+            whys_list.append('')
+
         # Build structure for rowspan logic if needed, or simply flat display of actions
         reports_data.append({
             'record': r,
             'corrective_actions': r.corrective_actions if isinstance(r.corrective_actions, list) else [],
             'preventive_actions': r.preventive_actions if isinstance(r.preventive_actions, list) else [],
-            'responsible_team': r.responsible_team if isinstance(r.responsible_team, list) else [],
+            'responsible_team': normalize_responsible_team(r.responsible_team),
+            'corrective_actions_json': json.dumps(r.corrective_actions if isinstance(r.corrective_actions, list) else []),
+            'preventive_actions_json': json.dumps(r.preventive_actions if isinstance(r.preventive_actions, list) else []),
+            'responsible_team_json': json.dumps(normalize_responsible_team(r.responsible_team)),
+            'five_m_applicable_json': json.dumps(r.five_m_applicable if isinstance(r.five_m_applicable, list) else []),
+            'modified_documents_json': json.dumps(r.modified_documents if isinstance(r.modified_documents, list) else []),
+            'whys_json': json.dumps(whys_list),
         })
         
     context = {
@@ -194,6 +372,72 @@ def capa_report(request, dept_id):
     }
     return render(request, 'capa/report.html', context)
 
+
+def process_upload_history(uploads_queryset):
+    """
+    Builds a serializable/structured array of files including report summaries and closed/open actions categorised based on impl_date.
+    """
+    data = []
+    for u in uploads_queryset:
+        recs = u.reports.all()
+        recs_data = []
+        for r in recs:
+            closed_actions = []
+            open_actions = []
+            
+            for act in (r.corrective_actions or []):
+                impl = act.get('impl_date', '').strip()
+                is_closed = impl and impl != '' and impl.lower() != 'dd.mm.yyyy' and impl != '—' and impl != '-'
+                item = {
+                    'type': 'Corrective',
+                    'action': act.get('action', ''),
+                    'responsibility': act.get('responsibility', ''),
+                    'target_date': act.get('target_date', ''),
+                    'impl_date': impl
+                }
+                if is_closed:
+                    closed_actions.append(item)
+                else:
+                    open_actions.append(item)
+                    
+            for act in (r.preventive_actions or []):
+                impl = act.get('impl_date', '').strip()
+                is_closed = impl and impl != '' and impl.lower() != 'dd.mm.yyyy' and impl != '—' and impl != '-'
+                item = {
+                    'type': 'Preventive',
+                    'action': act.get('action', ''),
+                    'responsibility': act.get('responsibility', ''),
+                    'target_date': act.get('target_date', ''),
+                    'impl_date': impl
+                }
+                if is_closed:
+                    closed_actions.append(item)
+                else:
+                    open_actions.append(item)
+                    
+            recs_data.append({
+                'id': r.id,
+                'capa_no': r.capa_no,
+                'area_section': r.area_section,
+                'date_incident': r.date_incident,
+                'problem_what': r.problem_what,
+                'conclusion': r.conclusion,
+                'closed_actions': closed_actions,
+                'open_actions': open_actions,
+                'total_actions': len(closed_actions) + len(open_actions)
+            })
+            
+        data.append({
+            'id': u.id,
+            'filename': u.filename,
+            'uploaded_at': u.uploaded_at,
+            'num_records': u.num_records,
+            'uploaded_by': u.uploaded_by,
+            'reports': recs_data
+        })
+    return data
+
+
 @login_required
 @dept_visibility_required
 @module_access_required('CAPA')
@@ -201,17 +445,20 @@ def capa_history(request, dept_id):
     active_dept = get_object_or_404(Department, id=dept_id)
     
     # Query uploads annotated with record counts
-    uploaded_files = CAPADocxUpload.objects.filter(department=active_dept, is_manual=False).annotate(
+    uploaded_files_qs = CAPADocxUpload.objects.filter(department=active_dept, is_manual=False).annotate(
         num_records=Count('reports')
     ).select_related('uploaded_by').order_by('-uploaded_at')
     
     # Query manually created sheets
-    manual_sheets = CAPADocxUpload.objects.filter(department=active_dept, is_manual=True).annotate(
+    manual_sheets_qs = CAPADocxUpload.objects.filter(department=active_dept, is_manual=True).annotate(
         num_records=Count('reports')
     ).select_related('uploaded_by').order_by('-uploaded_at')
     
     # Default manual records (unsorted)
     manual_count = CAPAReport.objects.filter(department=active_dept, docx_upload=None).count()
+    
+    uploaded_files = process_upload_history(uploaded_files_qs)
+    manual_sheets = process_upload_history(manual_sheets_qs)
     
     context = {
         'active_dept_id': dept_id,
@@ -284,32 +531,29 @@ def save_capa(request, dept_id, record_id=None):
     report.breakdown_from = request.POST.get('breakdown_from', '').strip()
     report.breakdown_to = request.POST.get('breakdown_to', '').strip()
     
-    # 2. Responsible Team (dynamic list)
-    t_names = request.POST.getlist('t_name')
-    t_roles = request.POST.getlist('t_role')
-    t_contacts = request.POST.getlist('t_contact')
-    
-    team_data = []
-    for idx in range(len(t_names)):
-        if t_names[idx].strip():
-            team_data.append({
-                'name': t_names[idx].strip(),
-                'role': t_roles[idx].strip() if idx < len(t_roles) else '',
-                'contact': t_contacts[idx].strip() if idx < len(t_contacts) else '',
-            })
-    report.responsible_team = team_data
+    # 2. Responsible Team (4-column structured dictionary)
+    report.responsible_team = {
+        'team_leader': request.POST.get('team_leader', '').strip(),
+        'team_members': request.POST.get('team_members', '').strip(),
+        'role_function': request.POST.get('role_function', '').strip(),
+        'contact_nos': request.POST.get('contact_nos', '').strip()
+    }
     
     # 3. Correction / Immediate Actions
     report.immediate_action = request.POST.get('immediate_action', '').strip()
     report.action_timeframe = request.POST.get('action_timeframe', '').strip()
     report.action_responsibility = request.POST.get('action_responsibility', '').strip()
     
-    # 4. Root Cause
-    report.why_1 = request.POST.get('why_1', '').strip()
-    report.why_2 = request.POST.get('why_2', '').strip()
-    report.why_3 = request.POST.get('why_3', '').strip()
-    report.why_4 = request.POST.get('why_4', '').strip()
-    report.why_5 = request.POST.get('why_5', '').strip()
+    # 4. Root Cause (Dynamic Whys List)
+    whys_post = request.POST.getlist('whys')
+    report.whys = [w.strip() for w in whys_post if w.strip()]
+    
+    # Back-populate legacy individual columns for backwards compatibility
+    report.why_1 = report.whys[0] if len(report.whys) > 0 else ''
+    report.why_2 = report.whys[1] if len(report.whys) > 1 else ''
+    report.why_3 = report.whys[2] if len(report.whys) > 2 else ''
+    report.why_4 = report.whys[3] if len(report.whys) > 3 else ''
+    report.why_5 = report.whys[4] if len(report.whys) > 4 else ''
     
     report.conclusion = request.POST.get('conclusion', '').strip()
     report.five_m_applicable = request.POST.getlist('five_m_applicable')
@@ -568,25 +812,28 @@ def download_pdf(request, dept_id, capa_id):
     story.append(prob_table)
     story.append(Spacer(1, 8))
     
+    normalized_team = normalize_responsible_team(report.responsible_team)
+    
+    # Format newlines for ReportLab Paragraph wrapping
+    tl_html = normalized_team.get('team_leader', '').replace('\n', '<br/>')
+    tm_html = normalized_team.get('team_members', '').replace('\n', '<br/>')
+    rf_html = normalized_team.get('role_function', '').replace('\n', '<br/>')
+    cn_html = normalized_team.get('contact_nos', '').replace('\n', '<br/>')
+
     team_rows = [
         [
-            Paragraph("<b>Role Designation</b>", body_bold_style),
-            Paragraph("<b>Team Member Name</b>", body_bold_style),
-            Paragraph("<b>Role / Function</b>", body_bold_style),
-            Paragraph("<b>Contact No</b>", body_bold_style)
+            Paragraph("<b>Team Leader</b>", body_bold_style),
+            Paragraph("<b>Team Members</b>", body_bold_style),
+            Paragraph("<b>Role/Function</b>", body_bold_style),
+            Paragraph("<b>Contact Nos.</b>", body_bold_style)
+        ],
+        [
+            Paragraph(tl_html, body_style),
+            Paragraph(tm_html, body_style),
+            Paragraph(rf_html, body_style),
+            Paragraph(cn_html, body_style)
         ]
     ]
-    for idx in range(3):
-        member = {}
-        if idx < len(report.responsible_team):
-            member = report.responsible_team[idx]
-        role_lbl = "Team Leader" if idx == 0 else f"Team Member {idx}"
-        team_rows.append([
-            Paragraph(role_lbl, body_bold_style),
-            Paragraph(member.get('name', ''), body_style),
-            Paragraph(member.get('role', ''), body_style),
-            Paragraph(member.get('contact', ''), body_style)
-        ])
     team_table = Table(team_rows, colWidths=[130, 150, 140, 103])
     team_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
@@ -639,18 +886,36 @@ def download_pdf(request, dept_id, capa_id):
     m_met = check_box("5M Method", "5M Method" in report.five_m_applicable)
     five_ms_str = f"<b>Applicable 5 M's (Tick):</b><br/>{m_mat}<br/>{m_man}<br/>{m_mac}<br/>{m_mea}<br/>{m_met}"
     
-    why_data = [
-        [Paragraph("<b>1st Why:</b>", body_bold_style), Paragraph(report.why_1, body_style), Paragraph(five_ms_str, body_style)],
-        [Paragraph("<b>2nd Why:</b>", body_bold_style), Paragraph(report.why_2, body_style), ""],
-        [Paragraph("<b>3rd Why:</b>", body_bold_style), Paragraph(report.why_3, body_style), ""],
-        [Paragraph("<b>4th Why:</b>", body_bold_style), Paragraph(report.why_4, body_style), ""],
-        [Paragraph("<b>5th Why:</b>", body_bold_style), Paragraph(report.why_5, body_style), ""]
-    ]
+    whys_list = report.whys if (isinstance(report.whys, list) and report.whys) else [report.why_1, report.why_2, report.why_3, report.why_4, report.why_5]
+    whys_list = [w for w in whys_list if w.strip()]
+    if not whys_list:
+        whys_list = [""]
+    
+    num_whys = len(whys_list)
+    
+    why_data = []
+    for idx, why_text in enumerate(whys_list):
+        num = idx + 1
+        if num == 1:
+            lbl = "1st Why:"
+        elif num == 2:
+            lbl = "2nd Why:"
+        elif num == 3:
+            lbl = "3rd Why:"
+        else:
+            lbl = f"{num}th Why:"
+            
+        why_data.append([
+            Paragraph(f"<b>{lbl}</b>", body_bold_style),
+            Paragraph(why_text, body_style),
+            Paragraph(five_ms_str, body_style) if idx == 0 else ""
+        ])
+        
     why_table = Table(why_data, colWidths=[60, 313, 150])
     why_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ('SPAN', (2, 0), (2, 4)),
+        ('SPAN', (2, 0), (2, num_whys - 1)),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),

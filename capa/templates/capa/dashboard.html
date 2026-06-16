@@ -53,15 +53,28 @@
     
     <!-- Bar Chart Card -->
     <div class="card" style="padding: 20px;">
-      <h3 class="card-section-title" style="margin: 0 0 15px;">📊 Saved Reports Comparative Analytics</h3>
-      <div style="position: relative; height: 260px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 id="barChartTitle" class="card-section-title" style="margin: 0;">📊 Saved Reports Comparative Analytics</h3>
+        <button id="backToAllBtn" class="btn btn-secondary" style="display: none; height: 28px; line-height: 28px; padding: 0 10px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--jspl-border) !important;">
+          ← Back to All Files
+        </button>
+      </div>
+      <div id="chartContainer" style="position: relative; height: 260px; transition: transform 0.4s ease, opacity 0.4s ease; transform: scale(1); opacity: 1;">
         <canvas id="deptRiskChart"></canvas>
       </div>
     </div>
     
     <!-- Donut Chart Card -->
     <div class="card" style="padding: 20px;">
-      <h3 class="card-section-title">Resolution Status Overview</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 class="card-section-title" style="margin: 0;">Resolution Status Overview</h3>
+        <select id="pieFileSelect" class="capa-input" style="width: auto; max-width: 180px; height: 32px; padding: 2px 8px; font-size: 0.8rem;">
+          <option value="overall" data-closed="{{ closed_capas }}" data-open="{{ open_capas }}">All Files</option>
+          {% for item in sheet_comparisons %}
+            <option value="{{ item.id }}" data-closed="{{ item.closed }}" data-open="{{ item.open }}">{{ item.name|truncatechars:20 }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div style="position: relative; height: 260px; display: flex; align-items: center; justify-content: center;">
         <canvas id="statusDonutChart"></canvas>
       </div>
@@ -94,7 +107,7 @@
               <td style="text-align: center; background-color: #ecfdf5; font-weight: bold; color: #059669;">{{ item.closed }}</td>
               <td style="text-align: center;">
                 <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ item.id }}" 
-                   class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; line-height: 26px; display: inline-block;">
+                   class="btn btn-secondary" style="padding: 0 12px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 28px; line-height: 26px; display: inline-block; white-space: nowrap; text-align: center; vertical-align: middle;">
                   View Report
                 </a>
               </td>
@@ -119,9 +132,13 @@
     const labels = {{ comp_labels|safe }};
     const openData = {{ comp_open|safe }};
     const closedData = {{ comp_closed|safe }};
+    const compIds = {{ comp_ids|safe }};
+    const compDetails = {{ comp_details|safe }};
+    
+    let currentView = 'all'; // 'all' or 'file'
     
     const ctxBar = document.getElementById('deptRiskChart').getContext('2d');
-    new Chart(ctxBar, {
+    const barChart = new Chart(ctxBar, {
       type: 'bar',
       data: {
         labels: labels,
@@ -147,16 +164,152 @@
           legend: { position: 'bottom' }
         },
         scales: {
-          x: { stacked: true },
+          x: {
+            stacked: true,
+            ticks: {
+              maxRotation: 0,
+              minRotation: 0,
+              autoSkip: false,
+              callback: function(value, index, values) {
+                const label = this.getLabelForValue(value);
+                if (label && label.includes(' - ')) {
+                  const parts = label.split(' - ');
+                  const datePart = parts[0];
+                  let namePart = parts.slice(1).join(' - ');
+                  if (namePart.length > 25) {
+                    namePart = namePart.substring(0, 22) + '...';
+                  }
+                  return [datePart, namePart];
+                }
+                if (label && label.length > 20) {
+                  if (label.includes(' ')) {
+                    const words = label.split(' ');
+                    if (words.length > 2) {
+                      return [words.slice(0, 2).join(' '), words.slice(2).join(' ')];
+                    }
+                    return [words[0], words.slice(1).join(' ')];
+                  }
+                  return label.substring(0, 18) + '...';
+                }
+                return label;
+              }
+            }
+          },
           y: { stacked: true, beginAtZero: true }
+        },
+        onClick: (event, elements) => {
+          if (currentView !== 'all') return;
+          if (elements && elements.length > 0) {
+            const index = elements[0].index;
+            const fileId = compIds[index];
+            const rawLabel = labels[index];
+            const fileName = rawLabel.includes(' - ') ? rawLabel.split(' - ').slice(1).join(' - ') : rawLabel;
+            showFileDetails(fileId, fileName);
+          }
         }
       }
+    });
+
+    const chartContainer = document.getElementById('chartContainer');
+    const backBtn = document.getElementById('backToAllBtn');
+    const barTitle = document.getElementById('barChartTitle');
+    
+    function showFileDetails(fileId, fileName) {
+      const details = compDetails[fileId];
+      if (!details) return;
+      
+      currentView = 'file';
+      
+      // Swipe off (slide left and fade out)
+      chartContainer.style.transform = 'translateX(-100%)';
+      chartContainer.style.opacity = '0';
+      
+      setTimeout(() => {
+        // Update title and show back button
+        barTitle.textContent = `📋 Parameter Comparison: ${fileName}`;
+        backBtn.style.display = 'inline-block';
+        
+        // Rebuild datasets for parameters inside the selected report
+        barChart.data.labels = [
+          'Open Corrective Actions', 
+          'Closed Corrective Actions', 
+          'Open Preventive Actions', 
+          'Closed Preventive Actions'
+        ];
+        
+        barChart.data.datasets = [
+          {
+            label: 'Action Counts',
+            data: [
+              details.open_ca,
+              details.closed_ca,
+              details.open_pa,
+              details.closed_pa
+            ],
+            backgroundColor: [
+              '#f59e0b', // Open CA - Amber
+              '#10b981', // Closed CA - Green
+              '#fbbf24', // Open PA - Yellow
+              '#34d399'  // Closed PA - Mint Green
+            ],
+            borderRadius: 4,
+          }
+        ];
+        
+        // Turn off stacking for single dataset view
+        barChart.options.scales.x.stacked = false;
+        barChart.options.scales.y.stacked = false;
+        
+        barChart.update();
+        
+        // Swipe on (slide in from right)
+        chartContainer.style.transform = 'translateX(0)';
+        chartContainer.style.opacity = '1';
+      }, 400);
+    }
+    
+    backBtn.addEventListener('click', () => {
+      currentView = 'all';
+      
+      // Swipe off (slide right and fade out)
+      chartContainer.style.transform = 'translateX(100%)';
+      chartContainer.style.opacity = '0';
+      
+      setTimeout(() => {
+        barTitle.textContent = '📊 Saved Reports Comparative Analytics';
+        backBtn.style.display = 'none';
+        
+        barChart.data.labels = labels;
+        barChart.data.datasets = [
+          {
+            label: 'Open / In Progress',
+            data: openData,
+            backgroundColor: '#f59e0b',
+            borderRadius: 4,
+          },
+          {
+            label: 'Closed',
+            data: closedData,
+            backgroundColor: '#10b981',
+            borderRadius: 4,
+          }
+        ];
+        
+        barChart.options.scales.x.stacked = true;
+        barChart.options.scales.y.stacked = true;
+        
+        barChart.update();
+        
+        // Swipe on
+        chartContainer.style.transform = 'translateX(0)';
+        chartContainer.style.opacity = '1';
+      }, 400);
     });
 
     // 2. Status Donut Chart
     const donutData = {{ status_chart_data|safe }};
     const ctxDonut = document.getElementById('statusDonutChart').getContext('2d');
-    new Chart(ctxDonut, {
+    const statusChart = new Chart(ctxDonut, {
       type: 'doughnut',
       data: {
         labels: ['Closed', 'Open / In Progress'],
@@ -174,6 +327,15 @@
         },
         cutout: '65%'
       }
+    });
+
+    const pieSelect = document.getElementById('pieFileSelect');
+    pieSelect.addEventListener('change', (e) => {
+      const selectedOption = e.target.options[e.target.selectedIndex];
+      const closed = parseInt(selectedOption.getAttribute('data-closed') || 0);
+      const open = parseInt(selectedOption.getAttribute('data-open') || 0);
+      statusChart.data.datasets[0].data = [closed, open];
+      statusChart.update();
     });
   });
 </script>

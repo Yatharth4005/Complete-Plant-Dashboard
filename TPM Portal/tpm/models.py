@@ -255,6 +255,7 @@ class CAPAReport(models.Model):
     why_3 = models.TextField(blank=True)
     why_4 = models.TextField(blank=True)
     why_5 = models.TextField(blank=True)
+    whys = models.JSONField(default=list, blank=True)
     
     # 5 M's checklists (Material, Man, Machine, Measure, Method)
     five_m_applicable = models.JSONField(default=list, blank=True)
