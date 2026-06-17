@@ -28,12 +28,11 @@
     .cmc-tab-dropdown {
       position: relative !important;
       display: inline-block !important;
+      flex-shrink: 0 !important;
     }
     .cmc-dropdown-content {
       display: none !important;
-      position: absolute !important;
-      top: 100% !important;
-      left: 0 !important;
+      position: fixed !important;
       background-color: var(--jspl-white, #ffffff) !important;
       min-width: 200px !important;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
@@ -44,10 +43,6 @@
       padding: 4px 0 !important;
     }
     .cmc-dropdown-content.open-menu {
-      display: block !important;
-    }
-    /* Hover fallback so it always opens on desktop even if JS fails */
-    .cmc-tab-dropdown:hover .cmc-dropdown-content {
       display: block !important;
     }
     .cmc-dropdown-content a {
@@ -65,9 +60,30 @@
       background-color: var(--cmc-light, #F5F3FF) !important;
       color: var(--cmc-primary, #7C3AED) !important;
     }
-    /* Allow dropdown menu to float outside the tab containers */
+    /* Allow scrollable subnav while managing y-overflow visually */
     .cmc-subnav {
-      overflow: visible !important;
+      overflow-x: auto !important;
+      overflow-y: hidden !important;
+      padding-bottom: 4px !important;
+      scrollbar-width: thin !important;
+      scrollbar-color: rgba(124, 58, 237, 0.25) transparent !important;
+    }
+    .cmc-subnav::-webkit-scrollbar {
+      height: 4px !important;
+      background: transparent !important;
+    }
+    .cmc-subnav::-webkit-scrollbar-track {
+      background: transparent !important;
+    }
+    .cmc-subnav::-webkit-scrollbar-thumb {
+      background-color: rgba(124, 58, 237, 0.25) !important;
+      border-radius: 10px !important;
+    }
+    .cmc-subnav::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(124, 58, 237, 0.5) !important;
+    }
+    .cmc-tab {
+      flex-shrink: 0 !important;
     }
     .card {
       overflow: visible !important;
@@ -78,9 +94,10 @@
 {% block content %}
 <div class="card" style="width: 100%; padding: 0; overflow: visible; border: none; background: transparent; box-shadow: none; max-width: 100%; box-sizing: border-box;">
   <!-- CMC Sub-navigation tabs (visible on all CMC pages) -->
-  <div class="cmc-subnav" style="max-width: 100%; box-sizing: border-box; overflow: visible; white-space: nowrap;">
+  <div class="cmc-subnav" style="max-width: 100%; box-sizing: border-box; overflow-x: auto; overflow-y: hidden; white-space: nowrap;">
     <a href="{% url 'cmc:dept_overview' department.id %}"
        class="cmc-tab {% if active_tab == 'overview' %}active{% endif %}">📊 Overview</a>
+    {% if department.id != 0 %}
     <a href="{% url 'cmc:schedule_grid' department.id %}"
        class="cmc-tab {% if active_tab == 'schedule' %}active{% endif %}">📅 PM Schedule</a>
     <a href="{% url 'cmc:vibration_list' department.id %}"
@@ -98,26 +115,47 @@
         var container = document.getElementById('oilTabContainer');
         var btn = document.getElementById('oilTabBtn');
         var menu = document.getElementById('oilDropdownMenu');
+        var subnav = document.querySelector('.cmc-subnav');
         if (container && btn && menu) {
           btn.onclick = function(e) {
             e.preventDefault();
             e.stopPropagation();
-            menu.classList.toggle('open-menu');
+            
+            var isOpen = menu.classList.contains('open-menu');
+            if (!isOpen) {
+              var rect = btn.getBoundingClientRect();
+              menu.style.top = rect.bottom + 'px';
+              menu.style.left = rect.left + 'px';
+              menu.classList.add('open-menu');
+            } else {
+              menu.classList.remove('open-menu');
+            }
           };
           document.addEventListener('click', function(e) {
             if (!container.contains(e.target)) {
               menu.classList.remove('open-menu');
             }
           });
+          if (subnav) {
+            subnav.addEventListener('scroll', function() {
+              menu.classList.remove('open-menu');
+            });
+          }
+          window.addEventListener('resize', function() {
+            menu.classList.remove('open-menu');
+          });
         }
       })();
     </script>
+    <a href="{% url 'cmc:grease_list' department.id %}"
+       class="cmc-tab {% if active_tab == 'grease' %}active{% endif %}">🧴 Grease Report</a>
     <a href="{% url 'cmc:wda_list' department.id %}"
        class="cmc-tab {% if active_tab == 'wda' %}active{% endif %}">🔬 WDA Logs</a>
     <a href="{% url 'cmc:notification_tracker' department.id %}"
        class="cmc-tab {% if active_tab == 'notif' %}active{% endif %}">🔔 SAP Notifications</a>
     <a href="{% url 'cmc:report_page' department.id %}"
        class="cmc-tab {% if active_tab == 'reports' %}active{% endif %}">📋 Report Center</a>
+    {% endif %}
   </div>
 
   <div style="width: 100%; background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: 0 0 var(--radius) var(--radius); padding: 24px; box-shadow: var(--shadow-sm); border-top: none; max-width: 100%; box-sizing: border-box; overflow: hidden;">

@@ -13,6 +13,9 @@ def dept_hub(request, dept_id):
     If the user has permissions, the module card is clickable and accessible.
     Otherwise, it is locked.
     """
+    if int(dept_id) == 0:
+        return redirect('portal:plant_dashboard')
+        
     department = get_object_or_404(Department, id=dept_id)
     active_modules = Module.objects.filter(is_active=True).order_by('sort_order')
     
@@ -47,7 +50,7 @@ def enter_module(request, dept_id, module_key):
     This acts as the SSO gate.
     """
     department = get_object_or_404(Department, id=dept_id)
-    module = get_object_or_404(Module, key=module_key, is_active=True)
+    module = get_object_or_404(Module, key__iexact=module_key, is_active=True)
     
     # Check permission
     access_map = get_user_module_access_map(request.user, department)
@@ -81,18 +84,26 @@ def enter_module(request, dept_id, module_key):
     return redirect(target_url)
 
 @login_required
-@module_access_required('TPM') # Generic module key is checked dynamically in wrapper, but here we enforce check per view if we want
 def coming_soon(request, dept_id, module_key):
     """
     Stub page rendered for modules that are configured but not yet built.
     """
-    # Verify access first dynamically using module_key parameter
-    department = get_object_or_404(Department, id=dept_id)
-    access_map = get_user_module_access_map(request.user, department)
-    if module_key not in access_map:
-        return redirect('portal:dept_hub', dept_id=dept_id)
-        
-    module = get_object_or_404(Module, key=module_key)
+    module = get_object_or_404(Module, key__iexact=module_key)
+    
+    if int(dept_id) == 0:
+        if not request.user.is_admin():
+            return redirect('portal:plant_dashboard')
+        class DummyDept:
+            id = 0
+            name = "Overall Plant"
+            code = "Overall"
+        department = DummyDept()
+    else:
+        department = get_object_or_404(Department, id=dept_id)
+        # Verify access first dynamically using module_key parameter
+        access_map = get_user_module_access_map(request.user, department)
+        if module_key not in access_map:
+            return redirect('portal:dept_hub', dept_id=dept_id)
     
     context = {
         'department': department,

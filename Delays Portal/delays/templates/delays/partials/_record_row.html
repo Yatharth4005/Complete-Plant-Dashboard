@@ -1,4 +1,7 @@
 <tr id="record-row-{{ r.id }}" class="record-row-editable">
+  {% if department.id == 0 %}
+    <td style="font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--delays-primary);">{{ r.department.code }}</td>
+  {% endif %}
   <!-- Date input -->
   <td class="td-date">
     <input type="date" name="date" value="{{ r.date|date:'Y-m-d' }}" class="table-input-date" {% if is_admin or can_edit and not r.is_locked %}{% else %}disabled{% endif %}>
@@ -41,7 +44,6 @@
     <div style="display: flex; align-items: center; gap: 8px;">
       {% if is_admin or can_edit and not r.is_locked %}
         <select name="why" class="table-select-why" onchange="updateWhyButton(this, '{{ r.id }}')">
-          <option value="WHY/WHY" {% if r.why == 'WHY/WHY' %}selected{% endif %}>WHY/WHY</option>
           <option value="CAPA" {% if r.why == 'CAPA' %}selected{% endif %}>CAPA</option>
           <option value="NO" {% if r.why == 'NO' or not r.why %}selected{% endif %}>NO</option>
         </select>
@@ -50,13 +52,13 @@
         <a id="why-btn-{{ r.id }}" 
            href="{% if r.why == 'CAPA' %}/dashboard/capa/?action=new&delay_record_id={{ r.id }}{% else %}#{% endif %}" 
            class="btn-fill-sheet" 
-           onclick="{% if r.why == 'WHY/WHY' %}alert('WHY/WHY analysis sheet is coming soon! Under development.'); return false;{% elif r.why == 'NO' or not r.why %}return false;{% endif %}"
-           style="{% if r.why == 'NO' or not r.why %}display: none;{% else %}display: inline-flex;{% endif %} text-decoration: none; padding: 4px 8px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap; align-items: center; justify-content: center;"
+           onclick="{% if r.why == 'NO' or not r.why %}return false;{% endif %}"
+           style="{% if r.why == 'CAPA' %}display: inline-flex;{% else %}display: none;{% endif %} text-decoration: none; padding: 4px 8px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap; align-items: center; justify-content: center;"
            target="_blank">
-           {% if r.why == 'WHY/WHY' %}Fill WHY/WHY{% else %}Fill CAPA{% endif %}
+           Fill CAPA
         </a>
       {% else %}
-        <span class="status-badge {% if r.why == 'WHY/WHY' %}failed{% elif r.why == 'CAPA' %}warning{% else %}success{% endif %}">
+        <span class="status-badge {% if r.why == 'CAPA' %}warning{% else %}success{% endif %}">
           {{ r.why|default:"NO" }}
         </span>
         {% if r.why == 'CAPA' %}

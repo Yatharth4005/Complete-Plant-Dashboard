@@ -1,5 +1,5 @@
 {# partials/_kpi_table.html #}
-<div id="kpi-table-container">
+<div id="kpi-table-container" x-data="{ showAddForm: false }">
   {% if filter_type == 'range' %}
     <div class="lock-banner" style="background-color: var(--jspl-light); border-color: var(--jspl-border); color: var(--jspl-navy);">
       <span>ℹ️ You are viewing a summary of data aggregated for the period: <b>{{ period_label }}</b>. Data entry is disabled.</span>
@@ -39,20 +39,75 @@
       </thead>
       <tbody>
         {% for row in kpi_rows %}
-          {% include "partials/_kpi_row.html" with row=row is_locked=is_locked pillar_id=pillar_id filter_type=filter_type %}
+          {% include "partials/_kpi_row.html" with row=row is_locked=is_locked pillar_id=pillar_id filter_type=filter_type can_edit=can_edit %}
         {% endfor %}
+
+        <!-- Inline Add Custom KPI Row -->
+        <tr x-show="showAddForm" x-transition style="background-color: var(--jspl-light);">
+          <td style="text-align: center; font-weight: 600; color: var(--jspl-navy);">New</td>
+          <td>
+            <input type="text" name="name" placeholder="KPI/Field Name" class="input-mono" style="width: 100%; font-weight: 500;" required>
+          </td>
+          <td>
+            <input type="text" name="uom" placeholder="UOM" class="input-mono" style="width: 100%; text-align: center;">
+          </td>
+          <td>
+            <input type="number" name="benchmark" step="any" placeholder="Bench" class="input-mono" style="width: 100%; text-align: right;">
+          </td>
+          <td>
+            <input type="number" name="target" step="any" placeholder="Target" class="input-mono" style="width: 100%; text-align: right;">
+          </td>
+          {% if pillar_id == 'KK' %}
+            <td colspan="3"></td>
+          {% endif %}
+          <td colspan="2" style="text-align: center; vertical-align: middle;">
+            <div style="display: flex; gap: 8px; justify-content: center;">
+              <button type="button" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem;"
+                      hx-post="{% url 'add_custom_kpi' dept.id pillar_id %}?month={{ month }}&year={{ year }}"
+                      hx-include="closest tr"
+                      hx-target="#kpi-table-container">
+                Save
+              </button>
+              <button type="button" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;" @click="showAddForm = false">
+                Cancel
+              </button>
+            </div>
+          </td>
+        </tr>
       </tbody>
     </table>
   </div>
 
-  {% if filter_type != 'range' and not is_locked %}
-    <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-      <button class="btn btn-primary"
-              hx-post="{% url 'submit_pillar_entry' dept.id pillar_id %}?month={{ month }}&year={{ year }}"
-              hx-target="#kpi-table-container"
-              hx-confirm="Submit and lock all inputs for {{ month_label }} {{ year }}?">
-        Submit & Lock Entry
-      </button>
+  {% if filter_type != 'range' and can_edit %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+      <div>
+        {% if not is_locked %}
+          <button type="button" class="btn btn-secondary" style="background-color: var(--jspl-white); color: var(--jspl-navy); border: 1px solid var(--jspl-border);"
+                  @click="showAddForm = true; $nextTick(() => { document.getElementsByName('name')[0]?.focus() })">
+            ➕ Add Custom fields
+          </button>
+        {% endif %}
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        {% if entry %}
+          <button class="btn btn-danger"
+                  hx-post="{% url 'delete_pillar_entry' dept.id pillar_id %}?month={{ month }}&year={{ year }}"
+                  hx-target="#kpi-table-container"
+                  hx-confirm="Are you sure you want to delete and clear all values for this pillar for {{ month_label }} {{ year }}? This cannot be undone.">
+            🗑️ Clear/Delete Entry
+          </button>
+        {% endif %}
+        
+        {% if not is_locked %}
+          <button class="btn btn-primary"
+                  hx-post="{% url 'submit_pillar_entry' dept.id pillar_id %}?month={{ month }}&year={{ year }}"
+                  hx-target="#kpi-table-container"
+                  hx-confirm="Submit and lock all inputs for {{ month_label }} {{ year }}?">
+            Submit & Lock Entry
+          </button>
+        {% endif %}
+      </div>
     </div>
   {% endif %}
 </div>

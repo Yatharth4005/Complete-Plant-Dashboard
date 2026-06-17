@@ -19,9 +19,23 @@ urlpatterns = [
     # Workstation KPI
     path('department/<int:dept_id>/pillar/ws-kpi/',
          ws_kpi_views.ws_kpi_page, name='ws_kpi_page'),
-
+    path('department/<int:dept_id>/pillar/ws-kpi/add-workstation/',
+         ws_kpi_views.add_workstation, name='add_workstation'),
     path('department/<int:dept_id>/pillar/ws-kpi/save/<int:ws_id>/',
          ws_kpi_views.save_workstation, name='save_workstation'),
+    path('department/<int:dept_id>/pillar/ws-kpi/delete-workstation/<int:ws_id>/',
+         ws_kpi_views.delete_workstation, name='delete_workstation'),
+
+    path('department/<int:dept_id>/pillar/ws-kpi/delete/<int:ws_id>/',
+         ws_kpi_views.delete_workstation_values, name='delete_workstation_values'),
+
+    # HTMX partial: add/delete custom workstation KPIs
+    path('department/<int:dept_id>/pillar/ws-kpi/add-kpi/<int:ws_id>/',
+         ws_kpi_views.add_workstation_kpi, name='add_workstation_kpi'),
+    path('department/<int:dept_id>/pillar/ws-kpi/add-kpi-placeholder/',
+         ws_kpi_views.add_workstation_kpi_placeholder, name='add_workstation_kpi_placeholder'),
+    path('department/<int:dept_id>/pillar/ws-kpi/delete-kpi/<int:ws_id>/<int:kpi_id>/',
+         ws_kpi_views.delete_workstation_kpi, name='delete_workstation_kpi'),
 
     # Pillar (standard 8)
     path('department/<int:dept_id>/pillar/<str:pillar_id>/',
@@ -39,6 +53,16 @@ urlpatterns = [
     path('department/<int:dept_id>/pillar/<str:pillar_id>/submit/',
          pillar_views.submit_pillar_entry, name='submit_pillar_entry'),
 
+    # HTMX partial: delete/clear full pillar entry
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/delete/',
+         pillar_views.delete_pillar_entry, name='delete_pillar_entry'),
+
+    # HTMX partial: add/delete custom KPI definitions for standard pillars
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/add-custom-kpi/',
+         pillar_views.add_custom_kpi, name='add_custom_kpi'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/delete-custom-kpi/<int:custom_id>/',
+         pillar_views.delete_custom_kpi, name='delete_custom_kpi'),
+
     # HTMX partial: analytics tab (swaps #analytics-container)
     path('department/<int:dept_id>/pillar/<str:pillar_id>/analytics/',
          pillar_views.analytics_partial, name='analytics_partial'),
@@ -53,6 +77,8 @@ urlpatterns = [
 
     # Governance
     path('governance/structure/', governance_views.tpm_governance_structure, name='tpm_governance_structure'),
+    path('governance/structure/assign/', governance_views.assign_role, name='assign_role'),
+    path('governance/structure/unassign/', governance_views.unassign_role, name='unassign_role'),
     path('governance/users/',     governance_views.tpm_governance_users,     name='tpm_governance_users'),
 
     # Admin

@@ -101,6 +101,25 @@ class KPIValue(models.Model):
         return f"{self.pillar_entry} - Sl {self.sl_no}: {self.actual}"
 
 
+class CustomKPIDefinition(models.Model):
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='custom_kpi_definitions')
+    pillar = models.CharField(max_length=10)
+    sl_no = models.CharField(max_length=10)
+    name = models.CharField(max_length=300)
+    uom = models.CharField(max_length=50, blank=True)
+    benchmark = models.FloatField(null=True, blank=True)
+    target = models.FloatField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('department', 'pillar', 'sl_no')
+        verbose_name = "Custom KPI Definition"
+        verbose_name_plural = "Custom KPI Definitions"
+
+    def __str__(self):
+        return f"{self.department.code} - {self.pillar} - {self.sl_no}: {self.name}"
+
+
 # --- Workstation KPI (9th Pillar - different schema) ---
 
 class Workstation(models.Model):
@@ -294,5 +313,28 @@ class CAPAReport(models.Model):
 
     def __str__(self):
         return f"CAPA {self.capa_no or 'Draft'} - {self.area_section or 'No Section'}"
+
+
+class TPMGovernanceAssignment(models.Model):
+    ROLE_CHOICES = [
+        ('sponsor', 'Project Sponsor'),
+        ('chairman', 'Steering Committee Chairman'),
+        ('vice_chairman', 'Steering Committee Vice Chairman'),
+        ('committee_member', 'Steering Committee Member'),
+        ('coordinator_pillar', 'TPM Coordinator (Pillar)'),
+        ('coordinator_cell', 'TPM Coordinator (Workstation/Cell)'),
+        ('hod', 'HOD / Area Owner'),
+    ]
+    role_key = models.CharField(max_length=30, choices=ROLE_CHOICES)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='governance_assignments')
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        unique_together = ('role_key', 'user')
+
+    def __str__(self):
+        return f"{self.get_role_key_display()}: {self.user.get_display_name()}"
+
 
 

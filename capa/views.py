@@ -142,11 +142,22 @@ def normalize_responsible_team(team_data):
 @dept_visibility_required
 @module_access_required('CAPA')
 def capa_dashboard(request, dept_id):
-    active_dept = get_object_or_404(Department, id=dept_id)
-    
-    # Retrieve all uploads & reports for this department
-    uploads = CAPADocxUpload.objects.filter(department=active_dept).order_by('-uploaded_at')
-    reports = CAPAReport.objects.filter(department=active_dept)
+    if int(dept_id) == 0:
+        class DummyDept:
+            id = 0
+            name = "Overall Plant"
+            code = "Overall"
+        active_dept = DummyDept()
+        
+        # Retrieve all uploads & reports across all departments
+        uploads = CAPADocxUpload.objects.all().order_by('-uploaded_at')
+        reports = CAPAReport.objects.all()
+    else:
+        active_dept = get_object_or_404(Department, id=dept_id)
+        
+        # Retrieve all uploads & reports for this department
+        uploads = CAPADocxUpload.objects.filter(department=active_dept).order_by('-uploaded_at')
+        reports = CAPAReport.objects.filter(department=active_dept)
     
     total_capas = reports.count()
     total_open_actions = 0
@@ -171,17 +182,24 @@ def capa_dashboard(request, dept_id):
             
             sheet_comparisons.append({
                 'id': u.id,
-                'name': u.filename,
+                'name': u.filename + f" ({u.department.code})" if int(dept_id) == 0 else u.filename,
                 'date': u.upload_date.strftime('%d.%m.%Y') if u.upload_date else '—',
                 'total': recs.count(),
                 'open': file_open_actions,
                 'closed': file_closed_actions,
                 'best_date': best_date or datetime.now(),
-                'details': details
+                'details': details,
+                'dept_id': u.department.id,
+                'dept_name': u.department.name,
+                'dept_code': u.department.code,
             })
             
     # 2. Check default manual list
-    manual_recs = reports.filter(docx_upload=None)
+    if int(dept_id) == 0:
+        manual_recs = CAPAReport.objects.none()
+    else:
+        manual_recs = reports.filter(docx_upload=None)
+        
     if manual_recs.exists():
         # Compute best_date for manual recs
         best_date = None
@@ -204,13 +222,17 @@ def capa_dashboard(request, dept_id):
             'open': file_open_actions,
             'closed': file_closed_actions,
             'best_date': best_date or datetime.now(),
-            'details': details
+            'details': details,
+            'dept_id': active_dept.id,
+            'dept_name': active_dept.name,
+            'dept_code': active_dept.code if hasattr(active_dept, 'code') else '',
         })
         
     # Sort chronologically by best_date
     sheet_comparisons.sort(key=lambda x: x['best_date'])
     
     comp_labels = []
+    comp_names = []
     comp_ids = []
     comp_total = []
     comp_open = []
@@ -218,10 +240,14 @@ def capa_dashboard(request, dept_id):
     comp_details = {} # Mapping file ID -> detailed parameter comparison
     
     for item in sheet_comparisons:
-        month_str = item['best_date'].strftime('%b %Y') if item['best_date'] else '—'
-        # X-axis label format: "Month Year - Filename"
-        lbl = f"{month_str} - {item['name']}"
+        date_str = item['best_date'].strftime('%d.%m.%Y') if item['best_date'] else '—'
+        dept_code = item.get('dept_code', '')
+        if dept_code:
+            lbl = f"({date_str}-{dept_code})"
+        else:
+            lbl = f"({date_str})"
         comp_labels.append(lbl)
+        comp_names.append(item['name'])
         comp_ids.append(item['id'])
         comp_total.append(item['total'])
         comp_open.append(item['open'])
@@ -248,6 +274,7 @@ def capa_dashboard(request, dept_id):
         
         # Chart JSON lists
         'comp_labels': json.dumps(comp_labels),
+        'comp_names': json.dumps(comp_names),
         'comp_ids': json.dumps(comp_ids),
         'comp_total': json.dumps(comp_total),
         'comp_open': json.dumps(comp_open),

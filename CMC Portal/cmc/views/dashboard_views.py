@@ -10,62 +10,119 @@ from portal.utils.decorators import module_access_required
 @login_required
 @module_access_required('CMC')
 def dept_overview(request, dept_id):
-    department = get_object_or_404(Department, id=dept_id)
     today_date = date.today()
     
-    # 1. Summary Ribbon Stats
-    equipment_count = Equipment.objects.filter(department=department, is_active=True).count()
-    
-    monitored_this_month = PMScheduleEntry.objects.filter(
-        equipment__department=department,
-        actual_date__month=today_date.month,
-        actual_date__year=today_date.year,
-        status=PMScheduleEntry.VisitStatus.DONE
-    ).count()
-
-    due_today = PMScheduleEntry.objects.filter(
-        equipment__department=department,
-        scheduled_date=today_date,
-        status=PMScheduleEntry.VisitStatus.PENDING
-    ).count()
-
-    open_notifications = SAPNotification.objects.filter(
-        equipment__department=department,
-        status=SAPNotification.NotifStatus.OPEN
-    ).count()
-
-    # 2. Equipment Health Board (Class A)
-    class_a_equip = Equipment.objects.filter(
-        department=department,
-        equipment_class=Equipment.EquipmentClass.A,
-        is_active=True
-    ).prefetch_related('vibration_logs', 'oil_tests', 'wda_logs')
-    
-    health_board = []
-    for eq in class_a_equip:
-        last_vib = eq.vibration_logs.order_by('-date').first()
-        last_oil = eq.oil_tests.order_by('-date').first()
-        last_wda = eq.wda_logs.order_by('-date').first()
+    if int(dept_id) == 0:
+        class DummyDept:
+            id = 0
+            name = "Overall Plant"
+            code = "Overall"
+        department = DummyDept()
         
-        health_board.append({
-            'equipment': eq,
-            'last_vibration': last_vib,
-            'last_oil_test': last_oil,
-            'last_wda': last_wda,
-            'overall_status': compute_overall_status(last_vib, last_oil, last_wda),
-        })
+        # 1. Summary Ribbon Stats globally
+        equipment_count = Equipment.objects.filter(is_active=True).count()
+        
+        monitored_this_month = PMScheduleEntry.objects.filter(
+            actual_date__month=today_date.month,
+            actual_date__year=today_date.year,
+            status=PMScheduleEntry.VisitStatus.DONE
+        ).count()
 
-    # 3. Upcoming Schedule (Next 7 Days)
-    end_date = today_date + timedelta(days=7)
-    upcoming_entries = PMScheduleEntry.objects.filter(
-        equipment__department=department,
-        scheduled_date__range=(today_date, end_date),
-        status=PMScheduleEntry.VisitStatus.PENDING
-    ).order_by('scheduled_date')[:10]
+        due_today = PMScheduleEntry.objects.filter(
+            scheduled_date=today_date,
+            status=PMScheduleEntry.VisitStatus.PENDING
+        ).count()
 
-    # Find the most recent oil test status for summary ribbon
-    last_oil_test = OilTestLog.objects.filter(equipment__department=department).order_by('-date').first()
-    last_oil_status = last_oil_test.status if last_oil_test else 'N/A'
+        open_notifications = SAPNotification.objects.filter(
+            status=SAPNotification.NotifStatus.OPEN
+        ).count()
+
+        # 2. Equipment Health Board (Class A) globally
+        class_a_equip = Equipment.objects.filter(
+            equipment_class=Equipment.EquipmentClass.A,
+            is_active=True
+        ).prefetch_related('vibration_logs', 'oil_tests', 'wda_logs')
+        
+        health_board = []
+        for eq in class_a_equip:
+            last_vib = eq.vibration_logs.order_by('-date').first()
+            last_oil = eq.oil_tests.order_by('-date').first()
+            last_wda = eq.wda_logs.order_by('-date').first()
+            
+            health_board.append({
+                'equipment': eq,
+                'last_vibration': last_vib,
+                'last_oil_test': last_oil,
+                'last_wda': last_wda,
+                'overall_status': compute_overall_status(last_vib, last_oil, last_wda),
+            })
+
+        # 3. Upcoming Schedule (Next 7 Days) globally
+        end_date = today_date + timedelta(days=7)
+        upcoming_entries = PMScheduleEntry.objects.filter(
+            scheduled_date__range=(today_date, end_date),
+            status=PMScheduleEntry.VisitStatus.PENDING
+        ).order_by('scheduled_date')[:10]
+
+        last_oil_test = OilTestLog.objects.all().order_by('-date').first()
+        last_oil_status = last_oil_test.status if last_oil_test else 'N/A'
+        
+    else:
+        department = get_object_or_404(Department, id=dept_id)
+        
+        # 1. Summary Ribbon Stats
+        equipment_count = Equipment.objects.filter(department=department, is_active=True).count()
+        
+        monitored_this_month = PMScheduleEntry.objects.filter(
+            equipment__department=department,
+            actual_date__month=today_date.month,
+            actual_date__year=today_date.year,
+            status=PMScheduleEntry.VisitStatus.DONE
+        ).count()
+
+        due_today = PMScheduleEntry.objects.filter(
+            equipment__department=department,
+            scheduled_date=today_date,
+            status=PMScheduleEntry.VisitStatus.PENDING
+        ).count()
+
+        open_notifications = SAPNotification.objects.filter(
+            equipment__department=department,
+            status=SAPNotification.NotifStatus.OPEN
+        ).count()
+
+        # 2. Equipment Health Board (Class A)
+        class_a_equip = Equipment.objects.filter(
+            department=department,
+            equipment_class=Equipment.EquipmentClass.A,
+            is_active=True
+        ).prefetch_related('vibration_logs', 'oil_tests', 'wda_logs')
+        
+        health_board = []
+        for eq in class_a_equip:
+            last_vib = eq.vibration_logs.order_by('-date').first()
+            last_oil = eq.oil_tests.order_by('-date').first()
+            last_wda = eq.wda_logs.order_by('-date').first()
+            
+            health_board.append({
+                'equipment': eq,
+                'last_vibration': last_vib,
+                'last_oil_test': last_oil,
+                'last_wda': last_wda,
+                'overall_status': compute_overall_status(last_vib, last_oil, last_wda),
+            })
+
+        # 3. Upcoming Schedule (Next 7 Days)
+        end_date = today_date + timedelta(days=7)
+        upcoming_entries = PMScheduleEntry.objects.filter(
+            equipment__department=department,
+            scheduled_date__range=(today_date, end_date),
+            status=PMScheduleEntry.VisitStatus.PENDING
+        ).order_by('scheduled_date')[:10]
+
+        # Find the most recent oil test status for summary ribbon
+        last_oil_test = OilTestLog.objects.filter(equipment__department=department).order_by('-date').first()
+        last_oil_status = last_oil_test.status if last_oil_test else 'N/A'
 
     context = {
         'department': department,

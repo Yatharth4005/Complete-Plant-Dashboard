@@ -6,6 +6,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jindal Steel Operations Portal — Login</title>
+  <link rel="icon" type="image/png" href="{% static 'portal/img/jindal_logo_dark.png' %}">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,12 +16,15 @@
   <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
 
   <style>
+    [x-cloak] {
+      display: none !important;
+    }
     body {
       margin: 0;
       padding: 0;
-      overflow: hidden;
+      overflow: auto;
       font-family: 'Sora', sans-serif;
-      height: 100vh;
+      min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -35,7 +39,7 @@
       height: 100%;
       object-fit: cover;
       z-index: -1;
-      opacity: 0.55;
+      opacity: 0.85;
     }
 
     .login-overlay {
@@ -44,7 +48,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(135deg, rgba(2, 11, 24, 0.9) 0%, rgba(0, 52, 120, 0.45) 100%);
+      background: linear-gradient(135deg, rgba(2, 11, 24, 0.5) 0%, rgba(0, 52, 120, 0.25) 100%);
       z-index: 0;
     }
 
@@ -53,7 +57,8 @@
       z-index: 10;
       width: 900px;
       max-width: 95%;
-      height: 580px;
+      min-height: 580px;
+      height: auto;
       display: grid;
       grid-template-columns: 1.1fr 0.9fr;
       background: rgba(255, 255, 255, 0.04);
@@ -62,6 +67,7 @@
       border-radius: 24px;
       box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
       overflow: hidden;
+      margin: 20px 0;
     }
 
     .login-left {
@@ -70,7 +76,7 @@
       flex-direction: column;
       justify-content: space-between;
       border-right: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(0, 0, 0, 0.2);
+      background: rgba(2, 11, 24, 0.65);
     }
 
     .login-right {
@@ -114,20 +120,21 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      color: #ffffff;
-      font-size: 0.88rem;
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 0.9rem;
+      font-weight: 600;
     }
 
     .teaser-item-icon {
       width: 28px;
       height: 28px;
       border-radius: 8px;
-      background: rgba(244, 121, 32, 0.15);
+      background: rgba(244, 121, 32, 0.25);
       color: #F47920;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: bold;
+      font-weight: 700;
     }
 
     .card-title {
@@ -275,11 +282,11 @@
   </style>
 </head>
 
-<body x-data="{ showPw: false }">
+<body x-data="{ showPw: false, currentForm: 'login' }">
 
   <!-- Shared Video Background (from tpm static folder) -->
   <video class="video-background" autoplay muted loop playsinline>
-    <source src="{% static 'media/backgroundlogin.mp4' %}" type="video/mp4">
+    <source src="{% static 'media/backgroundlogin.mp4' %}?v=3" type="video/mp4">
   </video>
 
   <div class="login-overlay"></div>
@@ -293,7 +300,7 @@
         <p style="color: rgba(255, 255, 255, 0.45); font-size: 0.85rem; margin: 0;">RGH Plant — Raigarh</p>
       </div>
 
-      <div class="teaser-container">
+      <div class="teaser-section">
         <h3>Connected Modules</h3>
         <div class="teaser-grid">
           <div class="teaser-item">
@@ -316,9 +323,10 @@
       </div>
     </div>
 
-    <!-- RIGHT SIDE: LOGIN FORM -->
+    <!-- RIGHT SIDE: LOGIN FORM / SIGN UP FORM -->
     <div class="login-right">
-      <div>
+      <!-- SIGN IN FORM -->
+      <div x-show="currentForm === 'login'">
         <h2 class="card-title">Sign In</h2>
         <p class="card-subtitle">Access unified operations dashboard</p>
 
@@ -361,9 +369,10 @@
           <button type="submit" class="btn-submit">Sign In to Plant Portal</button>
         </form>
 
-        <p class="support-link">
-          <a href="#" onclick="triggerForgotPassword(); return false;">Forgot password?</a>
-        </p>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; font-size: 0.82rem;">
+          <a href="#" onclick="triggerForgotPassword(); return false;" style="color: rgba(255, 255, 255, 0.5); text-decoration: none; font-weight: 600; transition: color 0.2s;" onmouseover="this.style.color='#F47920'" onmouseout="this.style.color='rgba(255, 255, 255, 0.5)'">Forgot password?</a>
+          <a href="#" @click.prevent="currentForm = 'signup'" style="color: #F47920; text-decoration: none; font-weight: 600;">Get Sign Up</a>
+        </div>
 
         <script>
           function triggerForgotPassword() {
@@ -393,6 +402,69 @@
             form.submit();
           }
         </script>
+      </div>
+
+      <!-- GET SIGN UP FORM -->
+      <div x-show="currentForm === 'signup'" x-cloak>
+        <h2 class="card-title">Get Sign Up</h2>
+        <p class="card-subtitle">Request access to the operations portal</p>
+
+        <form method="post" action="{% url 'portal:request_access' %}">
+          {% csrf_token %}
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 16px;">
+            <div class="login-form-group" style="margin-bottom: 0;">
+              <label for="signup_first_name">First Name</label>
+              <input type="text" id="signup_first_name" name="first_name" class="login-form-input"
+                placeholder="First Name" required>
+            </div>
+            <div class="login-form-group" style="margin-bottom: 0;">
+              <label for="signup_last_name">Last Name</label>
+              <input type="text" id="signup_last_name" name="last_name" class="login-form-input"
+                placeholder="Last Name">
+            </div>
+          </div>
+
+          <div class="login-form-group" style="margin-bottom: 16px;">
+            <label for="signup_email">Jindal Steel Email</label>
+            <input type="email" id="signup_email" name="email" class="login-form-input"
+              placeholder="name.surname@jindalsteel.in" required>
+          </div>
+
+          <div class="login-form-group" style="margin-bottom: 16px;">
+            <label for="signup_phone">Phone Number</label>
+            <input type="text" id="signup_phone" name="phone" class="login-form-input"
+              placeholder="Phone Number">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 22px;">
+            <div class="login-form-group" style="margin-bottom: 0;">
+              <label for="signup_department">Department</label>
+              <select id="signup_department" name="department" class="login-form-input" style="background: rgba(255, 255, 255, 0.05); color: #fff; cursor: pointer;">
+                <option value="" style="background: #020b18; color: #fff;">Select Department</option>
+                {% for d in departments %}
+                  <option value="{{ d.id }}" style="background: #020b18; color: #fff;">{{ d.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="login-form-group" style="margin-bottom: 0;">
+              <label for="signup_designation">Designation</label>
+              <select id="signup_designation" name="designation" class="login-form-input" style="background: rgba(255, 255, 255, 0.05); color: #fff; cursor: pointer;">
+                <option value="" style="background: #020b18; color: #fff;">Select Designation</option>
+                <option value="HOD" style="background: #020b18; color: #fff;">HOD</option>
+                <option value="SPOC" style="background: #020b18; color: #fff;">SPOC</option>
+                <option value="Engineer" style="background: #020b18; color: #fff;">Engineer</option>
+                <option value="Operator" style="background: #020b18; color: #fff;">Operator</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-submit">Get Access</button>
+        </form>
+
+        <div style="text-align: center; margin-top: 25px; font-size: 0.82rem;">
+          <a href="#" @click.prevent="currentForm = 'login'" style="color: #F47920; text-decoration: none; font-weight: 600;">Already have an account? Sign In</a>
+        </div>
       </div>
     </div>
   </div>

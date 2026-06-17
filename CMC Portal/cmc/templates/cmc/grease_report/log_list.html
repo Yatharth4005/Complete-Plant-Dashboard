@@ -1,0 +1,95 @@
+{% extends 'cmc/base_cmc.html' %}
+
+{% block cmc_breadcrumb %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">Grease Report</span>
+{% endblock %}
+
+{% block cmc_content %}
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div>
+      <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">🧴 Grease Analysis Register</h3>
+      <p style="color: var(--jspl-muted); font-size: 0.85rem;">Displaying lab analysis logs for grease samples and Ferrocheck values.</p>
+    </div>
+    
+    <div style="display: flex; gap: 10px;">
+      <a href="{% url 'cmc:grease_analytics' department.id %}" class="btn btn-secondary">📊 View Analytics</a>
+      <a href="{% url 'cmc:grease_new' department.id %}" class="btn btn-primary" style="background-color: var(--cmc-primary);">+ New Grease Analysis</a>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <form method="GET" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+      <div style="display: flex; flex-direction: column; width: 320px; max-width: 100%;">
+        <label style="font-size: 0.78rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Search Equipment</label>
+        <input type="text" name="q" value="{{ search_q }}" class="input-mono" style="height: 38px;" placeholder="Search equipment name...">
+      </div>
+
+      <div style="display: flex; flex-direction: column; width: 180px;">
+        <label style="font-size: 0.78rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Status</label>
+        <select name="status" class="input-mono" style="height: 38px; padding: 6px 12px;" onchange="this.form.submit()">
+          <option value="">All Statuses</option>
+          <option value="OK" {% if status_filter == 'OK' %}selected{% endif %}>OK</option>
+          <option value="NOT_OK" {% if status_filter == 'NOT_OK' %}selected{% endif %}>Not OK</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 24px; background-color: var(--cmc-primary);">Filter</button>
+    </form>
+  </div>
+
+  <!-- Table list -->
+  <div class="table-container">
+    <table class="kpi-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Equipment Description</th>
+          <th style="text-align: right;">Ferrocheck (PPM)</th>
+          <th>Status</th>
+          <th>Sent Date</th>
+          <th>Login</th>
+          <th>SAP Notif.</th>
+          <th>Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if not logs %}
+          <tr>
+            <td colspan="8" style="text-align: center; color: var(--jspl-muted); padding: 30px;">No grease analysis logs logged yet.</td>
+          </tr>
+        {% else %}
+          {% for log in logs %}
+            <tr>
+              <td style="font-family: 'JetBrains Mono', monospace;">{{ log.date|date:"Y-m-d" }}</td>
+              <td style="font-weight: 600; color: var(--jspl-navy);">{{ log.equipment.name }}</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: bold;">{{ log.ferrocheck|default:"—" }}</td>
+              <td>
+                <span class="health-badge {% if log.status == 'OK' %}health-ok{% else %}health-critical{% endif %}">
+                  {{ log.get_status_display }}
+                </span>
+              </td>
+              <td style="font-family: 'JetBrains Mono', monospace;">{{ log.sent_date|date:"Y-m-d"|default:"—" }}</td>
+              <td style="font-family: 'JetBrains Mono', monospace;">{{ log.login|default:"—" }}</td>
+              <td style="font-family: 'JetBrains Mono', monospace;">
+                {% if log.status == 'NOT_OK' %}
+                  {% with notif=log.sapnotification_set.first %}
+                    {% if notif %}
+                      <a href="{% url 'cmc:notification_tracker' department.id %}" style="color: var(--cmc-primary); font-weight: bold;">{{ notif.notification_no }}</a>
+                    {% else %}
+                      GREASE-{{ log.id }}
+                    {% endif %}
+                  {% endwith %}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td style="font-size: 0.85rem; color: var(--jspl-muted);">{{ log.remarks|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

@@ -267,6 +267,26 @@ a {
   z-index: 90;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   transition: width 0.3s;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+#portal-sidebar::-webkit-scrollbar {
+  width: 5px;
+  background: transparent;
+}
+
+#portal-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#portal-sidebar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+#portal-sidebar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4);
 }
 
 #portal-content {

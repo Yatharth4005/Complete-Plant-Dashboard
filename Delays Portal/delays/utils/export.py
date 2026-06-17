@@ -70,7 +70,10 @@ def generate_delays_pdf(department):
     story.append(Spacer(1, 10))
     
     # Query data
-    records = DelayRecord.objects.filter(department=department).order_by('-date', '-id')
+    if department.id == 0:
+        records = DelayRecord.objects.all().order_by('-date', '-id')
+    else:
+        records = DelayRecord.objects.filter(department=department).order_by('-date', '-id')
     total_mins = records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
     total_hrs = total_mins / 60.0
     total_events = records.count()

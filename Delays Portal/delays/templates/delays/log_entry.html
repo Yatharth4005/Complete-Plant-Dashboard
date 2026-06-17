@@ -146,10 +146,10 @@
             <a id="why-btn-edit" 
                href="{% if record.why == 'CAPA' %}/dashboard/capa/?action=new&delay_record_id={{ record.id }}{% else %}#{% endif %}" 
                class="btn-fill-sheet" 
-               onclick="{% if record.why == 'WHY/WHY' %}alert('WHY/WHY analysis sheet is coming soon! Under development.'); return false;{% elif record.why == 'NO' or not record.why %}return false;{% endif %}"
-               style="{% if record.why == 'NO' or not record.why %}display: none;{% else %}display: inline-flex;{% endif %} text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap;"
+               onclick="{% if record.why == 'NO' or not record.why %}return false;{% endif %}"
+               style="{% if record.why == 'CAPA' %}display: inline-flex;{% else %}display: none;{% endif %} text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap;"
                target="_blank">
-               {% if record.why == 'WHY/WHY' %}Fill WHY/WHY{% else %}Fill CAPA{% endif %}
+               Fill CAPA
             </a>
           {% endif %}
         </div>
@@ -209,15 +209,6 @@
             btn.innerText = 'Fill CAPA';
             btn.style.display = 'inline-flex';
             btn.onclick = null;
-        } else if (val === 'WHY/WHY') {
-            btn.href = '#';
-            btn.innerText = 'Fill WHY/WHY';
-            btn.style.display = 'inline-flex';
-            btn.onclick = function(e) {
-                e.preventDefault();
-                alert('WHY/WHY analysis sheet is coming soon! Under development.');
-                return false;
-            };
         } else {
             btn.style.display = 'none';
             btn.href = '#';

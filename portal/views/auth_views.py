@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from portal.models import AuditLog
+from portal.models import AuditLog, AccessRequest
 from tpm.models import Department
 
 def root_redirect(request):
@@ -53,7 +53,9 @@ def login_view(request):
             else:
                 error = 'Invalid email or password. Please try again.'
 
-    return render(request, 'portal/auth/login.html', {'error': error})
+    from tpm.models import Department
+    departments = Department.objects.all().order_by('name')
+    return render(request, 'portal/auth/login.html', {'error': error, 'departments': departments})
 
 def logout_view(request):
     if request.user.is_authenticated:
@@ -207,3 +209,63 @@ def reset_password_view(request, uidb64, token):
     else:
         messages.error(request, "The password reset link is invalid or has expired.")
         return redirect('portal:login')
+
+
+@require_http_methods(['POST'])
+def request_access_view(request):
+    """
+    Submits a signup request for an Admin to review.
+    """
+    email = request.POST.get('email', '').strip().lower()
+    first_name = request.POST.get('first_name', '').strip()
+    last_name = request.POST.get('last_name', '').strip()
+    phone = request.POST.get('phone', '').strip()
+    designation = request.POST.get('designation', '').strip()
+    dept_id = request.POST.get('department')
+
+    if not email or not first_name:
+        messages.error(request, "Email and First Name are required fields.")
+        return redirect('portal:login')
+
+    if not (email.endswith('@jindalsteel.in') or email.endswith('@jspl.com') or email.endswith('@jindalsteel.com')):
+        messages.error(request, "Please use your official @jindalsteel.in email address.")
+        return redirect('portal:login')
+
+    from tpm.models import User
+    # Check if a user with this email already exists
+    if User.objects.filter(email=email).exists() or User.objects.filter(username=email).exists():
+        messages.error(request, f"An account for '{email}' already exists. Please sign in or reset your password.")
+        return redirect('portal:login')
+
+    # Check if an access request already exists
+    existing_req = AccessRequest.objects.filter(email=email).first()
+    if existing_req:
+        if existing_req.status == AccessRequest.STATUS_PENDING:
+            messages.warning(request, f"A registration request for '{email}' is already pending approval.")
+        else:
+            messages.info(request, f"Your registration status is: {existing_req.get_status_display()}. Please contact your admin.")
+        return redirect('portal:login')
+
+    dept = None
+    if dept_id:
+        try:
+            dept = Department.objects.get(id=dept_id)
+        except Department.DoesNotExist:
+            pass
+
+    AccessRequest.objects.create(
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        phone=phone,
+        designation=designation,
+        department=dept,
+        status=AccessRequest.STATUS_PENDING
+    )
+
+    messages.success(
+        request, 
+        f"Access request submitted successfully for '{email}'. "
+        "The Plant Admin has been notified to grant you access."
+    )
+    return redirect('portal:login')

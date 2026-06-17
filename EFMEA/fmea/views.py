@@ -15,13 +15,26 @@ from .models import FMEARecord, FMEAAuditLog, FMEAExcelUpload, FMEACriticalSpare
 @dept_visibility_required
 @module_access_required('FMEA')
 def fmea_dashboard(request, dept_id):
-    active_dept = get_object_or_404(Department, id=dept_id)
-    
-    # Retrieve all Excel uploads for this department
-    uploads = FMEAExcelUpload.objects.filter(department=active_dept).order_by('-sheet_date', '-uploaded_at')
-    
-    # Retrieve all records for this department (combining all files & manual entries)
-    records = FMEARecord.objects.filter(department=active_dept)
+    if int(dept_id) == 0:
+        class DummyDept:
+            id = 0
+            name = "Overall Plant"
+            code = "Overall"
+        active_dept = DummyDept()
+        
+        # Retrieve all Excel uploads across all departments
+        uploads = FMEAExcelUpload.objects.all().order_by('-sheet_date', '-uploaded_at')
+        
+        # Retrieve all records across all departments
+        records = FMEARecord.objects.all()
+    else:
+        active_dept = get_object_or_404(Department, id=dept_id)
+        
+        # Retrieve all Excel uploads for this department
+        uploads = FMEAExcelUpload.objects.filter(department=active_dept).order_by('-sheet_date', '-uploaded_at')
+        
+        # Retrieve all records for this department (combining all files & manual entries)
+        records = FMEARecord.objects.filter(department=active_dept)
             
     # Calculate RPN categories (overall)
     total_risks = records.count()
@@ -41,16 +54,21 @@ def fmea_dashboard(request, dept_id):
         if recs.exists():
             sheet_comparisons.append({
                 'id': u.id,
-                'name': u.filename.replace('.xlsx', ''),
+                'name': u.filename.replace('.xlsx', '') + f" ({u.department.code})" if int(dept_id) == 0 else u.filename.replace('.xlsx', ''),
                 'date': u.sheet_date.strftime('%d.%m.%Y') if u.sheet_date else '—',
                 'total': recs.count(),
                 'high': recs.filter(rpn__gte=301).count(),
                 'medium': recs.filter(rpn__gte=101, rpn__lte=300).count(),
                 'low': recs.filter(rpn__gte=1, rpn__lte=100).count(),
+                'dept_id': u.department.id,
             })
             
     # 2. Check default manual list
-    manual_recs = FMEARecord.objects.filter(department=active_dept, excel_upload=None)
+    if int(dept_id) == 0:
+        manual_recs = FMEARecord.objects.none()
+    else:
+        manual_recs = FMEARecord.objects.filter(department=active_dept, excel_upload=None)
+        
     if manual_recs.exists():
         sheet_comparisons.append({
             'id': 'new_file',
@@ -60,6 +78,7 @@ def fmea_dashboard(request, dept_id):
             'high': manual_recs.filter(rpn__gte=301).count(),
             'medium': manual_recs.filter(rpn__gte=101, rpn__lte=300).count(),
             'low': manual_recs.filter(rpn__gte=1, rpn__lte=100).count(),
+            'dept_id': active_dept.id,
         })
         
     comp_labels = [item['name'] for item in sheet_comparisons]
@@ -73,7 +92,7 @@ def fmea_dashboard(request, dept_id):
     for item in sheet_comparisons:
         sid = item['id']
         if sid == 'new_file':
-            recs = FMEARecord.objects.filter(department=active_dept, excel_upload=None).order_by('sn', 'id')
+            recs = FMEARecord.objects.none() if int(dept_id) == 0 else FMEARecord.objects.filter(department=active_dept, excel_upload=None).order_by('sn', 'id')
         else:
             recs = FMEARecord.objects.filter(excel_upload_id=sid).order_by('sn', 'id')
         detailed_data[str(sid)] = [

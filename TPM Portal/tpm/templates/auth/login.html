@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login — Jindal Steel Operations Portal TPM Portal</title>
+  <link rel="icon" type="image/png" href="{% static 'portal/img/jindal_logo_dark.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap" rel="stylesheet">
@@ -87,7 +88,7 @@
 <body x-data="{ forgotModal: false }">
 
   <video class="video-background" autoplay muted loop playsinline>
-    <source src="{% static 'media/backgroundlogin.mp4' %}" type="video/mp4">
+    <source src="{% static 'media/backgroundlogin.mp4' %}?v=3" type="video/mp4">
   </video>
 
   <div class="login-container">

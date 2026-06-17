@@ -1,5 +1,5 @@
 from django.urls import path
-from cmc.views import dashboard_views, schedule_views, vibration_views, oil_test_views, wda_views, notification_views, report_views
+from cmc.views import dashboard_views, schedule_views, vibration_views, oil_test_views, wda_views, notification_views, report_views, grease_report_views
 
 app_name = 'cmc'
 
@@ -21,6 +21,11 @@ urlpatterns = [
     path('department/<int:dept_id>/oil-test/', oil_test_views.log_list, name='oil_list'),
     path('department/<int:dept_id>/oil-test/new/', oil_test_views.log_entry, name='oil_new'),
     path('department/<int:dept_id>/oil-test/analytics/', oil_test_views.analytics, name='oil_analytics'),
+
+    # Grease Report
+    path('department/<int:dept_id>/grease-report/', grease_report_views.log_list, name='grease_list'),
+    path('department/<int:dept_id>/grease-report/new/', grease_report_views.log_entry, name='grease_new'),
+    path('department/<int:dept_id>/grease-report/analytics/', grease_report_views.analytics, name='grease_analytics'),
 
     # WDA
     path('department/<int:dept_id>/wda/', wda_views.log_list, name='wda_list'),

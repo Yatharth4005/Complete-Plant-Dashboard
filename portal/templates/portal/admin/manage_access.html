@@ -8,14 +8,108 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-container">
+<div class="page-container" x-data="{ 
+  addModalOpen: false, 
+  userRole: 'USER',
+  inviteUser: { 
+    email: '', 
+    first_name: '', 
+    last_name: '', 
+    phone: '', 
+    designation: '', 
+    department_id: '', 
+    request_id: '' 
+  } 
+}">
   
-  <div class="dashboard-header-row">
+  <div class="dashboard-header-row" style="display: flex; justify-content: space-between; align-items: center;">
     <div>
       <h1 class="portal-page-title">🔑 Access Control Matrix</h1>
       <p class="portal-page-subtitle">Configure module permissions per user per department in real time.</p>
     </div>
+    <button type="button" 
+            class="btn btn-primary" 
+            style="padding: 10px 18px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;"
+            @click="
+              inviteUser = { email: '', first_name: '', last_name: '', phone: '', designation: '', department_id: '', request_id: '' };
+              userRole = 'USER';
+              addModalOpen = true;
+            ">
+      ➕ Add User
+    </button>
   </div>
+
+  {% if pending_requests %}
+  <div class="card" style="margin-bottom: 24px; border-left: 4px solid var(--jspl-blue); background: #f8fafc; padding: 20px; flex-shrink: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <h3 style="margin: 0; color: var(--jspl-navy); font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+        <span>🔔</span> Pending Access Requests ({{ pending_requests|length }})
+      </h3>
+    </div>
+    
+    <div class="table-responsive" style="margin: 0; border: 1px solid var(--jspl-border); border-radius: 8px; background: white; max-height: 250px; overflow-y: auto;">
+      <table class="matrix-table" style="margin: 0; width: 100%;">
+        <thead>
+          <tr style="background: var(--jspl-light-blue); color: var(--jspl-navy);">
+            <th style="color: var(--jspl-navy); background: var(--jspl-light-blue) !important; padding: 10px 16px; font-weight: 600; text-align: left; font-size: 12px; border-bottom: 1px solid var(--jspl-border); position: sticky; top: 0; z-index: 5;">Name</th>
+            <th style="color: var(--jspl-navy); background: var(--jspl-light-blue) !important; padding: 10px 16px; font-weight: 600; text-align: left; font-size: 12px; border-bottom: 1px solid var(--jspl-border); position: sticky; top: 0; z-index: 5;">Email</th>
+            <th style="color: var(--jspl-navy); background: var(--jspl-light-blue) !important; padding: 10px 16px; font-weight: 600; text-align: left; font-size: 12px; border-bottom: 1px solid var(--jspl-border); position: sticky; top: 0; z-index: 5;">Phone</th>
+            <th style="color: var(--jspl-navy); background: var(--jspl-light-blue) !important; padding: 10px 16px; font-weight: 600; text-align: left; font-size: 12px; border-bottom: 1px solid var(--jspl-border); position: sticky; top: 0; z-index: 5;">Requested Dept</th>
+            <th style="color: var(--jspl-navy); background: var(--jspl-light-blue) !important; padding: 10px 16px; font-weight: 600; text-align: left; font-size: 12px; border-bottom: 1px solid var(--jspl-border); position: sticky; top: 0; z-index: 5;">Designation</th>
+            <th style="color: var(--jspl-navy); background: var(--jspl-light-blue) !important; padding: 10px 16px; font-weight: 600; text-align: left; font-size: 12px; border-bottom: 1px solid var(--jspl-border); position: sticky; top: 0; z-index: 5;">Requested On</th>
+            <th style="color: var(--jspl-navy); background: var(--jspl-light-blue) !important; padding: 10px 16px; font-weight: 600; text-align: center; font-size: 12px; border-bottom: 1px solid var(--jspl-border); position: sticky; top: 0; z-index: 5; width: 180px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in pending_requests %}
+            <tr style="border-bottom: 1px solid var(--jspl-border);">
+              <td style="padding: 12px 16px; font-weight: bold; color: var(--jspl-navy);">{{ req.first_name }} {{ req.last_name }}</td>
+              <td style="padding: 12px 16px; color: var(--jspl-text);">{{ req.email }}</td>
+              <td style="padding: 12px 16px; color: var(--jspl-text);">{{ req.phone|default:"-" }}</td>
+              <td style="padding: 12px 16px; color: var(--jspl-text);">
+                {% if req.department %}
+                  🏢 {{ req.department.name }}
+                {% else %}
+                  <span style="color: var(--jspl-muted);">None</span>
+                {% endif %}
+              </td>
+              <td style="padding: 12px 16px; color: var(--jspl-text);">{{ req.designation|default:"-" }}</td>
+              <td style="padding: 12px 16px; font-size: 0.85rem; color: var(--jspl-muted);">{{ req.requested_at|date:"d M Y, H:i" }}</td>
+              <td style="padding: 12px 16px; text-align: center; vertical-align: middle;">
+                <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                  <button type="button" 
+                          class="btn btn-primary" 
+                          style="padding: 6px 14px; font-size: 0.8rem; border: none; font-weight: 600;"
+                          @click="
+                            inviteUser.email = '{{ req.email|escapejs }}';
+                            inviteUser.first_name = '{{ req.first_name|escapejs }}';
+                            inviteUser.last_name = '{{ req.last_name|escapejs }}';
+                            inviteUser.phone = '{{ req.phone|escapejs }}';
+                            inviteUser.designation = '{{ req.designation|escapejs }}';
+                            inviteUser.department_id = '{{ req.department.id|default:'' }}';
+                            inviteUser.request_id = '{{ req.id }}';
+                            userRole = 'USER';
+                            addModalOpen = true;
+                          ">
+                    Approve
+                  </button>
+                  <form method="post" action="{% url 'portal:reject_access_request' req.id %}" style="margin: 0;" onsubmit="return confirm('Are you sure you want to reject and delete this access request?');">
+                    {% csrf_token %}
+                    <button type="submit" 
+                            class="btn" 
+                            style="padding: 6px 14px; font-size: 0.8rem; background: #fee2e2; color: #dc2626 !important; border: 1px solid rgba(220, 38, 38, 0.15);">
+                      Reject
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="card matrix-card">
     <div class="table-responsive">
@@ -31,48 +125,62 @@
         </thead>
         <tbody>
           {% for u_data in users_data %}
-            {% for row in u_data.departments %}
-              <tr class="{% if forloop.parentloop.counter|divisibleby:2 %}stripe-row{% endif %}">
-                {% if forloop.first %}
-                  <td class="matrix-user-cell text-bold" rowspan="{{ u_data.departments|length }}">
-                    {{ u_data.user.get_display_name }}
-                    <div class="matrix-user-email">{{ u_data.user.email }}</div>
-                    {% if u_data.user.is_plant_admin %}
-                      <span class="badge admin" style="margin-top:5px;display:inline-block;">PLANT ADMIN</span>
-                    {% endif %}
-
-                    <!-- Admin action buttons -->
-                    <div class="admin-action-btns" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+            <!-- Collapsible User Header Row -->
+            <tr class="user-header-row" data-user-id="{{ u_data.user.id }}" onclick="toggleUserRows('{{ u_data.user.id }}')" style="cursor: pointer; background: var(--jspl-light-blue); border-bottom: 1px solid var(--jspl-border);">
+              <td colspan="10" style="padding: 12px 18px; vertical-align: middle;">
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="toggle-arrow" id="arrow-{{ u_data.user.id }}" style="font-size: 11px; transition: transform 0.2s; display: inline-block; color: var(--jspl-muted);">▶</span>
+                    <div>
+                      <span style="color: var(--jspl-navy); font-weight: 700; font-size: 0.95rem;">{{ u_data.user.get_display_name }}</span>
+                      <span style="color: var(--jspl-muted); font-size: 0.85rem; margin-left: 8px;">({{ u_data.user.email }})</span>
                       {% if u_data.user.is_plant_admin %}
-                        <!-- Admin: only Revoke -->
-                        <button type="button"
-                          class="btn-admin-action btn-revoke"
-                          onclick="openAdminConfirm('revoke', '{{ u_data.user.id }}', '{{ u_data.user.get_display_name }}')">
-                          Revoke
-                        </button>
-                      {% else %}
-                        <!-- Not admin: both buttons -->
-                        <button type="button"
-                          class="btn-admin-action btn-make-admin"
-                          onclick="openAdminConfirm('promote', '{{ u_data.user.id }}', '{{ u_data.user.get_display_name }}')">
-                          Make Admin
-                        </button>
-                        <button type="button"
-                          class="btn-admin-action btn-revoke"
-                          onclick="openAdminConfirm('revoke', '{{ u_data.user.id }}', '{{ u_data.user.get_display_name }}')">
-                          Revoke
-                        </button>
+                        <span class="badge admin" style="margin-left: 8px; display: inline-block; vertical-align: middle;">PLANT ADMIN</span>
                       {% endif %}
                     </div>
-                  </td>
-                {% endif %}
-                <td class="matrix-dept-cell text-bold">
+                  </div>
+                  
+                  <!-- Admin action buttons -->
+                  <div class="admin-action-btns" style="display:flex; gap:6px;" onclick="event.stopPropagation();">
+                    {% if u_data.user.is_plant_admin %}
+                      <!-- Admin: only Revoke -->
+                      <button type="button"
+                        class="btn-admin-action btn-revoke"
+                        onclick="openAdminConfirm('revoke', '{{ u_data.user.id }}', '{{ u_data.user.get_display_name }}')">
+                        Revoke Admin
+                      </button>
+                    {% else %}
+                      <!-- Not admin: both buttons -->
+                      <button type="button"
+                        class="btn-admin-action btn-make-admin"
+                        onclick="openAdminConfirm('promote', '{{ u_data.user.id }}', '{{ u_data.user.get_display_name }}')">
+                        Make Admin
+                      </button>
+                      <button type="button"
+                        class="btn-admin-action btn-revoke"
+                        onclick="openAdminConfirm('revoke', '{{ u_data.user.id }}', '{{ u_data.user.get_display_name }}')">
+                        Revoke
+                      </button>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+            </tr>
+            
+            <!-- Department access rows (initially collapsed) -->
+            {% for row in u_data.departments %}
+              <tr class="user-dept-row-{{ u_data.user.id }} dept-row-item {% if forloop.counter|divisibleby:2 %}stripe-row{% endif %}" style="display: none; border-bottom: 1px solid var(--jspl-border);">
+                <!-- Indent spacer aligned with User column -->
+                <td class="matrix-user-cell-spacer" style="border-right: 1px solid var(--jspl-border); width: 40px; background: #fcfcfc; text-align: center; color: var(--jspl-muted); font-size: 14px; font-weight: bold; vertical-align: middle;">
+                  ↳
+                </td>
+                <td class="matrix-dept-cell text-bold" style="vertical-align: middle;">
                   {{ row.dept.name }} ({{ row.dept.code }})
                 </td>
                 
                 {% for col in row.modules %}
                   <td class="matrix-cell text-center" 
-                      id="cell-{{ u_data.user.id }}-{{ row.dept.id }}-{{ col.module.key }}">
+                      id="cell-{{ u_data.user.id }}-{{ row.dept.id }}-{{ col.module.key }}" style="vertical-align: middle;">
                     
                     {% if u_data.user.is_plant_admin %}
                       <span class="text-success text-bold">Full Access</span>
@@ -90,7 +198,95 @@
     </div>
   </div>
 
+<!-- ── Add User Modal ────────────────────────────────────────────────── -->
+<div x-show="addModalOpen" 
+     x-transition 
+     x-cloak
+     style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;">
+  
+  <div @click.outside="addModalOpen = false" 
+       style="background: white; border-radius: 16px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--jspl-border); box-sizing: border-box;">
+    
+    <!-- Modal Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--jspl-border);">
+      <h3 style="color: var(--jspl-navy); margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">➕ Add User & Invite</h3>
+      <button @click="addModalOpen = false" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--jspl-muted); line-height: 1; padding: 0;">&times;</button>
+    </div>
+
+    <!-- Modal Body -->
+    <form action="{% url 'portal:admin_create_user' %}" method="POST" style="padding: 24px; text-align: left;">
+      {% csrf_token %}
+      
+      <!-- Hidden request_id to resolve access request -->
+      <input type="hidden" name="request_id" x-model="inviteUser.request_id">
+      
+      <!-- Email Address -->
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Jindal Steel Email Address</label>
+        <input type="email" name="email" class="input-mono" placeholder="username@jindalsteel.in" required style="width: 100%; height: 38px;" x-model="inviteUser.email">
+        <small style="color: var(--jspl-muted); font-size: 0.75rem; display: block; margin-top: 4px;">An invitation email will be sent to this address containing a password-creation link.</small>
+      </div>
+
+      <!-- First Name & Last Name -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 16px;">
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">First Name</label>
+          <input type="text" name="first_name" class="input-mono" placeholder="First Name" required style="width: 100%; height: 38px;" x-model="inviteUser.first_name">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Last Name</label>
+          <input type="text" name="last_name" class="input-mono" placeholder="Last Name" style="width: 100%; height: 38px;" x-model="inviteUser.last_name">
+        </div>
+      </div>
+
+      <!-- Phone Number -->
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Phone Number</label>
+        <input type="text" name="phone" class="input-mono" placeholder="Phone Number" style="width: 100%; height: 38px;" x-model="inviteUser.phone">
+      </div>
+
+      <!-- Department & System Role -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">System Role</label>
+          <select name="role" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;" x-model="userRole">
+            <option value="USER">Department User</option>
+            <option value="ADMIN">Administrator</option>
+          </select>
+        </div>
+        <div x-show="userRole === 'USER'">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Department</label>
+          <select name="department" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;" x-model="inviteUser.department_id">
+            <option value="">No Department</option>
+            {% for d in departments %}
+              <option value="{{ d.id }}">🏢 {{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Designation -->
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Designation</label>
+        <select name="designation" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;" x-model="inviteUser.designation">
+          <option value="">No Designation</option>
+          <option value="HOD">HOD</option>
+          <option value="SPOC">SPOC</option>
+          <option value="Engineer">Engineer</option>
+          <option value="Operator">Operator</option>
+        </select>
+      </div>
+
+      <!-- Form Actions -->
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" @click="addModalOpen = false" class="btn" style="background-color: var(--jspl-gray); color: var(--jspl-text) !important; border: 1px solid var(--jspl-border);">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="border: none; cursor: pointer;">Add & Invite User</button>
+      </div>
+    </form>
+  </div>
 </div>
+
+</div> <!-- Closes .page-container -->
 
 <!-- ── Confirmation Modal ────────────────────────────────────────────── -->
 <div id="adminConfirmOverlay" class="confirm-overlay" onclick="closeAdminConfirm(event)">
@@ -113,6 +309,9 @@
 
 <!-- ── Modal styles (scoped) ──────────────────────────────────────────── -->
 <style>
+  [x-cloak] {
+    display: none !important;
+  }
   /* Freeze page scroll and scroll only matrix table content */
   html, body {
     height: 100vh !important;
@@ -265,6 +464,16 @@
   .btn-confirm-proceed:hover { opacity: .88; }
   .btn-confirm-proceed.is-promote { background: var(--jspl-blue); }
   .btn-confirm-proceed.is-revoke  { background: var(--status-red); }
+
+  /* Interactive user header row hover state */
+  .user-header-row:hover {
+    background-color: var(--jspl-light-blue) !important;
+    filter: brightness(0.96);
+  }
+  .toggle-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease-in-out;
+  }
 </style>
 
 <!-- ── Modal JS ───────────────────────────────────────────────────────── -->
@@ -302,6 +511,21 @@
     if (event && event.target !== document.getElementById('adminConfirmOverlay')) return;
     document.getElementById('adminConfirmOverlay').classList.remove('is-open');
     document.body.style.overflow = '';
+  }
+
+  function toggleUserRows(userId) {
+    const rows = document.querySelectorAll('.user-dept-row-' + userId);
+    const arrow = document.getElementById('arrow-' + userId);
+    if (rows.length === 0) return;
+    
+    const isHidden = rows[0].style.display === 'none';
+    rows.forEach(row => {
+      row.style.display = isHidden ? 'table-row' : 'none';
+    });
+    
+    if (arrow) {
+      arrow.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+    }
   }
 </script>
 {% endblock %}

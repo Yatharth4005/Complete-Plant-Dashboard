@@ -61,3 +61,35 @@ class AuditLog(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
+
+
+# ─────────────────────────────────────────────
+# ACCESS SIGN-UP REQUESTS
+# ─────────────────────────────────────────────
+class AccessRequest(models.Model):
+    STATUS_PENDING = 'PENDING'
+    STATUS_APPROVED = 'APPROVED'
+    STATUS_REJECTED = 'REJECTED'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_REJECTED, 'Rejected')
+    ]
+
+    email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    department = models.ForeignKey(Department, null=True, blank=True, on_delete=models.SET_NULL)
+    designation = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+        verbose_name = 'Access Request'
+        verbose_name_plural = 'Access Requests'
+
+    def __str__(self):
+        return f"{self.email} ({self.status})"

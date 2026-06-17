@@ -8,130 +8,384 @@
 {% endblock %}
 
 {% block content %}
-<div class="governance-container">
+<div class="governance-container" x-data="structureEditor">
   
-  <div style="margin-bottom: 24px;">
-    <h2>⚖️ TPM Governance Structure</h2>
-    <p style="color: var(--jspl-muted); font-size: 0.9rem; margin-top: 4px;">
-      Organisational hierarchy and key responsibilities for the TPM implementation review cycle.
-    </p>
+  <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div>
+      <h2 style="color: var(--jspl-navy); font-weight: 700; margin: 0;">⚖️ TPM Governance Structure</h2>
+      <p style="color: var(--jspl-muted); font-size: 0.9rem; margin-top: 4px;">
+        Organisational hierarchy and key responsibilities for the TPM implementation review cycle.
+      </p>
+    </div>
+    {% if request.user.is_admin %}
+    <div>
+      <button class="btn" 
+              :class="editMode ? 'btn-secondary' : 'btn-primary'" 
+              @click="editMode = !editMode" 
+              style="font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: none; padding: 0 16px; cursor: pointer; color: white !important;"
+              :style="editMode ? 'background-color: var(--jspl-muted) !important;' : 'background-color: var(--jspl-navy) !important;'">
+        <span x-text="editMode ? '💾 Exit Edit Mode' : '🛠️ Edit Hierarchy'"></span>
+      </button>
+    </div>
+    {% endif %}
   </div>
 
-  <!-- FLOWCHART SECTION -->
-  <div class="card" style="padding: 30px; margin-bottom: 30px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm);">
-    <h3 style="margin-bottom: 30px; text-align: center; color: var(--jspl-navy); font-weight: 700; letter-spacing: -0.5px;">
-      📐 Implementation Hierarchy Flowchart
-    </h3>
-
-    <div class="governance-flowchart">
+  <div class="structure-layout-grid" :class="{ 'editing': editMode }">
+    
+    <!-- FLOWCHART COLUMN -->
+    <div class="flowchart-column" style="min-width: 0; width: 100%;">
       
-      <!-- LEVEL 1: Project Sponsor -->
-      <div class="chart-row">
-        <div class="chart-node node-sponsor">
-          <div class="node-badge">PROJECT SPONSOR</div>
-          <div class="node-name">Executive Director</div>
-          <div class="node-desc">Unit Head — JSP Raigarh++</div>
-        </div>
-      </div>
+      <!-- FLOWCHART SECTION -->
+      <div class="card" style="padding: 30px; margin-bottom: 30px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm); overflow-x: auto;">
+        <h3 style="margin-bottom: 30px; text-align: center; color: var(--jspl-navy); font-weight: 700; letter-spacing: -0.5px;">
+          📐 Implementation Hierarchy Flowchart
+        </h3>
 
-      <div class="connector-line-vert"></div>
-
-      <!-- LEVEL 2: Steering Committee -->
-      <div class="chart-row">
-        <div class="chart-node node-steering">
-          <div class="node-badge">STEERING COMMITTEE</div>
-          <div class="node-split-grid">
-            <div class="split-cell">
-              <strong>Chairman</strong>
-              <div class="name-text">Mr. Anshoo Raina</div>
-            </div>
-            <div class="split-cell" style="border-left: 1px solid rgba(255,255,255,0.25);">
-              <strong>Vice Chairman</strong>
-              <div class="name-text">Mr. Lalit Goyal</div>
-            </div>
-          </div>
-          <div class="node-footer-list">
-            <strong>Committee Members:</strong>
-            <span>Mr. Amit Khokhar, Mr. Ankit Bansal, Mr. Praveen George, Mr. Pinaki Bhattacharjee, Mr. Moreshwar Borkar, Mr. Pradeep Kumar Agrawal, Mr. Sanjay Sharma</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="connector-line-vert"></div>
-
-      <!-- LEVEL 3: Split Grid for Coordinators & Area HODs -->
-      <div class="chart-split-wrapper">
-        <div class="connector-line-horiz"></div>
-        <div class="split-columns-grid">
+        <div class="governance-flowchart">
           
-          <!-- Column Left: TPM Coordinators -->
-          <div class="split-column">
-            <div class="connector-line-vert-half"></div>
-            <div class="chart-node node-coordinators">
-              <div class="node-badge">TPM COORDINATORS</div>
-              <div class="coordinator-profile" style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 12px;">
-                <div class="name-text">Mr. Raj Bhushan</div>
-                <div class="desc-text">Pillar Coordinator</div>
+          <!-- LEVEL 1: Project Sponsor -->
+          <div class="chart-row">
+            <div class="chart-node node-sponsor" 
+                 :class="{ 'drop-active': activeDropZone === 'sponsor' }"
+                 @dragover.prevent
+                 @dragenter="activeDropZone = 'sponsor'"
+                 @dragleave="activeDropZone = ''"
+                 @drop="handleDrop($event, 'sponsor')">
+              <div class="node-badge">PROJECT SPONSOR</div>
+              <div class="node-name" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                {% if assignments.sponsor %}
+                  <span>{{ assignments.sponsor.0.user.get_display_name }}</span>
+                  <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.sponsor.0.user.id }}, 'sponsor')" class="remove-btn" title="Remove">&times;</button>
+                {% else %}
+                  <span>Executive Director</span>
+                {% endif %}
               </div>
-              <div class="coordinator-profile">
-                <div class="name-text">Ms. Raunika</div>
-                <div class="desc-text">Workstation / Cell Team Coordinator</div>
+              <div class="node-desc">
+                {% if assignments.sponsor %}
+                  {{ assignments.sponsor.0.user.designation|default:"Executive Director" }} — Unit Head (JSP Raigarh++)
+                {% else %}
+                  Unit Head — JSP Raigarh++
+                {% endif %}
+              </div>
+              
+              {% if request.user.is_admin %}
+              <div x-show="editMode" style="margin-top: 10px;">
+                <select @change="assignSelect($event, 'sponsor')" class="assign-select">
+                  <option value="">+ Assign Person</option>
+                  {% for u in all_users %}
+                    <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="connector-line-vert"></div>
+
+          <!-- LEVEL 2: Steering Committee -->
+          <div class="chart-row">
+            <div class="chart-node node-steering">
+              <div class="node-badge">STEERING COMMITTEE</div>
+              
+              <div class="node-split-grid">
+                <!-- Chairman Cell -->
+                <div class="split-cell"
+                     :class="{ 'drop-active': activeDropZone === 'chairman' }"
+                     @dragover.prevent
+                     @dragenter="activeDropZone = 'chairman'"
+                     @dragleave="activeDropZone = ''"
+                     @drop="handleDrop($event, 'chairman')">
+                  <strong>Chairman</strong>
+                  <div class="name-text">
+                    {% if assignments.chairman %}
+                      <span style="display: inline-flex; align-items: center; gap: 4px;">
+                        {{ assignments.chairman.0.user.get_display_name }}
+                        <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.chairman.0.user.id }}, 'chairman')" class="remove-btn">&times;</button>
+                      </span>
+                    {% else %}
+                      <span>Mr. Anshoo Raina</span>
+                    {% endif %}
+                  </div>
+                  
+                  {% if request.user.is_admin %}
+                  <div x-show="editMode" style="margin-top: 6px;">
+                    <select @change="assignSelect($event, 'chairman')" class="assign-select">
+                      <option value="">+ Assign Chairman</option>
+                      {% for u in all_users %}
+                        <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% endif %}
+                </div>
+                
+                <!-- Vice Chairman Cell -->
+                <div class="split-cell" style="border-left: 1px solid rgba(255,255,255,0.25);"
+                     :class="{ 'drop-active': activeDropZone === 'vice_chairman' }"
+                     @dragover.prevent
+                     @dragenter="activeDropZone = 'vice_chairman'"
+                     @dragleave="activeDropZone = ''"
+                     @drop="handleDrop($event, 'vice_chairman')">
+                  <strong>Vice Chairman</strong>
+                  <div class="name-text">
+                    {% if assignments.vice_chairman %}
+                      <span style="display: inline-flex; align-items: center; gap: 4px;">
+                        {{ assignments.vice_chairman.0.user.get_display_name }}
+                        <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.vice_chairman.0.user.id }}, 'vice_chairman')" class="remove-btn">&times;</button>
+                      </span>
+                    {% else %}
+                      <span>Mr. Lalit Goyal</span>
+                    {% endif %}
+                  </div>
+                  
+                  {% if request.user.is_admin %}
+                  <div x-show="editMode" style="margin-top: 6px;">
+                    <select @change="assignSelect($event, 'vice_chairman')" class="assign-select">
+                      <option value="">+ Assign Vice Chairman</option>
+                      {% for u in all_users %}
+                        <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <!-- Committee Members Box -->
+              <div class="node-footer-list"
+                   :class="{ 'drop-active': activeDropZone === 'committee_member' }"
+                   @dragover.prevent
+                   @dragenter="activeDropZone = 'committee_member'"
+                   @dragleave="activeDropZone = ''"
+                   @drop="handleDrop($event, 'committee_member')">
+                <strong>Committee Members:</strong>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-height: 20px;">
+                  {% if assignments.committee_member %}
+                    {% for a in assignments.committee_member %}
+                      <span class="member-tag">
+                        {{ a.user.get_display_name }}
+                        <button type="button" x-show="editMode" @click.stop="unassign({{ a.user.id }}, 'committee_member')" class="tag-remove-btn">&times;</button>
+                      </span>
+                    {% endfor %}
+                  {% else %}
+                    <span style="font-size: 0.76rem; opacity: 0.9;">Mr. Amit Khokhar, Mr. Ankit Bansal, Mr. Praveen George, Mr. Pinaki Bhattacharjee, Mr. Moreshwar Borkar, Mr. Pradeep Kumar Agrawal, Mr. Sanjay Sharma</span>
+                  {% endif %}
+                </div>
+                
+                {% if request.user.is_admin %}
+                <div x-show="editMode" style="margin-top: 8px;">
+                  <select @change="assignSelect($event, 'committee_member')" class="assign-select" style="max-width: 200px;">
+                    <option value="">+ Add Committee Member</option>
+                    {% for u in all_users %}
+                      <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                {% endif %}
+              </div>
+              
+            </div>
+          </div>
+
+          <div class="connector-line-vert"></div>
+
+          <!-- LEVEL 3: Split Grid for Coordinators & Area HODs -->
+          <div class="chart-split-wrapper">
+            <div class="connector-line-horiz"></div>
+            <div class="split-columns-grid">
+              
+              <!-- Column Left: TPM Coordinators -->
+              <div class="split-column">
+                <div class="connector-line-vert-half"></div>
+                <div class="chart-node node-coordinators">
+                  <div class="node-badge">TPM COORDINATORS</div>
+                  
+                  <!-- Pillar Coordinator -->
+                  <div class="coordinator-profile" style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 12px;"
+                       :class="{ 'drop-active': activeDropZone === 'coordinator_pillar' }"
+                       @dragover.prevent
+                       @dragenter="activeDropZone = 'coordinator_pillar'"
+                       @dragleave="activeDropZone = ''"
+                       @drop="handleDrop($event, 'coordinator_pillar')">
+                    <div class="desc-text" style="font-weight: bold; opacity: 0.8; margin-bottom: 2px;">Pillar Coordinator</div>
+                    <div class="name-text">
+                      {% if assignments.coordinator_pillar %}
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                          {{ assignments.coordinator_pillar.0.user.get_display_name }}
+                          <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.coordinator_pillar.0.user.id }}, 'coordinator_pillar')" class="remove-btn">&times;</button>
+                        </span>
+                      {% else %}
+                        <span>Mr. Raj Bhushan</span>
+                      {% endif %}
+                    </div>
+                    
+                    {% if request.user.is_admin %}
+                    <div x-show="editMode" style="margin-top: 6px;">
+                      <select @change="assignSelect($event, 'coordinator_pillar')" class="assign-select">
+                        <option value="">+ Assign Pillar Coordinator</option>
+                        {% for u in all_users %}
+                          <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    {% endif %}
+                  </div>
+                  
+                  <!-- Workstation Coordinator -->
+                  <div class="coordinator-profile"
+                       :class="{ 'drop-active': activeDropZone === 'coordinator_cell' }"
+                       @dragover.prevent
+                       @dragenter="activeDropZone = 'coordinator_cell'"
+                       @dragleave="activeDropZone = ''"
+                       @drop="handleDrop($event, 'coordinator_cell')">
+                    <div class="desc-text" style="font-weight: bold; opacity: 0.8; margin-bottom: 2px;">Workstation / Cell Team Coordinator</div>
+                    <div class="name-text">
+                      {% if assignments.coordinator_cell %}
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                          {{ assignments.coordinator_cell.0.user.get_display_name }}
+                          <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.coordinator_cell.0.user.id }}, 'coordinator_cell')" class="remove-btn">&times;</button>
+                        </span>
+                      {% else %}
+                        <span>Ms. Raunika</span>
+                      {% endif %}
+                    </div>
+                    
+                    {% if request.user.is_admin %}
+                    <div x-show="editMode" style="margin-top: 6px;">
+                      <select @change="assignSelect($event, 'coordinator_cell')" class="assign-select">
+                        <option value="">+ Assign WS Coordinator</option>
+                        {% for u in all_users %}
+                          <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Column Right: HODs, Cell Leaders, Workstation Leads -->
+              <div class="split-column">
+                <div class="connector-line-vert-half"></div>
+                
+                <!-- HOD Node -->
+                <div class="chart-node node-hod"
+                     :class="{ 'drop-active': activeDropZone === 'hod' }"
+                     @dragover.prevent
+                     @dragenter="activeDropZone = 'hod'"
+                     @dragleave="activeDropZone = ''"
+                     @drop="handleDrop($event, 'hod')">
+                  <div class="node-badge">HOD / AREA OWNERS</div>
+                  <div class="hod-names-grid">
+                    {% if assignments.hod %}
+                      {% for a in assignments.hod %}
+                        <span class="hod-tag">
+                          {{ a.user.get_display_name }}
+                          <button type="button" x-show="editMode" @click.stop="unassign({{ a.user.id }}, 'hod')" class="tag-remove-btn">&times;</button>
+                        </span>
+                      {% endfor %}
+                    {% else %}
+                      <span>Mr. Sandeep Tyagi</span>
+                      <span>Mr. Saptarsi Sengupta</span>
+                      <span>Mr. Varun Mishra</span>
+                      <span>Mr. Satyabrata Sahu</span>
+                      <span>Mr. Harsh Pandey</span>
+                      <span>Mr. Gunjan Jha</span>
+                      <span>Mr. Ch VSS Kumar</span>
+                      <span>Mr. Deepak Upadhyay</span>
+                      <span>Mr. Pawan Vij</span>
+                    {% endif %}
+                  </div>
+                  
+                  {% if request.user.is_admin %}
+                  <div x-show="editMode" style="margin-top: 10px;">
+                    <select @change="assignSelect($event, 'hod')" class="assign-select" style="max-width: 200px; margin: 0 auto; display: block;">
+                      <option value="">+ Add HOD</option>
+                      {% for u in all_users %}
+                        <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% endif %}
+                </div>
+
+                <div class="connector-line-vert"></div>
+
+                <!-- Cell Leader Node -->
+                <div class="chart-node node-cell">
+                  <div class="node-badge">CELL LEADERS</div>
+                  <div class="name-text">Departmental Cell Teams</div>
+                  <div class="desc-text">Technical guidance & cross-functional coordination</div>
+                </div>
+
+                <div class="connector-line-vert"></div>
+
+                <!-- Workstation Lead Node -->
+                <div class="chart-node node-workstation">
+                  <div class="node-badge">WORKSTATION LEADS</div>
+                  <div class="name-text">Workstation KPI SPOCs</div>
+                  <div class="desc-text">KPI targets, zero leakage, timelines</div>
+                </div>
+
+                <div class="connector-line-vert"></div>
+
+                <!-- Workstation / Cell Team Node -->
+                <div class="chart-node node-workforce">
+                  <div class="node-badge">WORKSTATION / CELL TEAMS</div>
+                  <div class="name-text">Ground Execution Workforce</div>
+                  <div class="desc-text">5S, abnormality RCA, target completion</div>
+                </div>
+
               </div>
             </div>
           </div>
 
-          <!-- Column Right: HODs, Cell Leaders, Workstation Leads -->
-          <div class="split-column">
-            <div class="connector-line-vert-half"></div>
-            
-            <!-- HOD Node -->
-            <div class="chart-node node-hod">
-              <div class="node-badge">HOD / AREA OWNERS</div>
-              <div class="hod-names-grid">
-                <span>Mr. Sandeep Tyagi</span>
-                <span>Mr. Saptarsi Sengupta</span>
-                <span>Mr. Varun Mishra</span>
-                <span>Mr. Satyabrata Sahu</span>
-                <span>Mr. Harsh Pandey</span>
-                <span>Mr. Gunjan Jha</span>
-                <span>Mr. Ch VSS Kumar</span>
-                <span>Mr. Deepak Upadhyay</span>
-                <span>Mr. Pawan Vij</span>
-              </div>
-            </div>
-
-            <div class="connector-line-vert"></div>
-
-            <!-- Cell Leader Node -->
-            <div class="chart-node node-cell">
-              <div class="node-badge">CELL LEADERS</div>
-              <div class="name-text">Departmental Cell Teams</div>
-              <div class="desc-text">Technical guidance & cross-functional coordination</div>
-            </div>
-
-            <div class="connector-line-vert"></div>
-
-            <!-- Workstation Lead Node -->
-            <div class="chart-node node-workstation">
-              <div class="node-badge">WORKSTATION LEADS</div>
-              <div class="name-text">Workstation KPI SPOCs</div>
-              <div class="desc-text">KPI targets, zero leakage, timelines</div>
-            </div>
-
-            <div class="connector-line-vert"></div>
-
-            <!-- Workstation / Cell Team Node -->
-            <div class="chart-node node-workforce">
-              <div class="node-badge">WORKSTATION / CELL TEAMS</div>
-              <div class="name-text">Ground Execution Workforce</div>
-              <div class="desc-text">5S, abnormality RCA, target completion</div>
-            </div>
-
-          </div>
         </div>
       </div>
-
+      
     </div>
+
+    <!-- SIDEBAR COLUMN (Governance Directory) -->
+    {% if request.user.is_admin %}
+    <div class="sidebar-column" x-show="editMode" x-transition x-cloak>
+      <div class="card sidebar-card" style="padding: 20px; background: #f8fafc; border: 1px dashed var(--jspl-blue); border-radius: 12px; box-shadow: var(--shadow-sm); position: sticky; top: 90px; max-height: 80vh; overflow-y: auto;">
+        <h4 style="color: var(--jspl-navy); font-weight: 700; margin: 0 0 8px 0; font-size: 0.95rem;">👤 Governance Directory</h4>
+        <p style="font-size: 0.75rem; color: var(--jspl-muted); margin: 0 0 15px 0; line-height: 1.4;">Drag user cards onto flowchart nodes or use dropdowns to assign designations.</p>
+        
+        <input type="text" x-model="searchQuery" placeholder="🔍 Search name..." 
+               style="width: 100%; padding: 8px 12px; border: 1px solid var(--jspl-border); border-radius: 6px; font-size: 0.8rem; margin-bottom: 15px; outline: none; box-sizing: border-box;">
+        
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          {% for u in all_users %}
+            <div class="draggable-user-card" 
+                 draggable="true"
+                 @dragstart="dragStart($event, '{{ u.id }}')"
+                 @dragend="dragEnd()"
+                 x-show="!searchQuery || '{{ u.get_display_name|escapejs }}'.toLowerCase().includes(searchQuery.toLowerCase())">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="user-avatar-circle" style="width: 30px; height: 30px; font-size: 0.75rem; flex-shrink: 0;">
+                  {% if u.photo %}
+                    <img src="{{ u.photo.url }}" alt="{{ u.get_display_name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                  {% else %}
+                    {{ u.first_name|default:u.username|slice:":1"|upper }}
+                  {% endif %}
+                </div>
+                <div style="flex-grow: 1; min-width: 0;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--jspl-navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ u.get_display_name }}</div>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--jspl-muted); margin-top: 2px;">
+                    <span>🏢 {{ u.department.code|default:"No Dept" }}</span>
+                    <span>💼 {{ u.designation|default:"Staff" }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
   </div>
 
   <!-- RESPONSIBILITIES DETAILS -->
@@ -166,7 +420,14 @@
     <!-- TPM Coordinators Card -->
     <div class="responsibility-card border-coordinators">
       <div class="card-role-header text-coordinators">⚙️ TPM Coordinators</div>
-      <div class="card-role-designation">Raj Bhushan (Pillar) &amp; Raunika (Workstation/Cell)</div>
+      <div class="card-role-designation">
+        {% if assignments.coordinator_pillar or assignments.coordinator_cell %}
+          {% if assignments.coordinator_pillar %}{{ assignments.coordinator_pillar.0.user.get_display_name }}{% else %}Raj Bhushan{% endif %} (Pillar) &amp;
+          {% if assignments.coordinator_cell %}{{ assignments.coordinator_cell.0.user.get_display_name }}{% else %}Raunika{% endif %} (Workstation/Cell)
+        {% else %}
+          Raj Bhushan (Pillar) &amp; Raunika (Workstation/Cell)
+        {% endif %}
+      </div>
       <ul class="resp-list">
         <li><b>Pillar (Raj Bhushan):</b> Prepare and manage the training calendar, release monthly reports, sign off milestone stages, and audit documentation (OPL/Standards).</li>
         <li><b>Logistics (Raunika):</b> Maintain trainee attendance, coordinate assessments, and manage training organization scheduling, travel, accommodation &amp; bills.</li>
@@ -236,6 +497,7 @@
     flex-direction: column;
     align-items: center;
     width: 100%;
+    min-width: 600px; /* Ensures lines render properly without collapsing */
   }
   .chart-row {
     display: flex;
@@ -250,10 +512,10 @@
     color: white;
     text-align: center;
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     box-sizing: border-box;
   }
-  .chart-node:hover {
+  .chart-node:not(.drop-active):hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
   }
@@ -335,6 +597,8 @@
   }
   .split-cell {
     padding: 5px 10px;
+    border-radius: 8px;
+    transition: all 0.2s;
   }
   .split-cell strong {
     display: block;
@@ -349,6 +613,8 @@
     margin-top: 5px;
     line-height: 1.4;
     text-align: left;
+    border-radius: 8px;
+    transition: all 0.2s;
   }
   .node-footer-list strong {
     color: var(--jspl-orange);
@@ -461,6 +727,159 @@
   .text-cell { color: #15803d; }
   .text-workstation { color: #b45309; }
   .text-workforce { color: #3f3f46; }
+
+  /* Drag & Drop Visuals */
+  .structure-layout-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    align-items: start;
+    width: 100%;
+  }
+  @media (min-width: 1024px) {
+    .structure-layout-grid.editing {
+      grid-template-columns: 3.2fr 1fr;
+    }
+  }
+  .drop-active {
+    outline: 3px dashed var(--jspl-orange) !important;
+    outline-offset: 2px;
+    box-shadow: 0 0 20px rgba(244, 121, 32, 0.6) !important;
+  }
+  
+  /* Editing Mode Visual Aid */
+  .editing .node-sponsor,
+  .editing .split-cell,
+  .editing .node-footer-list,
+  .editing .coordinator-profile,
+  .editing .node-hod {
+    border: 2px dashed rgba(244, 121, 32, 0.5) !important;
+    transition: all 0.2s ease;
+  }
+  .editing .node-sponsor:hover,
+  .editing .split-cell:hover,
+  .editing .node-footer-list:hover,
+  .editing .coordinator-profile:hover,
+  .editing .node-hod:hover {
+    border: 2px dashed var(--jspl-orange) !important;
+    box-shadow: 0 0 15px rgba(244, 121, 32, 0.3);
+  }
+
+  .draggable-user-card {
+    background: white;
+    border: 1px solid var(--jspl-border);
+    border-radius: 8px;
+    padding: 10px;
+    cursor: grab;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    user-select: none;
+  }
+  .draggable-user-card:hover {
+    border-color: var(--jspl-orange);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+    transform: translateY(-1px);
+  }
+  .draggable-user-card:active {
+    cursor: grabbing;
+    opacity: 0.65;
+  }
+  .user-avatar-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #EFF6FF;
+    border: 1px solid var(--jspl-border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #3b82f6;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+  }
+  
+  /* Prevent drag flickering */
+  .dragging-active .chart-node *,
+  .dragging-active .split-cell *,
+  .dragging-active .node-footer-list *,
+  .dragging-active .coordinator-profile * {
+    pointer-events: none;
+  }
+  .remove-btn, .tag-remove-btn {
+    pointer-events: auto !important;
+  }
+
+  .remove-btn {
+    background: rgba(220, 38, 38, 0.2);
+    color: #ef4444;
+    border: none;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    margin-left: 6px;
+    transition: all 0.2s;
+    line-height: 1;
+    font-weight: bold;
+    padding: 0;
+  }
+  .remove-btn:hover {
+    background: #dc2626;
+    color: white;
+  }
+  .tag-remove-btn {
+    background: none;
+    color: rgba(255,255,255,0.7);
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 6px;
+    font-size: 11px;
+    padding: 0 2px;
+  }
+  .tag-remove-btn:hover {
+    color: #ef4444;
+  }
+  .member-tag {
+    background: rgba(255,255,255,0.15);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .hod-tag {
+    background: rgba(255,255,255,0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.78rem;
+  }
+  .assign-select {
+    width: 100%;
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.12);
+    color: white;
+    font-size: 0.75rem;
+    outline: none;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+  .assign-select option {
+    color: #1F2937;
+    background: #FFFFFF;
+  }
   
   @media (max-width: 900px) {
     .split-columns-grid {
@@ -484,4 +903,101 @@
     }
   }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function getCSRFToken() {
+    return '{{ csrf_token }}';
+  }
+
+  document.addEventListener('alpine:init', () => {
+    Alpine.data('structureEditor', () => ({
+      editMode: false,
+      searchQuery: '',
+      activeDropZone: '',
+      
+      dragStart(event, userId) {
+        event.dataTransfer.setData('text/plain', userId);
+        event.dataTransfer.effectAllowed = 'move';
+        document.body.classList.add('dragging-active');
+      },
+      
+      dragEnd() {
+        document.body.classList.remove('dragging-active');
+      },
+      
+      handleDrop(event, roleKey) {
+        this.activeDropZone = '';
+        document.body.classList.remove('dragging-active');
+        const userId = event.dataTransfer.getData('text/plain');
+        if (userId) {
+          this.assignUser(userId, roleKey);
+        }
+      },
+      
+      assignSelect(event, roleKey) {
+        const userId = event.target.value;
+        if (userId) {
+          this.assignUser(userId, roleKey);
+          event.target.value = ''; // Reset select
+        }
+      },
+      
+      assignUser(userId, roleKey) {
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        formData.append('role_key', roleKey);
+        
+        fetch('{% url "assign_role" %}', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCSRFToken()
+          },
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            window.location.reload();
+          } else {
+            alert('Error: ' + data.message);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Failed to assign user.');
+        });
+      },
+      
+      unassign(userId, roleKey) {
+        if (!confirm('Are you sure you want to remove this assignment?')) return;
+        
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        formData.append('role_key', roleKey);
+        
+        fetch('{% url "unassign_role" %}', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCSRFToken()
+          },
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            window.location.reload();
+          } else {
+            alert('Error: ' + data.message);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Failed to remove assignment.');
+        });
+      }
+    }));
+  });
+</script>
 {% endblock %}

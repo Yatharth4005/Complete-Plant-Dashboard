@@ -22,16 +22,10 @@ def admin_required(view_func):
     return wrapper
 
 def dept_access_required(view_func):
-    """Admin passes through. USER must have TPM module access for requested department."""
+    """Admin passes through. USER must be logged in to view."""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect(get_main_portal_url(request, '/login/?next=' + request.build_absolute_uri()))
-        
-        dept_id = kwargs.get('dept_id')
-        if not request.user.is_admin():
-            department = get_object_or_404(Department, id=dept_id)
-            if not user_can_access_module(request.user, department, 'TPM'):
-                return redirect(get_main_portal_url(request, f'/department/{dept_id}/'))
         return view_func(request, *args, **kwargs)
     return wrapper

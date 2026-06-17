@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
 from django.http import HttpResponse
 from django.contrib import messages
 from tpm.models import User, Department
@@ -19,7 +20,7 @@ def manage_access(request):
         'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
         'SINT', 'SPM'
     ]
-    users = User.objects.filter(is_active=True).order_by('username')
+    users = User.objects.filter(is_active=True, email__contains='@').order_by('-is_plant_admin', 'username')
     departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
     modules = Module.objects.filter(is_active=True).order_by('sort_order')
     
@@ -85,11 +86,15 @@ def manage_access(request):
             'departments': dept_rows,
         })
 
+    from portal.models import AccessRequest
+    pending_requests = AccessRequest.objects.filter(status=AccessRequest.STATUS_PENDING).select_related('department')
+
     context = {
         'users_data': users_data,
         'departments': departments,
         'modules': modules,
         'active_section': 'admin',
+        'pending_requests': pending_requests,
     }
     return render(request, 'portal/admin/manage_access.html', context)
 
@@ -183,33 +188,38 @@ def admin_reset_password(request):
 def admin_create_user(request):
     """
     Creates a new user account with designation, role, department, etc.
+    If no password is provided, invites the user via email to set their password.
     """
     if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '').strip()
+        email = request.POST.get('email', '').strip().lower()
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip()
         phone = request.POST.get('phone', '').strip()
         designation = request.POST.get('designation', '').strip()
         dept_id = request.POST.get('department')
         role = request.POST.get('role', 'USER')
         
-        if not username or not password:
-            messages.error(request, "Username and password are required.")
-            return redirect('portal:user_informations')
+        # If username is not passed, use email as username
+        username = request.POST.get('username', '').strip()
+        if not username:
+            username = email
             
-        if User.objects.filter(username=username).exists():
-            messages.error(request, f"Username '{username}' already exists.")
-            return redirect('portal:user_informations')
-            
-        from django.contrib.auth.hashers import make_password
+        password = request.POST.get('password', '').strip()
         
+        if not email:
+            messages.error(request, "Email address is required.")
+            return redirect(request.META.get('HTTP_REFERER', 'portal:user_informations'))
+            
+        if User.objects.filter(username=username).exists() or User.objects.filter(email=email).exists():
+            messages.error(request, f"A user with email/username '{email}' already exists.")
+            return redirect(request.META.get('HTTP_REFERER', 'portal:user_informations'))
+            
         dept = None
         if role == 'USER' and dept_id:
             dept = Department.objects.filter(id=dept_id).first()
             
-        User.objects.create(
+        # Create user instance
+        user = User(
             username=username,
             email=email,
             first_name=first_name,
@@ -218,12 +228,64 @@ def admin_create_user(request):
             is_plant_admin=(role == 'ADMIN'),
             department=dept,
             phone=phone,
-            password=make_password(password),
             designation=designation
         )
-        messages.success(request, f"User '{username}' created successfully.")
         
-    return redirect('portal:user_informations')
+        is_invite = False
+        if not password:
+            is_invite = True
+            user.set_unusable_password()
+        else:
+            user.set_password(password)
+            
+        user.save()
+        
+        # Resolve AccessRequest if it exists
+        request_id = request.POST.get('request_id')
+        if request_id:
+            from portal.models import AccessRequest
+            AccessRequest.objects.filter(id=request_id).delete()
+        
+        if is_invite:
+            from django.contrib.auth.tokens import default_token_generator
+            from django.utils.http import urlsafe_base64_encode
+            from django.utils.encoding import force_bytes
+            from django.core.mail import send_mail
+            from django.urls import reverse
+            
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            setup_link = request.build_absolute_uri(
+                reverse('portal:reset_password', kwargs={'uidb64': uid, 'token': token})
+            )
+            
+            subject = "Account Invitation — Jindal Steel Operations Portal"
+            message = (
+                f"Hello {user.get_display_name()},\n\n"
+                f"An account has been created for you on the Jindal Steel Operations Portal.\n"
+                f"Role: {user.get_role_display() or role}\n"
+                f"Department: {user.department.name if user.department else 'N/A'}\n\n"
+                f"Please click the link below to verify your email, set your password, and log in to the dashboard:\n\n"
+                f"{setup_link}\n\n"
+                f"If you did not expect this invitation, please ignore this email.\n\n"
+                f"Regards,\n"
+                f"Jindal Steel Operations Portal Admin"
+            )
+            try:
+                send_mail(
+                    subject,
+                    message,
+                    'no-reply@jindalsteel.in',
+                    [user.email],
+                    fail_silently=False,
+                )
+                messages.success(request, f"User '{email}' created successfully. Invitation sent to verify and set password.")
+            except Exception as e:
+                messages.warning(request, f"User created successfully, but failed to send invitation email: {str(e)}")
+        else:
+            messages.success(request, f"User '{username}' created successfully.")
+            
+    return redirect(request.META.get('HTTP_REFERER', 'portal:user_informations'))
 
 
 @login_required
@@ -256,3 +318,22 @@ def admin_edit_user(request, user_id):
         messages.success(request, f"User '{user.username}' updated successfully.")
         
     return redirect('portal:user_informations')
+
+
+@login_required
+@admin_required
+@require_http_methods(['POST'])
+def reject_access_request(request, req_id):
+    """
+    Rejects/deletes an access sign-up request.
+    """
+    from portal.models import AccessRequest
+    try:
+        req = AccessRequest.objects.get(id=req_id)
+        email = req.email
+        req.delete()
+        messages.success(request, f"Access request for '{email}' has been rejected.")
+    except AccessRequest.DoesNotExist:
+        messages.error(request, "Access request not found.")
+        
+    return redirect('portal:admin_access')

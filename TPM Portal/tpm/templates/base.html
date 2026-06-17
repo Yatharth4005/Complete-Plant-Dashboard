@@ -6,6 +6,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Jindal Steel Operations Portal TPM Portal{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{% static 'portal/img/jindal_logo_dark.png' %}">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,7 +16,7 @@
     rel="stylesheet">
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="{% static 'css/tpm.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'css/tpm.css' %}?v=4">
 
   <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
@@ -145,7 +146,7 @@
   </div>
 
   <!-- Custom Scripts -->
-  <script src="{% static 'js/tpm.js' %}"></script>
+  <script src="{% static 'js/tpm.js' %}?v=2"></script>
   {% block extra_js %}{% endblock %}
 </body>
 

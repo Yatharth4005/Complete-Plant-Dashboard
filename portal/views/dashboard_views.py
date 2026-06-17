@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from tpm.models import Department, CAPAReport
 from portal.models import Module, UserModuleAccess
@@ -43,6 +43,90 @@ def plant_dashboard(request):
         'active_section': 'dashboard',
     }
     return render(request, 'portal/dashboard/plant_dashboard.html', context)
+
+@login_required
+def overall_plant_dashboard(request):
+    """
+    Dashboard for Admins showing cards for all 8 modules.
+    Only accessible to admins.
+    """
+    if not request.user.is_admin():
+        from django.contrib import messages
+        messages.error(request, "Only administrators can access the Overall Plant Dashboard.")
+        return redirect('portal:plant_dashboard')
+
+    modules_data = [
+        {
+            'key': 'TPM',
+            'label': 'Total Productive Maintenance',
+            'description': 'KPI tracking across 8 pillars + Workstation KPIs',
+            'icon': 'gear',
+            'color_class': 'module-tpm',
+            'url': '/tpm/dashboard/',
+        },
+        {
+            'key': 'CMC',
+            'label': 'Condition Monitoring Cell',
+            'description': 'Machinery health: vibration monitoring, oil testing, and wear debris analysis (WDA)',
+            'icon': 'file-contract',
+            'color_class': 'module-cmc',
+            'url': '/cmc/department/0/',
+        },
+        {
+            'key': 'ISO',
+            'label': 'ISO Compliance & Standards',
+            'description': 'Standard operating procedures, internal audit compliance logs',
+            'icon': 'award',
+            'color_class': 'module-iso',
+            'url': '/department/0/coming-soon/ISO/',
+        },
+        {
+            'key': 'Delays',
+            'label': 'Delay Logs & Tracking',
+            'description': 'Production line downtime, log summaries, and breakdown analysis',
+            'icon': 'clock',
+            'color_class': 'module-delays',
+            'url': '/delays/department/0/',
+        },
+        {
+            'key': 'OEE',
+            'label': 'Overall Equipment Effectiveness',
+            'description': 'Equipment performance, availability, and quality metrics',
+            'icon': 'bar-chart',
+            'color_class': 'module-oee',
+            'url': '/department/0/coming-soon/OEE/',
+        },
+        {
+            'key': 'Availability',
+            'label': 'Availability Logs',
+            'description': 'Uptime monitoring, machine availability logs, and maintenance alerts',
+            'icon': 'activity',
+            'color_class': 'module-availability',
+            'url': '/department/0/coming-soon/Availability/',
+        },
+        {
+            'key': 'FMEA',
+            'label': 'FMEA',
+            'description': 'Failure Mode and Effects Analysis for risk identification and mitigation',
+            'icon': 'shield',
+            'color_class': 'module-fmea',
+            'url': '/fmea/department/0/',
+        },
+        {
+            'key': 'CAPA',
+            'label': 'CAPA Reports',
+            'description': 'Corrective Action and Preventive Action tracking and report generation',
+            'icon': 'clipboard',
+            'color_class': 'module-capa',
+            'url': '/capa/department/0/',
+        },
+    ]
+
+    context = {
+        'modules_data': modules_data,
+        'active_section': 'overall_dashboard',
+    }
+    return render(request, 'portal/dashboard/overall_plant_dashboard.html', context)
 
 @login_required
 def capa_reports(request):

@@ -30,10 +30,11 @@
           <tr style="background-color: var(--jspl-navy); color: white;">
             <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; text-align: center; width: 60px;">Avatar</th>
             <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem;">Full Name</th>
-            <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; width: 220px;">Email Address</th>
+            <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; width: 200px;">Email Address</th>
             <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; width: 110px;">Phone Number</th>
             <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; width: 110px;">Department</th>
             <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; width: 110px;">Designation</th>
+            <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; width: 180px;">Structure Assignment</th>
             <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; text-align: center; width: 80px;">Role</th>
             {% if request.user.is_admin %}
               <th style="padding: 12px 10px; font-weight: 600; font-size: 0.8rem; text-align: center; width: 150px;">Actions</th>
@@ -90,6 +91,19 @@
                 {% endif %}
               </td>
  
+              <!-- Structure Assignment -->
+              <td style="padding: 12px 10px; vertical-align: middle;">
+                {% if u.governance_roles %}
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    {% for role in u.governance_roles %}
+                      <span style="background-color: var(--jspl-navy); color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; display: inline-block; text-align: center;">{{ role }}</span>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <span style="color: var(--jspl-muted); font-style: italic; font-size: 0.8rem;">—</span>
+                {% endif %}
+              </td>
+
               <!-- Role -->
               <td style="padding: 12px 10px; vertical-align: middle; text-align: center;">
                 {% if u.is_admin %}
@@ -135,7 +149,7 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="{% if request.user.is_admin %}8{% else %}7{% endif %}" style="text-align: center; padding: 40px; color: var(--jspl-muted); font-style: italic;">
+              <td colspan="{% if request.user.is_admin %}9{% else %}8{% endif %}" style="text-align: center; padding: 40px; color: var(--jspl-muted); font-style: italic;">
                 No user contacts found.
               </td>
             </tr>

@@ -4,7 +4,7 @@ from delays.models import DelayRecord, DelayDropdownOption
 class DelayRecordForm(forms.ModelForm):
     agency = forms.ChoiceField(choices=[], required=True, widget=forms.Select(attrs={'class': 'input-mono'}))
     equipment = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
-    why = forms.ChoiceField(choices=[('WHY/WHY', 'WHY/WHY'), ('CAPA', 'CAPA'), ('NO', 'NO')], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
+    why = forms.ChoiceField(choices=[('CAPA', 'CAPA'), ('NO', 'NO')], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'input-mono', 'rows': 3, 'placeholder': 'Detailed description of the delay/breakdown'}))
 
     class Meta:
@@ -35,38 +35,17 @@ class DelayRecordForm(forms.ModelForm):
         equip_list = []
         
         if department:
-            # Get existing records
-            records = DelayRecord.objects.filter(department=department)
-            
             # Fetch custom agencies from dropdown options
-            custom_agencies = list(DelayDropdownOption.objects.filter(
+            agency_list = sorted(list(DelayDropdownOption.objects.filter(
                 department=department, category__iexact='Agency'
-            ).values_list('value', flat=True).distinct())
-            
-            db_agencies = list(records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency=''))
-            
-            # Combine distinct agencies
-            agency_set = set(agency_list)
-            if db_agencies:
-                agency_set = agency_set.union(db_agencies)
-            if custom_agencies:
-                agency_set = agency_set.union(custom_agencies)
-            agency_list = sorted([a for a in agency_set if a])
+            ).values_list('value', flat=True).distinct()))
+            if not agency_list:
+                agency_list = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
 
             # Fetch custom equipments from dropdown options
-            custom_equips = list(DelayDropdownOption.objects.filter(
+            equip_list = sorted(list(DelayDropdownOption.objects.filter(
                 department=department, category__iexact='Equipment'
-            ).values_list('value', flat=True).distinct())
-            
-            db_equips = list(records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment=''))
-            
-            # Combine distinct equipments
-            equip_set = set()
-            if db_equips:
-                equip_set = equip_set.union(db_equips)
-            if custom_equips:
-                equip_set = equip_set.union(custom_equips)
-            equip_list = sorted([e for e in equip_set if e])
+            ).values_list('value', flat=True).distinct()))
             
         self.fields['agency'].choices = [(a, a) for a in agency_list]
         self.fields['equipment'].choices = [('', 'Select Equipment')] + [(e, e) for e in equip_list]

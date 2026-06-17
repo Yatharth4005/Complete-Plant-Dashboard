@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}FMEA Dashboard — Jindal Steel Operations Portal{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{% static 'portal/img/jindal_logo_dark.png' %}">
   
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -59,7 +60,11 @@
     <nav class="topbar-breadcrumb">
       <a href="{% url 'portal:plant_dashboard' %}">Plant Dashboard</a>
       <span class="breadcrumb-sep">›</span>
+      {% if active_dept.id == 0 %}
+      <a href="{% url 'portal:overall_plant_dashboard' %}">Overall Plant</a>
+      {% else %}
       <a href="{% url 'portal:dept_hub' active_dept.id %}">{{ active_dept.name }}</a>
+      {% endif %}
       {% block breadcrumb_items %}{% endblock %}
     </nav>
 
@@ -84,7 +89,11 @@
             <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
             <small>{{ request.user.email }}</small>
           </div>
+          {% if active_dept.id == 0 %}
+          <a href="{% url 'portal:overall_plant_dashboard' %}">🏢 Back to Overall Dashboard</a>
+          {% else %}
           <a href="{% url 'portal:dept_hub' active_dept.id %}">🏢 Back to Hub</a>
+          {% endif %}
           <a href="{% url 'portal:logout' %}" class="logout-link">↩ Sign Out</a>
         </div>
       </div>
@@ -105,6 +114,7 @@
            class="sidebar-link {% if active_tab == 'dashboard' %}active{% endif %}">
           <span class="sidebar-icon">📊</span> Dashboard
         </a>
+        {% if active_dept.id != 0 %}
         <a href="{% url 'fmea:identification' active_dept_id %}" 
            class="sidebar-link {% if active_tab == 'identification' %}active{% endif %}">
           <span class="sidebar-icon">📝</span> FMEA Manual Entry
@@ -121,13 +131,20 @@
            class="sidebar-link {% if active_tab == 'history' %}active{% endif %}">
           <span class="sidebar-icon">🕒</span> FMEA History
         </a>
-
+        {% endif %}
+ 
         
         <!-- Back to Plant -->
         <div class="sidebar-divider" style="margin-top: 25px;">NAVIGATION</div>
+        {% if active_dept.id == 0 %}
+        <a href="{% url 'portal:overall_plant_dashboard' %}" class="sidebar-link">
+          <span class="sidebar-icon">🏢</span> Overall Dashboard
+        </a>
+        {% else %}
         <a href="{% url 'portal:dept_hub' active_dept.id %}" class="sidebar-link">
           <span class="sidebar-icon">🏢</span> Department Hub
         </a>
+        {% endif %}
       </div>
     </aside>
 

@@ -46,9 +46,14 @@ def module_access_required(module_key, require_edit=False):
             if not request.user.is_authenticated:
                 return redirect('portal:login')
                 
+            if int(dept_id) == 0:
+                if request.user.is_admin():
+                    return view_func(request, dept_id, *args, **kwargs)
+                return redirect('portal:plant_dashboard')
+
             department = get_object_or_404(Department, id=dept_id)
             
-            if request.user.is_superuser:
+            if request.user.is_admin() or request.user.is_superuser:
                 allowed = True
             elif require_edit:
                 allowed = user_can_edit_module(request.user, department, module_key)

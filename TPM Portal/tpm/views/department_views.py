@@ -1,6 +1,6 @@
 import json
 import datetime
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.shortcuts import get_object_or_404
 from django.contrib import messages
 from tpm.models import Department, PillarEntry, KPIValue, WorkstationValue, Workstation
@@ -33,6 +33,9 @@ def get_months_in_range(from_month, from_year, to_month, to_year):
 
 @dept_access_required
 def dept_overview(request, dept_id):
+    if int(dept_id) == 0:
+        return redirect('tpm_dashboard')
+        
     dept = get_object_or_404(Department, id=dept_id)
     period = parse_period(request)
     filter_type = period['filter_type']

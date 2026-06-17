@@ -10,12 +10,23 @@
 {% block content %}
 <div class="page-container">
 
-  <!-- Header Row -->
-  <div class="dashboard-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+  <!-- Header Row Banner -->
+  <div class="delays-header-bar" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: linear-gradient(135deg, var(--jspl-navy, #003478) 0%, var(--jspl-blue, #0057A8) 100%); padding: 24px; border-radius: 16px; color: #FFFFFF; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);">
     <div>
-      <h1 class="portal-page-title">CAPA Dashboard</h1>
-      <p class="portal-page-subtitle">Comparative CAPA analytics &amp; action tracking overview for <b>{{ active_dept.name }}</b></p>
+      <h2 style="margin: 0 0 6px 0; color: #FFFFFF; font-weight: 700; font-size: 1.6rem; letter-spacing: -0.5px;">📊 CAPA Dashboard</h2>
+      <span style="font-size: 0.9rem; opacity: 0.85;">Comparative CAPA analytics &amp; action tracking overview for <b>{{ active_dept.name }}</b></span>
     </div>
+    {% if request.user.is_admin %}
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <label for="capa-dept-select" style="font-size: 0.85rem; font-weight: 600; opacity: 0.9;">🏢 Change Department:</label>
+      <select id="capa-dept-select" style="background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.2); color: #FFFFFF; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; outline: none; transition: all 0.25s;" onchange="window.location.href='/capa/department/' + this.value + '/'">
+        <option value="0" {% if active_dept.id == 0 %}selected{% endif %} style="color: #1F2937; background: #FFFFFF;">Overall Plant</option>
+        {% for d in sidebar_departments %}
+          <option value="{{ d.id }}" {% if d.id == active_dept.id %}selected{% endif %} style="color: #1F2937; background: #FFFFFF;">{{ d.name }} ({{ d.code }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
   </div>
 
   <!-- Metric Summary Cards Grid -->
@@ -91,7 +102,11 @@
           <tr style="background: #f8fafc;">
             <th style="text-align: left;">File / Sheet Name</th>
             <th style="text-align: center; width: 140px;">Upload/Entry Date</th>
-            <th style="text-align: center; width: 140px;">Total CAPAs</th>
+            {% if active_dept.id == 0 %}
+              <th style="text-align: center; width: 180px;">Department</th>
+            {% else %}
+              <th style="text-align: center; width: 140px;">Total CAPAs</th>
+            {% endif %}
             <th style="text-align: center; background-color: #fffbeb; color: #d97706; width: 180px;">Open</th>
             <th style="text-align: center; background-color: #ecfdf5; color: #059669; width: 180px;">Closed</th>
             <th style="text-align: center; width: 120px;">Action</th>
@@ -102,11 +117,15 @@
             <tr>
               <td style="text-align: left; font-weight: bold; color: var(--jspl-navy);">{{ item.name }}</td>
               <td style="text-align: center;" class="mono">{{ item.date }}</td>
-              <td style="text-align: center; font-weight: bold;">{{ item.total }}</td>
+              {% if active_dept.id == 0 %}
+                <td style="text-align: center; font-weight: 600; color: #1e293b;">{{ item.dept_name }}</td>
+              {% else %}
+                <td style="text-align: center; font-weight: bold;">{{ item.total }}</td>
+              {% endif %}
               <td style="text-align: center; background-color: #fffbeb; font-weight: bold; color: #d97706;">{{ item.open }}</td>
               <td style="text-align: center; background-color: #ecfdf5; font-weight: bold; color: #059669;">{{ item.closed }}</td>
               <td style="text-align: center;">
-                <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ item.id }}" 
+                <a href="{% url 'capa:report' item.dept_id %}?upload_id={{ item.id }}" 
                    class="btn btn-secondary" style="padding: 0 12px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 28px; line-height: 26px; display: inline-block; white-space: nowrap; text-align: center; vertical-align: middle;">
                   View Report
                 </a>
@@ -134,6 +153,7 @@
     const closedData = {{ comp_closed|safe }};
     const compIds = {{ comp_ids|safe }};
     const compDetails = {{ comp_details|safe }};
+    const compNames = {{ comp_names|safe }};
     
     let currentView = 'all'; // 'all' or 'file'
     
@@ -164,35 +184,12 @@
           legend: { position: 'bottom' }
         },
         scales: {
-          x: {
+          x: { 
             stacked: true,
             ticks: {
-              maxRotation: 0,
+              maxRotation: 45,
               minRotation: 0,
-              autoSkip: false,
-              callback: function(value, index, values) {
-                const label = this.getLabelForValue(value);
-                if (label && label.includes(' - ')) {
-                  const parts = label.split(' - ');
-                  const datePart = parts[0];
-                  let namePart = parts.slice(1).join(' - ');
-                  if (namePart.length > 25) {
-                    namePart = namePart.substring(0, 22) + '...';
-                  }
-                  return [datePart, namePart];
-                }
-                if (label && label.length > 20) {
-                  if (label.includes(' ')) {
-                    const words = label.split(' ');
-                    if (words.length > 2) {
-                      return [words.slice(0, 2).join(' '), words.slice(2).join(' ')];
-                    }
-                    return [words[0], words.slice(1).join(' ')];
-                  }
-                  return label.substring(0, 18) + '...';
-                }
-                return label;
-              }
+              autoSkip: false
             }
           },
           y: { stacked: true, beginAtZero: true }
@@ -202,8 +199,7 @@
           if (elements && elements.length > 0) {
             const index = elements[0].index;
             const fileId = compIds[index];
-            const rawLabel = labels[index];
-            const fileName = rawLabel.includes(' - ') ? rawLabel.split(' - ').slice(1).join(' - ') : rawLabel;
+            const fileName = compNames[index];
             showFileDetails(fileId, fileName);
           }
         }

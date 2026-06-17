@@ -14,28 +14,23 @@ from delays.utils.parser import parse_excel_file
 from portal.utils.access import user_can_access_module, user_can_edit_module
 
 def get_department_autocompletes(department, records):
-    custom_options = DelayDropdownOption.objects.filter(department=department)
+    if department.id == 0:
+        custom_options = DelayDropdownOption.objects.none()
+    else:
+        custom_options = DelayDropdownOption.objects.filter(department=department)
     
-    custom_agencies = list(custom_options.filter(category__iexact='Agency').values_list('value', flat=True).distinct())
-    agencies_set = set(records.order_by('agency').values_list('agency', flat=True).distinct().exclude(agency='')) | set(custom_agencies)
-    agencies = sorted([x for x in agencies_set if x])
+    agencies = sorted(list(custom_options.filter(category__iexact='Agency').values_list('value', flat=True).distinct()))
     if not agencies:
         agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
         
-    custom_sub_agencies = list(custom_options.filter(category__iexact='Sub-Agency').values_list('value', flat=True).distinct())
-    sub_agencies_set = set(records.order_by('sub_agency').values_list('sub_agency', flat=True).distinct().exclude(sub_agency='')) | set(custom_sub_agencies)
-    sub_agencies = sorted([x for x in sub_agencies_set if x])
+    sub_agencies = sorted(list(custom_options.filter(category__iexact='Sub-Agency').values_list('value', flat=True).distinct()))
     
     sections_set = set(records.order_by('section').values_list('section', flat=True).distinct().exclude(section=''))
     sections = sorted([x for x in sections_set if x])
     
-    custom_equipments = list(custom_options.filter(category__iexact='Equipment').values_list('value', flat=True).distinct())
-    equipments_set = set(records.order_by('equipment').values_list('equipment', flat=True).distinct().exclude(equipment='')) | set(custom_equipments)
-    equipments = sorted([x for x in equipments_set if x])
+    equipments = sorted(list(custom_options.filter(category__iexact='Equipment').values_list('value', flat=True).distinct()))
     
-    custom_sub_equipments = list(custom_options.filter(category__iexact='Sub-Equipment').values_list('value', flat=True).distinct())
-    sub_equipments_set = set(records.order_by('sub_equipment').values_list('sub_equipment', flat=True).distinct().exclude(sub_equipment='')) | set(custom_sub_equipments)
-    sub_equipments = sorted([x for x in sub_equipments_set if x])
+    sub_equipments = sorted(list(custom_options.filter(category__iexact='Sub-Equipment').values_list('value', flat=True).distinct()))
     
     incharges_set = set(records.order_by('shift_incharge').values_list('shift_incharge', flat=True).distinct().exclude(shift_incharge=''))
     incharges = sorted([x for x in incharges_set if x])
@@ -55,21 +50,29 @@ def dept_overview(request, dept_id):
     Main overview and dashboard for department delays.
     Displays metrics, charts, upload features, and logs tables.
     """
-    department = get_object_or_404(Department, id=dept_id)
-    
-    # Check SSO Access
-    if not user_can_access_module(request.user, department, 'Delays'):
-        messages.error(request, "You do not have permission to access the Delays module.")
-        return redirect('portal:dept_hub', dept_id=dept_id)
+    if int(dept_id) == 0:
+        class DummyDept:
+            id = 0
+            name = "Overall Plant"
+            code = "Overall"
+        department = DummyDept()
+        can_edit = False
+        is_admin = request.user.is_admin()
+        all_records = DelayRecord.objects.all()
+    else:
+        department = get_object_or_404(Department, id=dept_id)
         
-    can_edit = user_can_edit_module(request.user, department, 'Delays')
-    is_admin = request.user.is_admin()
+        # Check SSO Access
+        if not user_can_access_module(request.user, department, 'Delays'):
+            messages.error(request, "You do not have permission to access the Delays module.")
+            return redirect('portal:dept_hub', dept_id=dept_id)
+            
+        can_edit = user_can_edit_module(request.user, department, 'Delays')
+        is_admin = request.user.is_admin()
+        all_records = DelayRecord.objects.filter(department=department)
     
     # Active departments for switching
     departments = Department.objects.all().order_by('name')
-    
-    # Fetch all records
-    all_records = DelayRecord.objects.filter(department=department)
     
     # Metrics
     total_mins = all_records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
@@ -125,7 +128,10 @@ def dept_overview(request, dept_id):
     sheets_parsed = [s for s in all_records.order_by('sheet_name').values_list('sheet_name', flat=True).distinct() if s]
     
     # Upload history
-    uploads = DelayUpload.objects.filter(department=department).order_by('-uploaded_at')
+    if department.id == 0:
+        uploads = DelayUpload.objects.all().order_by('-uploaded_at')
+    else:
+        uploads = DelayUpload.objects.filter(department=department).order_by('-uploaded_at')
     
     # Form autocompletes
     autocompletes = get_department_autocompletes(department, all_records)
@@ -380,9 +386,19 @@ def records_table(request, dept_id):
     """
     Search and filter endpoint for the delay logs table.
     """
-    department = get_object_or_404(Department, id=dept_id)
-    can_edit = user_can_edit_module(request.user, department, 'Delays')
-    
+    if int(dept_id) == 0:
+        class DummyDept:
+            id = 0
+            name = "Overall Plant"
+            code = "Overall"
+        department = DummyDept()
+        can_edit = False
+        records = DelayRecord.objects.all()
+    else:
+        department = get_object_or_404(Department, id=dept_id)
+        can_edit = user_can_edit_module(request.user, department, 'Delays')
+        records = DelayRecord.objects.filter(department=department)
+        
     query = request.GET.get('q', '').strip()
     agency_filter = request.GET.get('agency', '').strip()
     sub_agency_filter = request.GET.get('sub_agency', '').strip()
@@ -391,8 +407,6 @@ def records_table(request, dept_id):
     sheet_filter = request.GET.get('sheet', '').strip()
     date_start = request.GET.get('date_start', '').strip()
     date_end = request.GET.get('date_end', '').strip()
-    
-    records = DelayRecord.objects.filter(department=department)
     
     if query:
         records = records.filter(
@@ -424,7 +438,10 @@ def records_table(request, dept_id):
     if date_end:
         records = records.filter(date__lte=date_end)
         
-    all_records = DelayRecord.objects.filter(department=department)
+    if int(dept_id) == 0:
+        all_records = DelayRecord.objects.all()
+    else:
+        all_records = DelayRecord.objects.filter(department=department)
     
     # Filter by status
     status_filter = request.GET.get('status', 'unlocked').strip()
@@ -662,12 +679,19 @@ def download_pdf_report(request, dept_id):
     """
     Generates and downloads the PDF analytics report for a department's delays.
     """
-    department = get_object_or_404(Department, id=dept_id)
-    
-    # Check SSO Access
-    if not user_can_access_module(request.user, department, 'Delays'):
-        messages.error(request, "You do not have permission to access the Delays module.")
-        return redirect('portal:dept_hub', dept_id=dept_id)
+    if int(dept_id) == 0:
+        class DummyDept:
+            id = 0
+            name = "Overall Plant"
+            code = "Overall"
+        department = DummyDept()
+    else:
+        department = get_object_or_404(Department, id=dept_id)
+        
+        # Check SSO Access
+        if not user_can_access_module(request.user, department, 'Delays'):
+            messages.error(request, "You do not have permission to access the Delays module.")
+            return redirect('portal:dept_hub', dept_id=dept_id)
         
     from delays.utils.export import generate_delays_pdf
     pdf_content = generate_delays_pdf(department)
@@ -683,8 +707,16 @@ def pareto_overall(request, dept_id):
     """
     Returns the overall Pareto Analysis content (HTMX endpoint).
     """
-    department = get_object_or_404(Department, id=dept_id)
-    records = DelayRecord.objects.filter(department=department)
+    if int(dept_id) == 0:
+        class DummyDept:
+            id = 0
+            name = "Overall Plant"
+            code = "Overall"
+        department = DummyDept()
+        records = DelayRecord.objects.all()
+    else:
+        department = get_object_or_404(Department, id=dept_id)
+        records = DelayRecord.objects.filter(department=department)
     
     total_mins = records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
     
@@ -759,11 +791,17 @@ def pareto_agency(request, dept_id):
     """
     Returns the equipment Pareto Analysis for a specific agency (HTMX endpoint).
     """
-    department = get_object_or_404(Department, id=dept_id)
-    # Do not strip agency name because database values can have exact leading/trailing spaces
     agency_name = request.GET.get('agency', '')
-    
-    records = DelayRecord.objects.filter(department=department, agency=agency_name)
+    if int(dept_id) == 0:
+        class DummyDept:
+            id = 0
+            name = "Overall Plant"
+            code = "Overall"
+        department = DummyDept()
+        records = DelayRecord.objects.filter(agency=agency_name)
+    else:
+        department = get_object_or_404(Department, id=dept_id)
+        records = DelayRecord.objects.filter(department=department, agency=agency_name)
     total_agency_mins = records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
     
     # Pareto Calculation by Equipment *within* that agency
@@ -825,8 +863,8 @@ def manage_options(request, dept_id):
     Allows adding and removing custom options (Agency, Sub-Agency, Equipment, Sub-Equipment) per department.
     """
     department = get_object_or_404(Department, id=dept_id)
-    if not user_can_edit_module(request.user, department, 'Delays'):
-        messages.error(request, "You do not have permission to manage options.")
+    if not request.user.is_admin():
+        messages.error(request, "Only administrators can manage dropdown options.")
         return redirect('delays:dept_overview', dept_id=dept_id)
 
     if request.method == 'POST':
@@ -860,6 +898,51 @@ def manage_options(request, dept_id):
             
         return redirect('delays:manage_options', dept_id=dept_id)
 
+    # Auto-seed DelayDropdownOption if it is completely empty for this department
+    if not DelayDropdownOption.objects.filter(department=department).exists():
+        # 1. Default agencies
+        default_agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+        for val in default_agencies:
+            DelayDropdownOption.objects.get_or_create(
+                department=department,
+                category='Agency',
+                value=val
+            )
+        # 2. Unique past values from DelayRecord
+        records = DelayRecord.objects.filter(department=department)
+        
+        db_agencies = records.values_list('agency', flat=True).distinct().exclude(agency='')
+        for val in db_agencies:
+            DelayDropdownOption.objects.get_or_create(
+                department=department,
+                category='Agency',
+                value=val
+            )
+            
+        db_sub_agencies = records.values_list('sub_agency', flat=True).distinct().exclude(sub_agency='')
+        for val in db_sub_agencies:
+            DelayDropdownOption.objects.get_or_create(
+                department=department,
+                category='Sub-Agency',
+                value=val
+            )
+            
+        db_equipments = records.values_list('equipment', flat=True).distinct().exclude(equipment='')
+        for val in db_equipments:
+            DelayDropdownOption.objects.get_or_create(
+                department=department,
+                category='Equipment',
+                value=val
+            )
+            
+        db_sub_equipments = records.values_list('sub_equipment', flat=True).distinct().exclude(sub_equipment='')
+        for val in db_sub_equipments:
+            DelayDropdownOption.objects.get_or_create(
+                department=department,
+                category='Sub-Equipment',
+                value=val
+            )
+
     options = DelayDropdownOption.objects.filter(department=department).order_by('category', 'value')
     
     # Predefined suggested categories
@@ -876,6 +959,7 @@ def manage_options(request, dept_id):
         'active_dept_id': department.id,
         'active_module': 'Delays',
         'active_section': 'department_module',
+        'is_manage_options_page': True,
     }
     return render(request, 'delays/manage_options.html', context)
 

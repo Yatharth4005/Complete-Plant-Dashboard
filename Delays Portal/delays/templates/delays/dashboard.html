@@ -5,6 +5,9 @@
 <div class="header-right">
   <label for="dept-select" class="selector-label">🏢 Change Department:</label>
   <select id="dept-select" class="dept-dropdown" onchange="window.location.href='/delays/department/' + this.value + '/'">
+    {% if request.user.is_admin %}
+      <option value="0" {% if department.id == 0 %}selected{% endif %}>Overall Plant</option>
+    {% endif %}
     {% for d in departments %}
       <option value="{{ d.id }}" {% if d.id == department.id %}selected{% endif %}>
         {{ d.name }} ({{ d.code }})
@@ -119,11 +122,6 @@
       <button class="tab-btn" :class="{ 'active': activeTab === 'uploads' }" @click="activeTab = 'uploads'">
         📂 Upload History
       </button>
-      {% if can_edit %}
-        <a href="{% url 'delays:manage_options' department.id %}" class="tab-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
-          ⚙️ Manage Dropdown Options
-        </a>
-      {% endif %}
     </div>
 
     <!-- TAB 1: LOGS TABLE & FILTERS -->
@@ -488,15 +486,6 @@
         btn.innerText = 'Fill CAPA';
         btn.style.display = 'inline-flex';
         btn.onclick = null;
-    } else if (val === 'WHY/WHY') {
-        btn.href = '#';
-        btn.innerText = 'Fill WHY/WHY';
-        btn.style.display = 'inline-flex';
-        btn.onclick = function(e) {
-            e.preventDefault();
-            alert('WHY/WHY analysis sheet is coming soon! Under development.');
-            return false;
-        };
     } else {
         btn.style.display = 'none';
         btn.href = '#';

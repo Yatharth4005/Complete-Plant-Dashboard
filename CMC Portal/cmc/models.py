@@ -236,6 +236,32 @@ class WDALog(models.Model):
 
 
 # ─────────────────────────────────────────────────────────
+# GREASE REPORT LOG
+# ─────────────────────────────────────────────────────────
+
+class GreaseReportLog(models.Model):
+    """
+    One grease sample test record.
+    """
+    class GreaseStatus(models.TextChoices):
+        OK     = 'OK',     'OK'
+        NOT_OK = 'NOT_OK', 'Not OK'
+
+    equipment     = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='grease_reports')
+    date          = models.DateField()
+    ferrocheck    = models.FloatField(null=True, blank=True, verbose_name="Ferrocheck in PPM")
+    status        = models.CharField(max_length=10, choices=GreaseStatus.choices)
+    sent_date     = models.DateField(null=True, blank=True)
+    login         = models.CharField(max_length=20, blank=True)
+    remarks       = models.TextField(blank=True)
+    entered_by    = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date', 'equipment__name']
+
+
+# ─────────────────────────────────────────────────────────
 # SAP NOTIFICATION TRACKER (cross-referenced by all 3 modules)
 # ─────────────────────────────────────────────────────────
 
@@ -262,3 +288,4 @@ class SAPNotification(models.Model):
     vibration_log   = models.ForeignKey(VibrationLog, null=True, blank=True, on_delete=models.SET_NULL)
     oil_test        = models.ForeignKey(OilTestLog, null=True, blank=True, on_delete=models.SET_NULL)
     wda_log         = models.ForeignKey(WDALog, null=True, blank=True, on_delete=models.SET_NULL)
+    grease_report   = models.ForeignKey(GreaseReportLog, null=True, blank=True, on_delete=models.SET_NULL)

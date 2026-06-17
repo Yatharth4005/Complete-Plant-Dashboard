@@ -4,10 +4,11 @@ from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
-from tpm.models import Department, PillarEntry, KPIValue
+from tpm.models import Department, PillarEntry, KPIValue, CustomKPIDefinition
 from tpm.utils.decorators import dept_access_required
 from tpm.utils.kpi_definitions import KPI_DEFINITIONS
 from tpm.utils.calculations import compute_achievement, compute_PRODUCTION, parse_period, get_date_range_q, aggregate_kpi_actual
+from portal.utils.access import user_can_edit_module
 
 def get_months_list():
     return [
@@ -47,7 +48,19 @@ def get_pillar_display(pillar_id):
 
 def get_kpi_rows(dept, pillar_id, month, year):
     """Fetch defined KPIs for the pillar and merge with existing database entries"""
-    definitions = KPI_DEFINITIONS.get(pillar_id, [])
+    definitions = list(KPI_DEFINITIONS.get(pillar_id, []))
+    custom_defs = CustomKPIDefinition.objects.filter(department=dept, pillar=pillar_id).order_by('id')
+    for cd in custom_defs:
+        definitions.append({
+            'sl_no': cd.sl_no,
+            'name': cd.name,
+            'uom': cd.uom,
+            'benchmark': cd.benchmark,
+            'target': cd.target,
+            'is_custom': True,
+            'custom_id': cd.id,
+        })
+
     entry = PillarEntry.objects.filter(
         department=dept, pillar=pillar_id, month=month, year=year
     ).first()
@@ -67,6 +80,8 @@ def get_kpi_rows(dept, pillar_id, month, year):
             'remarks': '',
             'is_PRODUCTION_row': d.get('is_PRODUCTION_row', False),
             'achievement': None,
+            'is_custom': d.get('is_custom', False),
+            'custom_id': d.get('custom_id'),
         }
         
         # If database value exists, overlay it
@@ -92,7 +107,18 @@ def get_kpi_rows(dept, pillar_id, month, year):
     return kpi_rows, entry
 
 def get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year):
-    definitions = KPI_DEFINITIONS.get(pillar_id, [])
+    definitions = list(KPI_DEFINITIONS.get(pillar_id, []))
+    custom_defs = CustomKPIDefinition.objects.filter(department=dept, pillar=pillar_id).order_by('id')
+    for cd in custom_defs:
+        definitions.append({
+            'sl_no': cd.sl_no,
+            'name': cd.name,
+            'uom': cd.uom,
+            'benchmark': cd.benchmark,
+            'target': cd.target,
+            'is_custom': True,
+            'custom_id': cd.id,
+        })
     
     kpi_rows = []
     for d in definitions:
@@ -109,6 +135,8 @@ def get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year
             'remarks': '',
             'is_PRODUCTION_row': d.get('is_PRODUCTION_row', False),
             'achievement': None,
+            'is_custom': d.get('is_custom', False),
+            'custom_id': d.get('custom_id'),
         }
         
         # Query all KPIValue objects for this sl_no inside the range
@@ -184,6 +212,7 @@ def pillar_page(request, dept_id, pillar_id):
         from tpm.models import KaizenSheet
         sheets = KaizenSheet.objects.filter(department=dept, pillar=pillar_id).order_by('-created_at')
 
+    can_edit = user_can_edit_module(request.user, dept, 'TPM')
     context = {
         'dept': dept,
         'pillar_id': pillar_id,
@@ -205,6 +234,7 @@ def pillar_page(request, dept_id, pillar_id):
         'month_label': period_label,
         'active_tab': active_tab,
         'sheets': sheets,
+        'can_edit': can_edit,
     }
     return render(request, 'department/pillar_entry.html', context)
 
@@ -230,6 +260,7 @@ def kpi_table_partial(request, dept_id, pillar_id):
         kpi_rows, entry = get_kpi_rows(dept, pillar_id, month, year)
         is_locked = entry.is_locked() if entry else False
         
+    can_edit = user_can_edit_module(request.user, dept, 'TPM')
     context = {
         'dept': dept,
         'pillar_id': pillar_id,
@@ -245,6 +276,7 @@ def kpi_table_partial(request, dept_id, pillar_id):
         'is_locked': is_locked,
         'entry': entry,
         'month_label': period_label,
+        'can_edit': can_edit,
     }
     return render(request, 'partials/_kpi_table.html', context)
 
@@ -253,6 +285,9 @@ def kpi_table_partial(request, dept_id, pillar_id):
 @require_POST
 def save_kpi_row(request, dept_id, pillar_id):
     dept = get_object_or_404(Department, id=dept_id)
+    if not user_can_edit_module(request.user, dept, 'TPM'):
+        return HttpResponseForbidden("You do not have permission to edit this department's TPM.")
+        
     month = int(request.GET.get('month'))
     year = int(request.GET.get('year'))
     sl_no = request.GET.get('sl_no')
@@ -265,7 +300,16 @@ def save_kpi_row(request, dept_id, pillar_id):
         return HttpResponseForbidden("This entry is locked and cannot be edited.")
         
     # Get definitions config for defaults
-    definitions = KPI_DEFINITIONS.get(pillar_id, [])
+    definitions = list(KPI_DEFINITIONS.get(pillar_id, []))
+    custom_defs = CustomKPIDefinition.objects.filter(department=dept, pillar=pillar_id)
+    for cd in custom_defs:
+        definitions.append({
+            'sl_no': cd.sl_no,
+            'name': cd.name,
+            'uom': cd.uom,
+            'benchmark': cd.benchmark,
+            'target': cd.target,
+        })
     kpi_meta = next((d for d in definitions if d['sl_no'] == sl_no), None)
     if not kpi_meta:
         return HttpResponse("KPI definition not found", status=400)
@@ -339,6 +383,7 @@ def save_kpi_row(request, dept_id, pillar_id):
         'month': month,
         'year': year,
         'is_locked': False,
+        'can_edit': True,
     }
     
     response = render(request, 'partials/_kpi_row.html', context)
@@ -350,6 +395,9 @@ def save_kpi_row(request, dept_id, pillar_id):
 @require_POST
 def submit_pillar_entry(request, dept_id, pillar_id):
     dept = get_object_or_404(Department, id=dept_id)
+    if not user_can_edit_module(request.user, dept, 'TPM'):
+        return HttpResponseForbidden("You do not have permission to submit this department's TPM.")
+        
     month = int(request.GET.get('month'))
     year = int(request.GET.get('year'))
     
@@ -373,9 +421,146 @@ def submit_pillar_entry(request, dept_id, pillar_id):
         'is_locked': True,
         'entry': entry,
         'month_label': dict(get_months_list()).get(month),
+        'can_edit': user_can_edit_module(request.user, dept, 'TPM'),
     }
     
     toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Entry Submitted & Locked Successfully</div></div>'
+    response = render(request, 'partials/_kpi_table.html', context)
+    response.content = response.content + toast_html.encode('utf-8')
+    return response
+
+
+@dept_access_required
+@require_POST
+def delete_pillar_entry(request, dept_id, pillar_id):
+    dept = get_object_or_404(Department, id=dept_id)
+    month = int(request.GET.get('month'))
+    year = int(request.GET.get('year'))
+    
+    if not user_can_edit_module(request.user, dept, 'TPM'):
+        return HttpResponseForbidden("You do not have permission to delete/clear entries for this department.")
+        
+    entry = PillarEntry.objects.filter(
+        department=dept, pillar=pillar_id, month=month, year=year
+    ).first()
+    
+    if entry:
+        entry.delete()
+        
+    kpi_rows, entry = get_kpi_rows(dept, pillar_id, month, year)
+    is_locked = False
+    
+    context = {
+        'dept': dept,
+        'pillar_id': pillar_id,
+        'filter_type': 'single',
+        'month': month,
+        'year': year,
+        'kpi_rows': kpi_rows,
+        'is_locked': is_locked,
+        'entry': entry,
+        'month_label': dict(get_months_list()).get(month),
+        'can_edit': True,
+    }
+    
+    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Monthly entry cleared/deleted successfully</div></div>'
+    response = render(request, 'partials/_kpi_table.html', context)
+    response.content = response.content + toast_html.encode('utf-8')
+    return response
+
+
+@dept_access_required
+@require_POST
+def add_custom_kpi(request, dept_id, pillar_id):
+    dept = get_object_or_404(Department, id=dept_id)
+    if not user_can_edit_module(request.user, dept, 'TPM'):
+        return HttpResponseForbidden("You do not have permission to edit this department's TPM.")
+        
+    name = request.POST.get('name', '').strip()
+    uom = request.POST.get('uom', '').strip()
+    benchmark_str = request.POST.get('benchmark', '').strip()
+    target_str = request.POST.get('target', '').strip()
+    
+    if not name:
+        return HttpResponse("KPI Name is required", status=400)
+        
+    # Auto-generate sl_no: count existing custom KPIs for this dept and pillar
+    count = CustomKPIDefinition.objects.filter(department=dept, pillar=pillar_id).count()
+    sl_no = f"C{count + 1}"
+    
+    benchmark = float(benchmark_str) if benchmark_str else None
+    target = float(target_str) if target_str else None
+    
+    CustomKPIDefinition.objects.create(
+        department=dept,
+        pillar=pillar_id,
+        sl_no=sl_no,
+        name=name,
+        uom=uom,
+        benchmark=benchmark,
+        target=target
+    )
+    
+    # Refresh table
+    month = int(request.GET.get('month', datetime.date.today().month))
+    year = int(request.GET.get('year', datetime.date.today().year))
+    kpi_rows, entry = get_kpi_rows(dept, pillar_id, month, year)
+    is_locked = entry.is_locked() if entry else False
+    can_edit = True
+    
+    context = {
+        'dept': dept,
+        'pillar_id': pillar_id,
+        'filter_type': 'single',
+        'month': month,
+        'year': year,
+        'kpi_rows': kpi_rows,
+        'is_locked': is_locked,
+        'entry': entry,
+        'month_label': dict(get_months_list()).get(month),
+        'can_edit': can_edit,
+    }
+    
+    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Custom field &quot;{name}&quot; added successfully</div></div>'
+    response = render(request, 'partials/_kpi_table.html', context)
+    response.content = response.content + toast_html.encode('utf-8')
+    return response
+
+
+@dept_access_required
+@require_POST
+def delete_custom_kpi(request, dept_id, pillar_id, custom_id):
+    dept = get_object_or_404(Department, id=dept_id)
+    if not user_can_edit_module(request.user, dept, 'TPM'):
+        return HttpResponseForbidden("You do not have permission to edit this department's TPM.")
+        
+    cd = get_object_or_404(CustomKPIDefinition, id=custom_id, department=dept, pillar=pillar_id)
+    name = cd.name
+    # Cascade delete any associated KPIValues inside this department & pillar
+    KPIValue.objects.filter(pillar_entry__department=dept, pillar_entry__pillar=pillar_id, sl_no=cd.sl_no).delete()
+    cd.delete()
+    
+    # Refresh table
+    month = int(request.GET.get('month', datetime.date.today().month))
+    year = int(request.GET.get('year', datetime.date.today().year))
+    kpi_rows, entry = get_kpi_rows(dept, pillar_id, month, year)
+    is_locked = entry.is_locked() if entry else False
+    can_edit = True
+    
+    context = {
+        'dept': dept,
+        'pillar_id': pillar_id,
+        'filter_type': 'single',
+        'month': month,
+        'year': year,
+        'kpi_rows': kpi_rows,
+        'is_locked': is_locked,
+        'entry': entry,
+        'month_label': dict(get_months_list()).get(month),
+        'can_edit': can_edit,
+    }
+    
+    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Custom field &quot;{name}&quot; deleted</div></div>'
     response = render(request, 'partials/_kpi_table.html', context)
     response.content = response.content + toast_html.encode('utf-8')
     return response

@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-  <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-sm); margin-bottom: 24px;">
+  <div x-data="{ showAddWSForm: false }" style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-sm); margin-bottom: 24px;">
     <!-- Title and Filter Row -->
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--jspl-border); padding-bottom: 16px; margin-bottom: 20px;">
       <div>
@@ -24,13 +24,51 @@
     {% include "partials/_date_filter.html" %}
 
     <!-- TABS CONTROLLER -->
-    <div class="tab-container">
-      <a href="?{{ query_params }}&tab=entry" class="tab-btn {% if tab == 'entry' %}active{% endif %}">
-        📝 Data Entry Tab
-      </a>
-      <a href="?{{ query_params }}&tab=analytics" class="tab-btn {% if tab == 'analytics' %}active{% endif %}">
-        📊 Analytics Tab
-      </a>
+    <div class="tab-container" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--jspl-border); margin-bottom: 20px;">
+      <div style="display: flex; gap: 10px;">
+        <a href="?{{ query_params }}&tab=entry" class="tab-btn {% if tab == 'entry' %}active{% endif %}" style="border-bottom: none;">
+          📝 Data Entry Tab
+        </a>
+        <a href="?{{ query_params }}&tab=analytics" class="tab-btn {% if tab == 'analytics' %}active{% endif %}" style="border-bottom: none;">
+          📊 Analytics Tab
+        </a>
+      </div>
+      {% if tab == 'entry' and filter_type != 'range' and can_edit %}
+        <button type="button" class="btn btn-secondary" style="padding: 6px 16px; border: 1px solid var(--jspl-border); margin-bottom: 8px;"
+                @click="showAddWSForm = true">
+          ➕ Add Workstation
+        </button>
+      {% endif %}
+    </div>
+
+    <!-- Add Workstation Card Form -->
+    <div x-show="showAddWSForm" x-transition class="card" style="margin-bottom: 24px; padding: 24px; border: 1px solid var(--jspl-border); border-radius: var(--radius); background-color: var(--jspl-gray);">
+      <h3 style="color: var(--jspl-navy); margin-bottom: 16px;">➕ Add New Workstation</h3>
+      <form action="{% url 'add_workstation' dept.id %}" method="POST">
+        {% csrf_token %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+          <div>
+            <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem;">Workstation Name*</label>
+            <input type="text" name="ws_name" class="input-mono" style="width: 100%;" required placeholder="e.g. Furnace Area">
+          </div>
+          <div>
+            <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem;">Leader Name*</label>
+            <input type="text" name="leader" class="input-mono" style="width: 100%;" required placeholder="e.g. John Doe">
+          </div>
+          <div>
+            <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem;">Inception Date</label>
+            <input type="date" name="inception_date" class="input-mono" style="width: 100%;">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" style="padding: 6px 16px;" @click="showAddWSForm = false">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary" style="padding: 6px 16px;">
+            Save Workstation
+          </button>
+        </div>
+      </form>
     </div>
 
     <!-- TAB PANEL CONTENT -->
@@ -43,13 +81,89 @@
       {% endif %}
 
       {% if not ws_list %}
-        <div style="padding: 40px; text-align: center; color: var(--jspl-muted);">
-          <h3>No Workstations Configured</h3>
-          <p>Please register workstations in the administrator panel.</p>
+        <div class="card" x-data="{ showAddKPIForm: false }" style="margin-bottom: 24px; padding: 24px; background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); box-shadow: var(--shadow-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--jspl-border); padding-bottom: 12px; margin-bottom: 16px;">
+            <div>
+              <h3 style="color: var(--jspl-navy); margin-bottom: 4px;">🏭 Workstation KPIs</h3>
+              <span style="font-size: 0.85rem; color: var(--jspl-muted);">Department: <b>{{ dept.name }}</b></span>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 0.9rem; font-weight: 600; color: var(--jspl-muted);">No workstations registered</span>
+            </div>
+          </div>
+          
+          <div class="table-container" style="box-shadow: none; border-radius: 4px; margin-bottom: 16px;">
+            <table class="kpi-table" style="font-size: 0.85rem;">
+              <thead>
+                <tr style="background-color: var(--jspl-navy);">
+                  <th>KPI Name</th>
+                  <th style="width: 80px; text-align: center;">UOM</th>
+                  <th style="width: 100px; text-align: right;">Baseline</th>
+                  <th style="width: 100px; text-align: right;">Commitment</th>
+                  <th style="width: 120px; text-align: right;">Actual</th>
+                  <th style="width: 110px; text-align: center;">Achievement</th>
+                  <th>Remarks / Action Items</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr x-show="!showAddKPIForm">
+                  <td colspan="7" style="text-align: center; padding: 30px; color: var(--jspl-muted); font-size: 0.95rem;">
+                    No workstations configured for this department.
+                  </td>
+                </tr>
+
+                <!-- Inline Add Workstation KPI Row for Placeholder -->
+                <tr x-show="showAddKPIForm" x-transition style="background-color: var(--jspl-light);">
+                  <td>
+                    <input type="text" name="kpi_name" placeholder="KPI/Field Name" class="input-mono" style="width: 100%; font-weight: 500;" required>
+                  </td>
+                  <td>
+                    <input type="text" name="uom" placeholder="UOM" class="input-mono" style="width: 100%; text-align: center;" required>
+                  </td>
+                  <td>
+                    <input type="number" name="baseline" step="any" placeholder="Base" class="input-mono" style="width: 100%; text-align: right;">
+                  </td>
+                  <td>
+                    <input type="number" name="commitment" step="any" placeholder="Commit" class="input-mono" style="width: 100%; text-align: right;">
+                  </td>
+                  <td></td>
+                  <td style="text-align: center;">
+                    <select name="goodness_indicator" class="input-mono" style="width: 100%; font-size: 0.8rem;">
+                      <option value="HIGHER">Higher ↑</option>
+                      <option value="LOWER">Lower ↓</option>
+                    </select>
+                  </td>
+                  <td style="text-align: center; vertical-align: middle;">
+                    <div style="display: flex; gap: 8px; justify-content: center;">
+                      <button type="button" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem;"
+                              hx-post="{% url 'add_workstation_kpi_placeholder' dept.id %}?month={{ month }}&year={{ year }}"
+                              hx-include="closest tr">
+                        Save
+                      </button>
+                      <button type="button" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;" @click="showAddKPIForm = false">
+                        Cancel
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {% if filter_type != 'range' and can_edit %}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <button type="button" class="btn btn-secondary" style="background-color: var(--jspl-white); color: var(--jspl-navy); border: 1px solid var(--jspl-border); padding: 6px 16px;"
+                        @click="showAddKPIForm = true; $nextTick(() => { document.getElementsByName('kpi_name')[0]?.focus() })">
+                  ➕ Add Custom KPI
+                </button>
+              </div>
+            </div>
+          {% endif %}
         </div>
       {% else %}
         {% for ws in ws_list %}
-          {% include "partials/_ws_card.html" with ws=ws dept=dept month=month year=year filter_type=filter_type %}
+          {% include "partials/_ws_card.html" with ws=ws dept=dept month=month year=year filter_type=filter_type can_edit=can_edit %}
         {% endfor %}
       {% endif %}
       

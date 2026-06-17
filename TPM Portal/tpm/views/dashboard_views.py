@@ -11,10 +11,7 @@ def sidebar_context_processor(request):
     if not request.user.is_authenticated:
         return {}
     
-    if request.user.is_admin():
-        depts = Department.objects.all().order_by('name')
-    else:
-        depts = Department.objects.filter(id=request.user.department_id).order_by('name')
+    depts = Department.objects.all().order_by('name')
         
     pillars = [
         {'id': 'KK', 'label': 'KK (Kobetsu Kaizen)'},

@@ -13,6 +13,9 @@
   <table class="delays-table">
     <thead>
       <tr>
+        {% if department.id == 0 %}
+          <th>Dept</th>
+        {% endif %}
         <th>Date</th>
         <th>Duration</th>
         <th>Agency</th>
@@ -28,7 +31,7 @@
         {% include "delays/partials/_record_row.html" with r=r %}
       {% empty %}
         <tr>
-          <td colspan="{% if can_edit %}6{% else %}5{% endif %}" class="table-empty">
+          <td colspan="{% if department.id == 0 %}{% if can_edit %}7{% else %}6{% endif %}{% else %}{% if can_edit %}6{% else %}5{% endif %}{% endif %}" class="table-empty">
             No delay records found for this query. Upload an Excel sheet or log a manual entry!
           </td>
         </tr>

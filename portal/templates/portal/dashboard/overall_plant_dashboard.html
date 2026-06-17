@@ -1,0 +1,51 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Overall Plant Dashboard — Jindal Steel Operations Portal{% endblock %}
+
+{% block breadcrumb_items %}
+<span class="breadcrumb-sep">›</span>
+<span class="breadcrumb-current">Overall Plant Dashboard</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+  <!-- Header Row -->
+  <div class="dashboard-header-row" style="margin-bottom: 30px;">
+    <div>
+      <h1 class="portal-page-title">📊 Overall Plant Dashboard</h1>
+      <p class="portal-page-subtitle">RGH Plant — Select any module below to view overall comparative analysis and department metrics</p>
+    </div>
+  </div>
+
+  <!-- Module Cards Grid -->
+  <div class="module-cards-grid">
+    {% for item in modules_data %}
+      <a href="{{ item.url }}" class="module-card card {{ item.color_class }} accessible-module-card" style="transition: transform 0.25s ease, box-shadow 0.25s ease;">
+        <div class="module-card-top">
+          <span class="module-large-icon">
+            {% include "portal/partials/_module_icon.html" with key=item.key %}
+          </span>
+          <span class="access-badge edit">VIEW</span>
+        </div>
+        <div class="module-card-middle">
+          <h3>{{ item.label }}</h3>
+          <p>{{ item.description }}</p>
+        </div>
+        <div class="module-card-bottom">
+          <span class="launch-label">Open Dashboard →</span>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+</div>
+
+<style>
+  .accessible-module-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
+</style>
+{% endblock %}
