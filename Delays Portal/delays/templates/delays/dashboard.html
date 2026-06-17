@@ -82,9 +82,9 @@
 
   <!-- ANALYTICS CHARTS SECTION -->
   <div class="analytics-charts-grid">
-    <!-- Chart 1: Daily Trend -->
+    <!-- Chart 1: Daily Trend / Department Comparison -->
     <div class="chart-card">
-      <h3 class="chart-title">📈 Daily Downtime Trend (Mins)</h3>
+      <h3 class="chart-title">📈 {% if department.id == 0 %}Department Downtime Comparison (Mins){% else %}Daily Downtime Trend (Mins){% endif %}</h3>
       <div class="chart-container">
         <canvas id="trendChart"></canvas>
       </div>
@@ -92,7 +92,7 @@
     
     <!-- Chart 2: Agency Share -->
     <div class="chart-card">
-      <h3 class="chart-title">🍕 Downtime Share by Agency</h3>
+      <h3 class="chart-title">🍕 {% if department.id == 0 %}Downtime Share by Department{% else %}Downtime Share by Agency{% endif %}</h3>
       <div class="chart-container">
         <canvas id="agencyChart"></canvas>
       </div>
@@ -100,7 +100,7 @@
     
     <!-- Chart 3: Top Bottlenecks -->
     <div class="chart-card">
-      <h3 class="chart-title">🔥 Top 5 Bottleneck Equipments</h3>
+      <h3 class="chart-title">🔥 {% if department.id == 0 %}Top 5 Bottleneck Departments{% else %}Top 5 Bottleneck Equipments{% endif %}</h3>
       <div class="chart-container">
         <canvas id="equipmentChart"></canvas>
       </div>
@@ -111,7 +111,7 @@
   <div class="data-section-card">
     <div class="tabs-header">
       <button class="tab-btn" :class="{ 'active': activeTab === 'logs' }" @click="activeTab = 'logs'">
-        📋 Detailed Delay Logs
+        📋 {% if department.id == 0 %}Department-wise Delay Summary{% else %}Detailed Delay Logs{% endif %}
       </button>
       <button class="tab-btn" :class="{ 'active': activeTab === 'pareto' }" @click="activeTab = 'pareto'">
         📊 Pareto Analysis (80/20)
@@ -122,87 +122,144 @@
       <button class="tab-btn" :class="{ 'active': activeTab === 'uploads' }" @click="activeTab = 'uploads'">
         📂 Upload History
       </button>
+      <button class="tab-btn" :class="{ 'active': activeTab === 'notifications' }" @click="activeTab = 'notifications'" style="position: relative; display: flex; align-items: center; gap: 6px;">
+        🔔 Notifications
+        {% if unread_notifications_count > 0 %}
+          <span style="background: #EF4444; color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; line-height: 1; display: inline-flex; align-items: center; justify-content: center;">
+            {{ unread_notifications_count }}
+          </span>
+        {% endif %}
+      </button>
     </div>
 
     <!-- TAB 1: LOGS TABLE & FILTERS -->
     <div x-show="activeTab === 'logs'" x-transition>
       
-      <!-- Filters Form -->
-      <form id="filter-form" 
-            hx-get="{% url 'delays:records_table' department.id %}" 
-            hx-trigger="change, keyup changed delay:300ms" 
-            hx-target="#records-table-container"
-            class="filter-bar">
-        
-        <div class="filter-group col-search">
-          <label class="filter-label">Search Delay Details</label>
-          <input type="text" name="q" placeholder="Search equipment, agency..." class="filter-input input-mono">
+      {% if department.id == 0 %}
+        <!-- Overall Department-wise Summary Table -->
+        <div class="table-responsive">
+          <table class="delays-table">
+            <thead>
+              <tr>
+                <th>Department</th>
+                <th>Total Downtime (Hrs)</th>
+                <th>Downtime Events</th>
+                <th>Top Bottleneck Agency</th>
+                <th>Avg. Delay Duration (Mins)</th>
+                <th style="width: 120px; text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for summary in dept_summaries %}
+                <tr>
+                  <td><b>{{ summary.department.name }} ({{ summary.department.code }})</b></td>
+                  <td class="font-mono">{{ summary.total_hrs }} hrs <span class="text-muted">({{ summary.total_mins }} mins)</span></td>
+                  <td class="font-mono">{{ summary.total_events }}</td>
+                  <td>{{ summary.top_agency }}</td>
+                  <td class="font-mono">{{ summary.avg_duration }} mins</td>
+                  <td style="text-align: center;">
+                    <a href="/delays/department/{{ summary.department.id }}/" class="btn-dashboard btn-primary-gradient" style="font-size: 0.8rem; padding: 6px 12px; text-decoration: none; display: inline-block;">
+                      View Details
+                    </a>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="6" class="table-empty">
+                    No department delay data recorded.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-        
-        <div class="filter-group">
-          <label class="filter-label">Agency</label>
-          <select name="agency" class="filter-input input-mono">
-            <option value="">All Agencies</option>
-            {% for a in agencies %}
-              <option value="{{ a }}">{{ a }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        
-        <div class="filter-group">
-          <label class="filter-label">Sub-Agency</label>
-          <select name="sub_agency" class="filter-input input-mono">
-            <option value="">All Sub-Agencies</option>
-            {% for sa in sub_agencies %}
-              <option value="{{ sa }}">{{ sa }}</option>
-            {% endfor %}
-          </select>
-        </div>
+      {% else %}
+        <!-- Filters Form -->
+        <form id="filter-form" 
+              hx-get="{% url 'delays:records_table' department.id %}" 
+              hx-trigger="change, keyup changed delay:300ms" 
+              hx-target="#records-table-container"
+              class="filter-bar">
+          
+          <div class="filter-group col-search">
+            <label class="filter-label">Search Delay Details</label>
+            <input type="text" name="q" placeholder="Search equipment, agency..." class="filter-input input-mono">
+          </div>
+          
+          <div class="filter-group">
+            <label class="filter-label">Agency Type</label>
+            <select name="agency_type" id="filter_agency_type" class="filter-input input-mono">
+              <option value="">All Types</option>
+              <option value="Internal">Internal</option>
+              <option value="External">External</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label class="filter-label">Agency</label>
+            <select name="agency" id="filter_agency" class="filter-input input-mono">
+              <option value="">All Agencies</option>
+              {% for a in agencies %}
+                <option value="{{ a }}">{{ a }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label class="filter-label">Sub-Agency</label>
+            <select name="sub_agency" class="filter-input input-mono">
+              <option value="">All Sub-Agencies</option>
+              {% for sa in sub_agencies %}
+                <option value="{{ sa }}">{{ sa }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-        <div class="filter-group">
-          <label class="filter-label">Equipment</label>
-          <select name="equipment" class="filter-input input-mono">
-            <option value="">All Equipments</option>
-            {% for e in equipments %}
-              <option value="{{ e }}">{{ e }}</option>
-            {% endfor %}
-          </select>
-        </div>
+          <div class="filter-group">
+            <label class="filter-label">Equipment</label>
+            <select name="equipment" class="filter-input input-mono">
+              <option value="">All Equipments</option>
+              {% for e in equipments %}
+                <option value="{{ e }}">{{ e }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-        <div class="filter-group">
-          <label class="filter-label">Sub-Equipment</label>
-          <select name="sub_equipment" class="filter-input input-mono">
-            <option value="">All Sub-Equipments</option>
-            {% for se in sub_equipments %}
-              <option value="{{ se }}">{{ se }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        
-        <div class="filter-group">
-          <label class="filter-label">Start Date</label>
-          <input type="date" name="date_start" class="filter-input input-mono">
-        </div>
-        
-        <div class="filter-group">
-          <label class="filter-label">End Date</label>
-          <input type="date" name="date_end" class="filter-input input-mono">
-        </div>
+          <div class="filter-group">
+            <label class="filter-label">Sub-Equipment</label>
+            <select name="sub_equipment" class="filter-input input-mono">
+              <option value="">All Sub-Equipments</option>
+              {% for se in sub_equipments %}
+                <option value="{{ se }}">{{ se }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label class="filter-label">Start Date</label>
+            <input type="date" name="date_start" class="filter-input input-mono">
+          </div>
+          
+          <div class="filter-group">
+            <label class="filter-label">End Date</label>
+            <input type="date" name="date_end" class="filter-input input-mono">
+          </div>
 
-        <div class="filter-group">
-          <label class="filter-label">Status</label>
-          <select name="status" class="filter-input input-mono">
-            <option value="unlocked" {% if status == 'unlocked' %}selected{% endif %}>Unlocked (Draft)</option>
-            <option value="locked" {% if status == 'locked' %}selected{% endif %}>Locked (Saved)</option>
-            <option value="all" {% if status == 'all' %}selected{% endif %}>All Records</option>
-          </select>
-        </div>
-      </form>
+          <div class="filter-group">
+            <label class="filter-label">Status</label>
+            <select name="status" class="filter-input input-mono">
+              <option value="unlocked" {% if status == 'unlocked' %}selected{% endif %}>Unlocked (Draft)</option>
+              <option value="locked" {% if status == 'locked' %}selected{% endif %}>Locked (Saved)</option>
+              <option value="all" {% if status == 'all' %}selected{% endif %}>All Records</option>
+            </select>
+          </div>
+        </form>
 
-      <!-- Logs Table Container -->
-      <div id="records-table-container">
-        {% include "delays/partials/_records_table.html" %}
-      </div>
+        <!-- Logs Table Container -->
+        <div id="records-table-container">
+          {% include "delays/partials/_records_table.html" %}
+        </div>
+      {% endif %}
     </div>
 
     <!-- TAB 2: UPLOAD HISTORY -->
@@ -384,8 +441,74 @@
               {% endwith %}
             </div>
           {% endif %}
+
           
         </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: NOTIFICATIONS -->
+    <div x-show="activeTab === 'notifications'" x-transition style="display: none; padding: 24px;">
+      <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h3 style="color: var(--jspl-navy); margin: 0 0 6px 0;">🔔 Department Notifications</h3>
+          <p style="color: var(--delays-muted, #6b7280); font-size: 0.85rem; margin: 0;">
+            {% if department.id == 0 %}
+              All cross-department delay notifications filed across the entire plant.
+            {% else %}
+              Notifications from other departments filing delays against {{ department.name }}.
+            {% endif %}
+          </p>
+        </div>
+        {% if unread_notifications_count > 0 %}
+          <form method="POST" action="{% url 'delays:mark_all_read' department.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn-dashboard btn-secondary-gradient" style="font-size: 0.8rem; padding: 6px 14px; border-radius: var(--radius-sm); border: none; cursor: pointer;">
+              Mark All as Read
+            </button>
+          </form>
+        {% endif %}
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for notification in notifications %}
+          <div class="chart-card" style="box-shadow: none; border-color: var(--delays-border); padding: 18px; border-left: 5px solid {% if notification.is_read %}var(--delays-border, #e5e7eb){% else %}#F47920{% endif %}; display: flex; justify-content: space-between; align-items: center; gap: 16px; {% if not notification.is_read %}background: rgba(244,121,32,0.02);{% endif %}; border-radius: var(--radius-md);">
+            <div style="display: flex; gap: 14px; align-items: flex-start; flex: 1;">
+              <span style="font-size: 1.4rem; line-height: 1;">📢</span>
+              <div style="flex: 1;">
+                <p style="margin: 0 0 6px 0; font-size: 0.88rem; line-height: 1.5; color: var(--delays-text, #1f2937);">
+                  {{ notification.message }}
+                </p>
+                <div style="display: flex; gap: 12px; align-items: center; font-size: 0.78rem; color: var(--delays-muted, #6b7280); flex-wrap: wrap;">
+                  <span>Filed by: <b style="color: var(--jspl-navy);">{{ notification.from_department.name }}</b></span>
+                  <span>•</span>
+                  <span>Targeted to: <b style="color: var(--jspl-navy);">{{ notification.to_department.name }}</b></span>
+                  <span>•</span>
+                  <span>{{ notification.created_at|date:"d-M-Y H:i" }}</span>
+                  {% if not notification.is_read %}
+                    <span>•</span>
+                    <span class="status-badge" style="background: rgba(244,121,32,0.1); color: #F47920; padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; font-weight: bold;">New</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              {% if not notification.is_read %}
+                <form method="POST" action="{% url 'delays:mark_read' department.id notification.id %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-dashboard btn-primary-gradient" style="font-size: 0.75rem; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; white-space: nowrap;">
+                    Mark Read
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        {% empty %}
+          <div style="text-align: center; padding: 40px; color: var(--delays-muted, #6b7280); border: 1px dashed var(--delays-border, #e5e7eb); border-radius: var(--radius-lg); background: #fafafa;">
+            <p style="margin: 0; font-size: 0.9rem;">🎉 No delay notifications recorded.</p>
+          </div>
+        {% endfor %}
       </div>
     </div>
   </div>
@@ -492,5 +615,65 @@
         btn.onclick = function(e) { e.preventDefault(); return false; };
     }
   }
+
+  // Dashboard filter dynamic toggle JS
+  document.addEventListener('DOMContentLoaded', function() {
+    const filterAgencyType = document.getElementById('filter_agency_type');
+    const filterAgency = document.getElementById('filter_agency');
+    
+    const internalAgencies = [
+      {% for a in agencies %}
+        "{{ a|escapejs }}",
+      {% endfor %}
+    ];
+    
+    const externalAgencies = [
+      {% for d in external_departments %}
+        "{{ d.name|escapejs }}",
+      {% endfor %}
+    ];
+    
+    function updateFilterAgencyOptions() {
+      if (!filterAgencyType || !filterAgency) return;
+      const type = filterAgencyType.value;
+      const currentValue = filterAgency.value;
+      
+      filterAgency.innerHTML = '';
+      
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = type === 'External' ? 'All External' : (type === 'Internal' ? 'All Internal' : 'All Agencies');
+      filterAgency.appendChild(defaultOpt);
+      
+      let list = [];
+      if (type === 'Internal') {
+        list = internalAgencies;
+      } else if (type === 'External') {
+        list = externalAgencies;
+      } else {
+        list = [...internalAgencies, ...externalAgencies];
+      }
+      
+      list.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item;
+        opt.textContent = item;
+        if (item === currentValue) {
+          opt.selected = true;
+        }
+        filterAgency.appendChild(opt);
+      });
+    }
+    
+    if (filterAgencyType && filterAgency) {
+      filterAgencyType.addEventListener('change', function() {
+        updateFilterAgencyOptions();
+        // Trigger htmx update by dispatching change
+        filterAgency.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      
+      updateFilterAgencyOptions();
+    }
+  });
 </script>
 {% endblock %}

@@ -48,40 +48,58 @@ def fmea_dashboard(request, dept_id):
     # Build comparative analysis list
     sheet_comparisons = []
     
-    # 1. Check uploads
-    for u in uploads:
-        recs = FMEARecord.objects.filter(excel_upload=u)
-        if recs.exists():
-            sheet_comparisons.append({
-                'id': u.id,
-                'name': u.filename.replace('.xlsx', '') + f" ({u.department.code})" if int(dept_id) == 0 else u.filename.replace('.xlsx', ''),
-                'date': u.sheet_date.strftime('%d.%m.%Y') if u.sheet_date else '—',
-                'total': recs.count(),
-                'high': recs.filter(rpn__gte=301).count(),
-                'medium': recs.filter(rpn__gte=101, rpn__lte=300).count(),
-                'low': recs.filter(rpn__gte=1, rpn__lte=100).count(),
-                'dept_id': u.department.id,
-            })
-            
-    # 2. Check default manual list
     if int(dept_id) == 0:
-        manual_recs = FMEARecord.objects.none()
+        # Group by department for overall view
+        all_depts = Department.objects.all().order_by('name')
+        for d in all_depts:
+            d_records = records.filter(department=d)
+            if d_records.exists():
+                sheet_comparisons.append({
+                    'id': d.id,
+                    'name': f"{d.name} ({d.code})",
+                    'date': '—',
+                    'total': d_records.count(),
+                    'high': d_records.filter(rpn__gte=301).count(),
+                    'medium': d_records.filter(rpn__gte=101, rpn__lte=300).count(),
+                    'low': d_records.filter(rpn__gte=1, rpn__lte=100).count(),
+                    'dept_id': d.id,
+                    'dept_code': d.code,
+                })
     else:
+        # 1. Check uploads
+        for u in uploads:
+            recs = FMEARecord.objects.filter(excel_upload=u)
+            if recs.exists():
+                sheet_comparisons.append({
+                    'id': u.id,
+                    'name': u.filename.replace('.xlsx', ''),
+                    'date': u.sheet_date.strftime('%d.%m.%Y') if u.sheet_date else '—',
+                    'total': recs.count(),
+                    'high': recs.filter(rpn__gte=301).count(),
+                    'medium': recs.filter(rpn__gte=101, rpn__lte=300).count(),
+                    'low': recs.filter(rpn__gte=1, rpn__lte=100).count(),
+                    'dept_id': u.department.id,
+                })
+                
+        # 2. Check default manual list
         manual_recs = FMEARecord.objects.filter(department=active_dept, excel_upload=None)
+            
+        if manual_recs.exists():
+            sheet_comparisons.append({
+                'id': 'new_file',
+                'name': 'Default manual list',
+                'date': '—',
+                'total': manual_recs.count(),
+                'high': manual_recs.filter(rpn__gte=301).count(),
+                'medium': manual_recs.filter(rpn__gte=101, rpn__lte=300).count(),
+                'low': manual_recs.filter(rpn__gte=1, rpn__lte=100).count(),
+                'dept_id': active_dept.id,
+            })
         
-    if manual_recs.exists():
-        sheet_comparisons.append({
-            'id': 'new_file',
-            'name': 'Default manual list',
-            'date': '—',
-            'total': manual_recs.count(),
-            'high': manual_recs.filter(rpn__gte=301).count(),
-            'medium': manual_recs.filter(rpn__gte=101, rpn__lte=300).count(),
-            'low': manual_recs.filter(rpn__gte=1, rpn__lte=100).count(),
-            'dept_id': active_dept.id,
-        })
-        
-    comp_labels = [item['name'] for item in sheet_comparisons]
+    if int(dept_id) == 0:
+        comp_labels = [item.get('dept_code', '') for item in sheet_comparisons]
+    else:
+        comp_labels = [item['name'] for item in sheet_comparisons]
     comp_ids = [item['id'] for item in sheet_comparisons]
     comp_high = [item['high'] for item in sheet_comparisons]
     comp_medium = [item['medium'] for item in sheet_comparisons]
@@ -91,19 +109,22 @@ def fmea_dashboard(request, dept_id):
     detailed_data = {}
     for item in sheet_comparisons:
         sid = item['id']
-        if sid == 'new_file':
-            recs = FMEARecord.objects.none() if int(dept_id) == 0 else FMEARecord.objects.filter(department=active_dept, excel_upload=None).order_by('sn', 'id')
+        if int(dept_id) == 0:
+            detailed_data[str(sid)] = []
         else:
-            recs = FMEARecord.objects.filter(excel_upload_id=sid).order_by('sn', 'id')
-        detailed_data[str(sid)] = [
-            {
-                'failure_mode': r.potential_failure_mode[:20] + ('...' if len(r.potential_failure_mode) > 20 else ''),
-                'full_failure_mode': r.potential_failure_mode,
-                'rpn': r.rpn,
-                'action_rpn': r.action_rpn if r.action_rpn is not None else 0
-            }
-            for r in recs
-        ]
+            if sid == 'new_file':
+                recs = FMEARecord.objects.none() if int(dept_id) == 0 else FMEARecord.objects.filter(department=active_dept, excel_upload=None).order_by('sn', 'id')
+            else:
+                recs = FMEARecord.objects.filter(excel_upload_id=sid).order_by('sn', 'id')
+            detailed_data[str(sid)] = [
+                {
+                    'failure_mode': r.potential_failure_mode[:20] + ('...' if len(r.potential_failure_mode) > 20 else ''),
+                    'full_failure_mode': r.potential_failure_mode,
+                    'rpn': r.rpn,
+                    'action_rpn': r.action_rpn if r.action_rpn is not None else 0
+                }
+                for r in recs
+            ]
         
     # Mitigation Status Overview for donut chart (all combined)
     status_counts = records.values('status').annotate(count=Count('id'))

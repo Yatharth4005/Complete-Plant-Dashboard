@@ -42,6 +42,7 @@ class DelayRecord(models.Model):
     duration_mins = models.FloatField(default=0.0, help_text="Delay duration in minutes")
     
     # Categorization
+    agency_type = models.CharField(max_length=50, default='Internal', choices=[('Internal', 'Internal'), ('External', 'External')])
     agency = models.CharField(max_length=150, help_text="Responsible agency, e.g. 'Planned Delay', 'Mechanical'")
     sub_agency = models.CharField(max_length=150, blank=True, null=True, help_text="Sub-agency, e.g. 'Length change'")
     section = models.CharField(max_length=150, blank=True, null=True, help_text="Rolled section, e.g. 'UC 254X254'")
@@ -62,6 +63,24 @@ class DelayRecord(models.Model):
     def __str__(self):
         return f"{self.department.code} - {self.date} - {self.agency} ({self.duration_mins} min)"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.update_notifications()
+
+    def update_notifications(self):
+        to_dept = Department.objects.filter(name=self.agency).first()
+        if self.agency_type == 'External' and to_dept and to_dept != self.department:
+            DelayNotification.objects.update_or_create(
+                delay_record=self,
+                defaults={
+                    'from_department': self.department,
+                    'to_department': to_dept,
+                    'message': f"Department {self.department.name} ({self.department.code}) filed a delay of {self.duration_mins} mins on {self.date} against you. Reason: {self.description or ''}"
+                }
+            )
+        else:
+            DelayNotification.objects.filter(delay_record=self).delete()
+
 
 class DelayDropdownOption(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='delay_dropdown_options')
@@ -75,4 +94,19 @@ class DelayDropdownOption(models.Model):
 
     def __str__(self):
         return f"{self.department.code} - {self.category}: {self.value}"
+
+
+class DelayNotification(models.Model):
+    from_department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='sent_delay_notifications')
+    to_department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='received_delay_notifications')
+    delay_record = models.ForeignKey(DelayRecord, on_delete=models.CASCADE, related_name='delay_notifications')
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"From {self.from_department.code} to {self.to_department.code}: {self.message[:50]}"
 

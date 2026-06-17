@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from tpm.models import Department, PillarEntry, KPIValue, CustomKPIDefinition
 from tpm.utils.decorators import dept_access_required
 from tpm.utils.kpi_definitions import KPI_DEFINITIONS
-from tpm.utils.calculations import compute_achievement, compute_PRODUCTION, parse_period, get_date_range_q, aggregate_kpi_actual
+from tpm.utils.calculations import compute_achievement, compute_PRODUCTION, parse_period, get_date_range_q, aggregate_kpi_actual, get_jh_kaizen_count, get_jh_kaizen_count_range
 from portal.utils.access import user_can_edit_module
 
 def get_months_list():
@@ -98,6 +98,25 @@ def get_kpi_rows(dept, pillar_id, month, year):
                 if db_val.benchmark is not None:
                     row_data['benchmark'] = db_val.benchmark
 
+        # For JH pillar, row 6 (JH Kaizen Completed): auto-calculate actual from KaizenSheet objects
+        if pillar_id == 'JH' and d['sl_no'] == '6':
+            count = get_jh_kaizen_count(dept, month, year)
+            row_data['actual'] = count
+            if entry:
+                db_val, created_val = KPIValue.objects.get_or_create(
+                    pillar_entry=entry, sl_no='6',
+                    defaults={
+                        'kpi_name': d['name'],
+                        'uom': d['uom'],
+                        'benchmark': d['benchmark'],
+                        'target': d['target'],
+                        'actual': count
+                    }
+                )
+                if not created_val and db_val.actual != count:
+                    db_val.actual = count
+                    db_val.save(update_fields=['actual'])
+
         # Calculate achievement if actual & target are present
         if row_data['actual'] is not None and row_data['target'] is not None:
             row_data['achievement'] = compute_achievement(row_data['actual'], row_data['target'], row_data['kpi_name'])
@@ -170,6 +189,9 @@ def get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year
                 if row_data['performance'] is not None: row_data['performance'] = round(row_data['performance'], 2)
                 if row_data['quality'] is not None: row_data['quality'] = round(row_data['quality'], 2)
         
+        if pillar_id == 'JH' and d['sl_no'] == '6':
+            row_data['actual'] = get_jh_kaizen_count_range(dept, from_month, from_year, to_month, to_year)
+
         # Calculate achievement if actual & target are present
         if row_data['actual'] is not None and row_data['target'] is not None:
             row_data['achievement'] = compute_achievement(row_data['actual'], row_data['target'], row_data['kpi_name'])
@@ -348,6 +370,8 @@ def save_kpi_row(request, dept_id, pillar_id):
             db_val.actual = round(compute_PRODUCTION(db_val.availability, db_val.performance, db_val.quality), 2)
         else:
             db_val.actual = float(actual_str) if actual_str else None
+    elif pillar_id == 'JH' and sl_no == '6':
+        db_val.actual = get_jh_kaizen_count(dept, month, year)
     else:
         db_val.actual = float(actual_str) if actual_str else None
         

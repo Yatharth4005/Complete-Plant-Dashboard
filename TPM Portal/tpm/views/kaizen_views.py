@@ -1,6 +1,8 @@
 import os
 import io
 import json
+import random
+import datetime
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -9,6 +11,7 @@ from django.conf import settings
 
 from tpm.models import Department, KaizenSheet
 from tpm.utils.decorators import dept_access_required
+from tpm.utils.calculations import update_jh_kaizen_kpi_value
 
 import openpyxl
 from openpyxl.drawing.image import Image as OpenpyxlImage
@@ -17,6 +20,57 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image as ReportLabImage, Paragraph
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+def format_date_to_form(date_str):
+    if not date_str:
+        return ''
+    try:
+        dt = datetime.datetime.strptime(date_str.strip(), '%d-%m-%Y')
+        return dt.strftime('%Y-%m-%d')
+    except ValueError:
+        pass
+    try:
+        dt = datetime.datetime.strptime(date_str.strip(), '%Y-%m-%d')
+        return dt.strftime('%Y-%m-%d')
+    except ValueError:
+        pass
+    return date_str
+
+def format_date_to_db(date_str):
+    if not date_str:
+        return ''
+    try:
+        dt = datetime.datetime.strptime(date_str.strip(), '%Y-%m-%d')
+        return dt.strftime('%d-%m-%Y')
+    except ValueError:
+        pass
+    try:
+        dt = datetime.datetime.strptime(date_str.strip(), '%d-%m-%Y')
+        return dt.strftime('%d-%m-%Y')
+    except ValueError:
+        pass
+    return date_str
+
+def generate_random_kaizen_no():
+    existing_nos = set(KaizenSheet.objects.values_list('kaizen_no', flat=True))
+    for _ in range(1000):
+        num = random.randint(1, 999)
+        candidate = f"K-{num:03d}"
+        if candidate not in existing_nos:
+            return candidate
+    return f"K-{KaizenSheet.objects.count() + 1:03d}"
+
+def update_kaizen_kpis_for_sheet(sheet):
+    if sheet.pillar != 'JH':
+        return
+    if sheet.finish_date:
+        for fmt in ('%d-%m-%Y', '%Y-%m-%d'):
+            try:
+                dt = datetime.datetime.strptime(sheet.finish_date.strip(), fmt)
+                update_jh_kaizen_kpi_value(sheet.department, dt.month, dt.year)
+                break
+            except ValueError:
+                pass
 
 @login_required
 @dept_access_required
@@ -38,10 +92,24 @@ def kaizen_edit_partial(request, dept_id, pillar_id, kaizen_id=None):
     kaizen = None
     if kaizen_id:
         kaizen = get_object_or_404(KaizenSheet, id=kaizen_id, department=dept, pillar=pillar_id)
+        if kaizen.start_date:
+            kaizen.start_date_form = format_date_to_form(kaizen.start_date)
+        if kaizen.finish_date:
+            kaizen.finish_date_form = format_date_to_form(kaizen.finish_date)
+            
+        formatted_deployment = []
+        for item in kaizen.horizontal_deployment:
+            new_item = item.copy()
+            if item.get('target_date'):
+                new_item['target_date_form'] = format_date_to_form(item['target_date'])
+            else:
+                new_item['target_date_form'] = ''
+            formatted_deployment.append(new_item)
+        kaizen.horizontal_deployment = formatted_deployment
         
     # Auto-prefill variables for new sheets
     prefills = {
-        'kaizen_no': f"K-{(kaizen.id if kaizen else KaizenSheet.objects.count() + 1):03d}",
+        'kaizen_no': generate_random_kaizen_no(),
         'activities': [pillar_id],
         'result_areas': [],
         'team_members': ['', '', '', ''],
@@ -68,8 +136,10 @@ def kaizen_edit_partial(request, dept_id, pillar_id, kaizen_id=None):
 def kaizen_save(request, dept_id, pillar_id, kaizen_id=None):
     dept = get_object_or_404(Department, id=dept_id)
     
+    old_finish_date = None
     if kaizen_id:
         kaizen = get_object_or_404(KaizenSheet, id=kaizen_id, department=dept, pillar=pillar_id)
+        old_finish_date = kaizen.finish_date
     else:
         kaizen = KaizenSheet(department=dept, pillar=pillar_id, created_by=request.user)
         
@@ -82,8 +152,8 @@ def kaizen_save(request, dept_id, pillar_id, kaizen_id=None):
     kaizen.idea = request.POST.get('idea', '').strip()
     kaizen.benchmark = request.POST.get('benchmark', '').strip()
     kaizen.target = request.POST.get('target', '').strip()
-    kaizen.start_date = request.POST.get('start_date', '').strip()
-    kaizen.finish_date = request.POST.get('finish_date', '').strip()
+    kaizen.start_date = format_date_to_db(request.POST.get('start_date', '').strip())
+    kaizen.finish_date = format_date_to_db(request.POST.get('finish_date', '').strip())
     kaizen.team_leader = request.POST.get('team_leader', '').strip()
     kaizen.analysis = request.POST.get('analysis', '').strip()
     kaizen.result_text = request.POST.get('result_text', '').strip()
@@ -134,7 +204,7 @@ def kaizen_save(request, dept_id, pillar_id, kaizen_id=None):
             deployment_data.append({
                 'sl_no': h_sl[idx].strip() or str(idx + 1),
                 'area_equip': h_area[idx].strip(),
-                'target_date': h_date[idx].strip(),
+                'target_date': format_date_to_db(h_date[idx].strip()),
                 'responsibility': h_resp[idx].strip(),
                 'status': h_stat[idx].strip() or 'Pending',
             })
@@ -150,12 +220,18 @@ def kaizen_save(request, dept_id, pillar_id, kaizen_id=None):
         
     kaizen.save()
     
-    return HttpResponse(
-        status=204,
-        headers={
-            'HX-Trigger': 'kaizenListChanged'
-        }
-    )
+    # Sync Jishu Hozen Kaizen Completed Count KPI actuals
+    update_kaizen_kpis_for_sheet(kaizen)
+    if old_finish_date and old_finish_date != kaizen.finish_date:
+        for fmt in ('%d-%m-%Y', '%Y-%m-%d'):
+            try:
+                dt = datetime.datetime.strptime(old_finish_date.strip(), fmt)
+                update_jh_kaizen_kpi_value(dept, dt.month, dt.year)
+                break
+            except ValueError:
+                pass
+                
+    return kaizen_list_partial(request, dept.id, pillar_id)
 
 @login_required
 @dept_access_required
@@ -163,7 +239,22 @@ def kaizen_save(request, dept_id, pillar_id, kaizen_id=None):
 def kaizen_delete(request, dept_id, pillar_id, kaizen_id):
     dept = get_object_or_404(Department, id=dept_id)
     kaizen = get_object_or_404(KaizenSheet, id=kaizen_id, department=dept, pillar=pillar_id)
+    
+    finish_date = kaizen.finish_date
+    sheet_pillar = kaizen.pillar
+    
     kaizen.delete()
+    
+    # Sync Jishu Hozen Kaizen Completed Count KPI actuals
+    if sheet_pillar == 'JH' and finish_date:
+        for fmt in ('%d-%m-%Y', '%Y-%m-%d'):
+            try:
+                dt = datetime.datetime.strptime(finish_date.strip(), fmt)
+                update_jh_kaizen_kpi_value(dept, dt.month, dt.year)
+                break
+            except ValueError:
+                pass
+                
     return kaizen_list_partial(request, dept_id, pillar_id)
 
 @login_required
@@ -192,16 +283,27 @@ def download_pdf(request, kaizen_id):
     return response
 
 
+def write_cell(ws, row, col, value):
+    cell = ws.cell(row=row, column=col)
+    if type(cell).__name__ == 'MergedCell':
+        for r in ws.merged_cells.ranges:
+            if r.min_row <= row <= r.max_row and r.min_col <= col <= r.max_col:
+                ws.cell(row=r.min_row, column=r.min_col, value=value)
+                return
+    else:
+        cell.value = value
+
+
 def generate_kaizen_excel(kaizen):
     template_path = os.path.join(settings.BASE_DIR, 'KAIZEN - Blank Format.xlsx')
     if not os.path.exists(template_path):
-        template_path = os.path.join(settings.BASE_DIR.parent, 'TPM Portal', 'KAIZEN - Blank Format.xlsx')
+        template_path = os.path.join(settings.BASE_DIR, 'TPM Portal', 'KAIZEN - Blank Format.xlsx')
         
     wb = openpyxl.load_workbook(template_path)
     ws = wb.active
     
     # Fill Kaizen No
-    ws.cell(row=3, column=2, value=f"KAIZEN NO.  {kaizen.kaizen_no}")
+    write_cell(ws, 3, 2, f"KAIZEN NO.  {kaizen.kaizen_no}")
     
     # Fill Activity checklist
     activity_cols = {
@@ -211,10 +313,10 @@ def generate_kaizen_excel(kaizen):
         val = act
         if act in kaizen.activities:
             val = f"✓ {act}"
-        ws.cell(row=3, column=col, value=val)
+        write_cell(ws, 3, col, val)
         
     # Loss Name
-    ws.cell(row=4, column=7, value=kaizen.loss_name)
+    write_cell(ws, 4, 7, kaizen.loss_name)
     
     # Result Area checklist
     result_cols = {
@@ -224,58 +326,57 @@ def generate_kaizen_excel(kaizen):
         val = res
         if res in kaizen.result_areas:
             val = f"✓ {res}"
-        ws.cell(row=5, column=col, value=val)
+        write_cell(ws, 5, col, val)
         
     # Department, Area, Circle Name
-    ws.cell(row=6, column=2, value=f"DEPARTMENT :  {kaizen.department.name}")
-    ws.cell(row=6, column=6, value=f"AREA/EQUIPMENT :  {kaizen.area_equipment}")
-    ws.cell(row=6, column=10, value=f"TPM CIRCLE NAME:  {kaizen.circle_name}")
+    write_cell(ws, 6, 2, f"DEPARTMENT :  {kaizen.department.name}")
+    write_cell(ws, 6, 6, f"AREA/EQUIPMENT :  {kaizen.area_equipment}")
+    write_cell(ws, 6, 10, f"TPM CIRCLE NAME:  {kaizen.circle_name}")
     
     # Theme & Idea
-    ws.cell(row=10, column=2, value=kaizen.theme)
-    ws.cell(row=10, column=6, value=kaizen.idea)
+    write_cell(ws, 10, 2, kaizen.theme)
+    write_cell(ws, 10, 6, kaizen.idea)
     
     # Benchmark, Target, Start, Finish
-    ws.cell(row=8, column=12, value=kaizen.benchmark)
-    ws.cell(row=9, column=12, value=kaizen.target)
-    ws.cell(row=10, column=12, value=kaizen.start_date)
-    ws.cell(row=11, column=12, value=kaizen.finish_date)
+    write_cell(ws, 8, 12, kaizen.benchmark)
+    write_cell(ws, 9, 12, kaizen.target)
+    write_cell(ws, 10, 12, kaizen.start_date)
+    write_cell(ws, 11, 12, kaizen.finish_date)
     
     # Team Members
-    ws.cell(row=13, column=12, value=kaizen.team_leader)
+    write_cell(ws, 13, 12, kaizen.team_leader)
     members = kaizen.team_members
     for idx in range(4):
         val = members[idx] if idx < len(members) else ""
-        ws.cell(row=14 + idx, column=12, value=val)
+        write_cell(ws, 14 + idx, 12, val)
         
     # Benefits: Tangible
     tangible = kaizen.tangible_benefits
     for idx in range(5):
         val = tangible[idx] if idx < len(tangible) else ""
-        ws.cell(row=20 + idx, column=11, value=val)
+        write_cell(ws, 20 + idx, 11, val)
         
     # Benefits: Intangible
     intangible = kaizen.intangible_benefits
     for idx in range(5):
         val = intangible[idx] if idx < len(intangible) else ""
-        ws.cell(row=26 + idx, column=11, value=val)
+        write_cell(ws, 26 + idx, 11, val)
         
     # Analysis & Result Text
-    ws.cell(row=32, column=2, value=kaizen.analysis)
-    ws.cell(row=32, column=6, value=kaizen.result_text)
+    write_cell(ws, 32, 2, kaizen.analysis)
+    write_cell(ws, 32, 6, kaizen.result_text)
     
     # Horizontal Deployment
     deployment = kaizen.horizontal_deployment
     for idx in range(3):
-        row_idx = 35 + idx # Row index 35 corresponds to row 36 (1-based: Row 35, Col 10, Col 11)
-        # Let's adjust based on grid: Row 35, Col 10 is SL. NO. 1
+        row_idx = 35 + idx
         if idx < len(deployment):
             item = deployment[idx]
-            ws.cell(row=row_idx, column=10, value=item.get('sl_no', str(idx+1)))
-            ws.cell(row=row_idx, column=11, value=item.get('area_equip', ''))
-            ws.cell(row=row_idx, column=12, value=item.get('target_date', ''))
-            ws.cell(row=row_idx, column=14, value=item.get('responsibility', ''))
-            ws.cell(row=row_idx, column=16, value=item.get('status', ''))
+            write_cell(ws, row_idx, 10, item.get('sl_no', str(idx+1)))
+            write_cell(ws, row_idx, 11, item.get('area_equip', ''))
+            write_cell(ws, row_idx, 12, item.get('target_date', ''))
+            write_cell(ws, row_idx, 14, item.get('responsibility', ''))
+            write_cell(ws, row_idx, 16, item.get('status', ''))
             
     # Add Images (Before, After, Result Graph)
     if kaizen.before_image:
@@ -333,6 +434,15 @@ def generate_kaizen_pdf(kaizen):
     
     grid = [[Paragraph("", cell_style) for _ in range(16)] for _ in range(39)]
     
+    # Jindal Steel Logo at the top
+    logo_path = os.path.join(settings.BASE_DIR, 'portal', 'static', 'portal', 'img', 'jindal_logo_dark.png')
+    if os.path.exists(logo_path):
+        try:
+            logo_img = ReportLabImage(logo_path, width=110, height=30)
+            grid[0][1] = logo_img
+        except Exception as e:
+            grid[0][1] = Paragraph(f"[Logo Error: {e}]", cell_style)
+            
     # 1. KAIZEN NO.
     grid[2][1] = Paragraph(f"<b>KAIZEN NO.</b><br/>{kaizen.kaizen_no}", cell_style_center)
     
@@ -473,13 +583,14 @@ def generate_kaizen_pdf(kaizen):
             
     # Compile TableStyle spans
     table_styles = [
-        ('GRID', (1,2), (-1,37), 0.5, colors.HexColor('#000000')),
+        ('GRID', (1,0), (-1,37), 0.5, colors.HexColor('#000000')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('BOTTOMPADDING', (0,0), (-1,-1), 1),
         ('TOPPADDING', (0,0), (-1,-1), 1),
         ('LEFTPADDING', (0,0), (-1,-1), 3),
         ('RIGHTPADDING', (0,0), (-1,-1), 3),
         
+        ('SPAN', (1,0), (15,1)),  # Jindal Logo header span
         ('SPAN', (1,2), (1,4)),   # Kaizen No
         ('SPAN', (2,2), (4,4)),   # Title
         

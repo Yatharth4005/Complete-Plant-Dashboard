@@ -16,7 +16,7 @@
   <td class="td-agency">
     {% if is_admin or can_edit and not r.is_locked %}
       <select name="agency" class="table-select-agency">
-        {% for a in agencies %}
+        {% for a in table_agencies %}
           <option value="{{ a }}" {% if a == r.agency %}selected{% endif %}>{{ a }}</option>
         {% endfor %}
       </select>

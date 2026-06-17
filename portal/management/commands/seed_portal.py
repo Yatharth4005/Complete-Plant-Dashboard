@@ -43,6 +43,7 @@ class Command(BaseCommand):
             ("SMS-3", "SMS3"),
             ("Sinter", "SINT"),
             ("Special Profile Mill (SPM)", "SPM"),
+            ("Main Receiving Sub Station (MRSS)", "MRSS"),
         ]
         
         for name, code in DEPARTMENTS:

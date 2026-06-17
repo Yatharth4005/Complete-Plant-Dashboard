@@ -67,7 +67,45 @@ def dept_overview(request, dept_id):
         last_oil_test = OilTestLog.objects.all().order_by('-date').first()
         last_oil_status = last_oil_test.status if last_oil_test else 'N/A'
         
+        # Department Summaries for overall dashboard
+        all_depts = Department.objects.all().order_by('name')
+        dept_summaries = []
+        for d in all_depts:
+            eqs = Equipment.objects.filter(department=d, is_active=True)
+            if eqs.exists():
+                eq_count = eqs.count()
+                
+                monitored = PMScheduleEntry.objects.filter(
+                    equipment__department=d,
+                    actual_date__month=today_date.month,
+                    actual_date__year=today_date.year,
+                    status=PMScheduleEntry.VisitStatus.DONE
+                ).count()
+                
+                due = PMScheduleEntry.objects.filter(
+                    equipment__department=d,
+                    scheduled_date=today_date,
+                    status=PMScheduleEntry.VisitStatus.PENDING
+                ).count()
+                
+                open_notif = SAPNotification.objects.filter(
+                    equipment__department=d,
+                    status=SAPNotification.NotifStatus.OPEN
+                ).count()
+                
+                last_oil = OilTestLog.objects.filter(equipment__department=d).order_by('-date').first()
+                oil_status = last_oil.status if last_oil else 'N/A'
+                
+                dept_summaries.append({
+                    'department': d,
+                    'equipment_count': eq_count,
+                    'monitored_this_month': monitored,
+                    'due_today': due,
+                    'open_notifications': open_notif,
+                    'last_oil_status': oil_status,
+                })
     else:
+        dept_summaries = []
         department = get_object_or_404(Department, id=dept_id)
         
         # 1. Summary Ribbon Stats
@@ -132,6 +170,7 @@ def dept_overview(request, dept_id):
         'last_oil_status': last_oil_status,
         'health_board': health_board,
         'upcoming_entries': upcoming_entries,
+        'dept_summaries': dept_summaries,
         'active_tab': 'overview',
     }
     return render(request, 'cmc/dashboard.html', context)

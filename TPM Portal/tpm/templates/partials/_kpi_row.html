@@ -48,7 +48,7 @@
   <td class="mono" style="text-align: right; vertical-align: middle;">
     {% if filter_type == 'range' or not can_edit %}
       <span>{{ row.actual|default:"—" }}</span>
-    {% elif row.is_PRODUCTION_row %}
+    {% elif row.is_PRODUCTION_row or pillar_id == 'JH' and row.sl_no == '6' %}
       <span x-text="actual !== null ? actual : '—'" style="font-weight: bold; color: var(--jspl-navy); padding-right: 10px;"></span>
       <input type="hidden" name="actual" x-model="actual">
     {% else %}

@@ -14,7 +14,7 @@ def plant_dashboard(request):
         'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
         'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
         'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
-        'SINT', 'SPM'
+        'SINT', 'SPM', 'MRSS'
     ]
     departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
     active_modules = Module.objects.filter(is_active=True).exclude(key__in=['FMEA', 'CAPA']).order_by('sort_order')

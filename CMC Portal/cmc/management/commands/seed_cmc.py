@@ -114,6 +114,8 @@ class Command(BaseCommand):
             'RMH-3': 'RMHS3', 'RMH-1': 'RMHS1', 'PGP-2': 'PGP2', 'PGP-3': 'PGP3',
             'CTL-3': 'PM',  # CTL is under Plate Mill
             'Coal Washery': 'CO',
+            'MRSS': 'MRSS',
+            'Main Receiving Sub Station': 'MRSS',
         }
         code = CMC_TO_PORTAL.get(str(name).strip())
         if code:

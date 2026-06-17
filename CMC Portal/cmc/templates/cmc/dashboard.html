@@ -97,101 +97,154 @@
   </div>
   {% endif %}
 
-  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
-    <!-- Class A Health Board -->
-    <div>
-      <h4 style="color: var(--jspl-navy); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-        🛡️ Critical Equipment Health Board (Class A)
+
+  {% if department.id == 0 %}
+    <div class="card" style="padding: 20px; width: 100%; border: 1px solid var(--jspl-border); border-radius: var(--radius); background: #ffffff;">
+      <h4 style="color: var(--jspl-navy); margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 6px;">
+        🔬 Department-wise Condition Monitoring Status
       </h4>
       <div class="table-container">
-        <table class="kpi-table">
+        <table class="kpi-table" style="width: 100%; font-size: 0.85rem;">
           <thead>
-            <tr>
-              <th>Equipment</th>
-              <th>Vibration</th>
-              <th>Oil Test</th>
-              <th>WDA Status</th>
-              <th style="text-align: center;">Overall Status</th>
+            <tr style="background-color: var(--jspl-navy);">
+              <th style="text-align: left;">Department</th>
+              <th style="text-align: center; width: 150px;">Monitored Equipments</th>
+              <th style="text-align: center; width: 150px;">Completed (This Month)</th>
+              <th style="text-align: center; width: 120px;">Due Today</th>
+              <th style="text-align: center; width: 150px;">Open SAP Alerts</th>
+              <th style="text-align: center; width: 150px;">Latest Oil Test</th>
+              <th style="text-align: center; width: 120px;">Action</th>
             </tr>
           </thead>
           <tbody>
-            {% if not health_board %}
+            {% for summary in dept_summaries %}
               <tr>
-                <td colspan="5" style="text-align: center; color: var(--jspl-muted);">No Class A equipment configured.</td>
+                <td><b>{{ summary.department.name }}</b> ({{ summary.department.code }})</td>
+                <td style="text-align: center;" class="mono">{{ summary.equipment_count }}</td>
+                <td style="text-align: center;" class="mono text-status-green">{{ summary.monitored_this_month }}</td>
+                <td style="text-align: center;" class="mono {% if summary.due_today > 0 %}text-status-red{% endif %}">{{ summary.due_today }}</td>
+                <td style="text-align: center;" class="mono">{{ summary.open_notifications }}</td>
+                <td style="text-align: center;">
+                  {% if summary.last_oil_status == 'OK' %}
+                    <span class="health-badge health-ok" style="background-color: #ecfdf5; color: #059669; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">OK</span>
+                  {% elif summary.last_oil_status == 'NOT_OK' %}
+                    <span class="health-badge health-critical" style="background-color: #fee2e2; color: #dc2626; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">ALERT</span>
+                  {% else %}
+                    <span style="color: var(--jspl-muted);">—</span>
+                  {% endif %}
+                </td>
+                <td style="text-align: center;">
+                  <a href="/cmc/department/{{ summary.department.id }}/" class="btn" style="padding: 4px 10px; font-size: 0.72rem; background-color: var(--jspl-blue) !important; color: white !important; font-weight: bold; border-radius: 4px; border: none; height: 26px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+                    View Dashboard
+                  </a>
+                </td>
               </tr>
-            {% else %}
-              {% for hb in health_board %}
-                <tr>
-                  <td style="font-weight: 600; color: var(--jspl-navy);">{{ hb.equipment.name }}</td>
-                  <td>
-                    {% if hb.last_vibration %}
-                      <span class="health-badge {% if hb.last_vibration.status == 'OK' %}health-ok{% elif hb.last_vibration.status == 'UM' or hb.last_vibration.status == 'ATTENTION' %}health-attention{% else %}health-critical{% endif %}">
-                        {{ hb.last_vibration.status }}
-                      </span>
-                      <br><small class="text-muted">{{ hb.last_vibration.date }}</small>
-                    {% else %}
-                      <span class="health-badge health-unknown">No Data</span>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {% if hb.last_oil_test %}
-                      <span class="health-badge {% if hb.last_oil_test.status == 'OK' %}health-ok{% else %}health-critical{% endif %}">
-                        {{ hb.last_oil_test.status }}
-                      </span>
-                      <br><small class="text-muted">{{ hb.last_oil_test.date }}</small>
-                    {% else %}
-                      <span class="health-badge health-unknown">No Data</span>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {% if hb.last_wda %}
-                      <span class="health-badge {% if hb.last_wda.final_status == 'OK' %}health-ok{% elif hb.last_wda.final_status == 'ATTENTION' %}health-attention{% else %}health-critical{% endif %}">
-                        {{ hb.last_wda.final_status }}
-                      </span>
-                      <br><small class="text-muted">{{ hb.last_wda.date }}</small>
-                    {% else %}
-                      <span class="health-badge health-unknown">No Data</span>
-                    {% endif %}
-                  </td>
-                  <td style="text-align: center;">
-                    <span class="badge {% if hb.overall_status == 'ok' %}badge-green{% elif hb.overall_status == 'attention' %}badge-amber{% elif hb.overall_status == 'critical' %}badge-red{% else %}badge-muted{% endif %}">
-                      {{ hb.overall_status }}
-                    </span>
-                  </td>
-                </tr>
-              {% endfor %}
-            {% endif %}
+            {% empty %}
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--jspl-muted); padding: 20px;">No department status logs available.</td>
+              </tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+  {% else %}
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+      <!-- Class A Health Board -->
+      <div>
+        <h4 style="color: var(--jspl-navy); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+          🛡️ Critical Equipment Health Board (Class A)
+        </h4>
+        <div class="table-container">
+          <table class="kpi-table">
+            <thead>
+              <tr>
+                <th>Equipment</th>
+                <th>Vibration</th>
+                <th>Oil Test</th>
+                <th>WDA Status</th>
+                <th style="text-align: center;">Overall Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if not health_board %}
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--jspl-muted);">No Class A equipment configured.</td>
+                </tr>
+              {% else %}
+                {% for hb in health_board %}
+                  <tr>
+                    <td style="font-weight: 600; color: var(--jspl-navy);">{{ hb.equipment.name }}</td>
+                    <td>
+                      {% if hb.last_vibration %}
+                        <span class="health-badge {% if hb.last_vibration.status == 'OK' %}health-ok{% elif hb.last_vibration.status == 'UM' or hb.last_vibration.status == 'ATTENTION' %}health-attention{% else %}health-critical{% endif %}">
+                          {{ hb.last_vibration.status }}
+                        </span>
+                        <br><small class="text-muted">{{ hb.last_vibration.date }}</small>
+                      {% else %}
+                        <span class="health-badge health-unknown">No Data</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if hb.last_oil_test %}
+                        <span class="health-badge {% if hb.last_oil_test.status == 'OK' %}health-ok{% else %}health-critical{% endif %}">
+                          {{ hb.last_oil_test.status }}
+                        </span>
+                        <br><small class="text-muted">{{ hb.last_oil_test.date }}</small>
+                      {% else %}
+                        <span class="health-badge health-unknown">No Data</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if hb.last_wda %}
+                        <span class="health-badge {% if hb.last_wda.final_status == 'OK' %}health-ok{% elif hb.last_wda.final_status == 'ATTENTION' %}health-attention{% else %}health-critical{% endif %}">
+                          {{ hb.last_wda.final_status }}
+                        </span>
+                        <br><small class="text-muted">{{ hb.last_wda.date }}</small>
+                      {% else %}
+                        <span class="health-badge health-unknown">No Data</span>
+                      {% endif %}
+                    </td>
+                    <td style="text-align: center;">
+                      <span class="badge {% if hb.overall_status == 'ok' %}badge-green{% elif hb.overall_status == 'attention' %}badge-amber{% elif hb.overall_status == 'critical' %}badge-red{% else %}badge-muted{% endif %}">
+                        {{ hb.overall_status }}
+                      </span>
+                    </td>
+                  </tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-    <!-- Upcoming Schedule -->
-    <div>
-      <h4 style="color: var(--jspl-navy); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-        📅 Scheduled Inspection Checklist (7 Days)
-      </h4>
-      <div style="background-color: var(--jspl-gray); border: 1px solid var(--jspl-border); padding: 16px; border-radius: var(--radius);">
-        {% if not upcoming_entries %}
-          <div style="text-align: center; color: var(--jspl-muted); padding: 20px 0;">
-            No scheduled visits for the next 7 days.
-          </div>
-        {% else %}
-          <ul style="list-style: none; padding: 0;">
-            {% for entry in upcoming_entries %}
-              <li style="padding: 10px 0; border-bottom: 1px solid var(--jspl-border); display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 500; font-size: 0.85rem; color: var(--jspl-text);">{{ entry.equipment.name }}</div>
-                  <small style="color: var(--jspl-muted);">Class {{ entry.equipment.equipment_class }}</small>
-                </div>
-                <span class="badge badge-muted" style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
-                  {{ entry.scheduled_date|date:"d M" }}
-                </span>
-              </li>
-            {% endfor %}
-          </ul>
-        {% endif %}
+      <!-- Upcoming Schedule -->
+      <div>
+        <h4 style="color: var(--jspl-navy); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+          📅 Scheduled Inspection Checklist (7 Days)
+        </h4>
+        <div style="background-color: var(--jspl-gray); border: 1px solid var(--jspl-border); padding: 16px; border-radius: var(--radius);">
+          {% if not upcoming_entries %}
+            <div style="text-align: center; color: var(--jspl-muted); padding: 20px 0;">
+              No scheduled visits for the next 7 days.
+            </div>
+          {% else %}
+            <ul style="list-style: none; padding: 0;">
+              {% for entry in upcoming_entries %}
+                <li style="padding: 10px 0; border-bottom: 1px solid var(--jspl-border); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 500; font-size: 0.85rem; color: var(--jspl-text);">{{ entry.equipment.name }}</div>
+                    <small style="color: var(--jspl-muted);">Class {{ entry.equipment.equipment_class }}</small>
+                  </div>
+                  <span class="badge badge-muted" style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
+                    {{ entry.scheduled_date|date:"d M" }}
+                  </span>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
       </div>
     </div>
-  </div>
+  {% endif %}
 {% endblock %}

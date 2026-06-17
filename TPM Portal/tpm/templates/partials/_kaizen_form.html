@@ -101,7 +101,7 @@
     <tr>
       <td class="kaizen-hdr-label" style="vertical-align: middle;">
         KAIZEN NO.
-        <input type="text" name="kaizen_no" class="kaizen-input mono" style="margin-top: 6px; font-weight: bold;" value="{{ kaizen.kaizen_no|default:prefills.kaizen_no }}" required>
+        <input type="text" name="kaizen_no" class="kaizen-input mono" style="margin-top: 6px; font-weight: bold; background-color: var(--jspl-gray);" value="{{ kaizen.kaizen_no|default:prefills.kaizen_no }}" readonly>
       </td>
       <td style="text-align: center; vertical-align: middle; width: 45%; background-color: var(--jspl-navy); color: #FFFFFF;">
         <h2 style="color: #FFFFFF; margin: 0; font-size: 1.4rem; letter-spacing: 1px;">KAIZEN IDEA SHEET</h2>
@@ -205,13 +205,13 @@
                 <tr>
                   <td style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-light); font-weight: bold;">START DATE</td>
                   <td style="border: none; border-bottom: 1px solid #000000;">
-                    <input type="text" name="start_date" class="kaizen-input" placeholder="DD-MM-YYYY" value="{{ kaizen.start_date|default:"" }}">
+                    <input type="date" name="start_date" class="kaizen-input" value="{{ kaizen.start_date_form|default:"" }}">
                   </td>
                 </tr>
                 <tr>
                   <td style="border: none; border-bottom: 1px solid #000000; background-color: var(--jspl-light); font-weight: bold;">FINISH DATE</td>
                   <td style="border: none; border-bottom: 1px solid #000000;">
-                    <input type="text" name="finish_date" class="kaizen-input" placeholder="DD-MM-YYYY" value="{{ kaizen.finish_date|default:"" }}">
+                    <input type="date" name="finish_date" class="kaizen-input" value="{{ kaizen.finish_date_form|default:"" }}">
                   </td>
                 </tr>
                 <tr>
@@ -375,7 +375,7 @@
                         <input type="text" name="h_area_equip" class="kaizen-input" style="font-size: 0.75rem; padding: 2px 4px;" value="{{ saved_row.area_equip|default:"" }}">
                       </td>
                       <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
-                        <input type="text" name="h_target_date" class="kaizen-input" style="font-size: 0.75rem; padding: 2px 4px;" placeholder="DD-MM" value="{{ saved_row.target_date|default:"" }}">
+                        <input type="date" name="h_target_date" class="kaizen-input" style="font-size: 0.75rem; padding: 2px 4px;" value="{{ saved_row.target_date_form|default:"" }}">
                       </td>
                       <td style="border: none; border-bottom: {% if forloop.last %}none{% else %}1px solid #000000{% endif %}; border-right: 1px solid #000000; padding: 4px;">
                         <input type="text" name="h_responsibility" class="kaizen-input" style="font-size: 0.75rem; padding: 2px 4px;" value="{{ saved_row.responsibility|default:"" }}">

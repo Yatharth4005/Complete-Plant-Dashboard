@@ -8,7 +8,7 @@ from django.db import models
 from django.db.models import Q, Sum, Avg
 from django.utils import timezone
 from tpm.models import Department
-from delays.models import DelayUpload, DelayRecord, DelayDropdownOption
+from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification
 from delays.forms import DelayRecordForm
 from delays.utils.parser import parse_excel_file
 from portal.utils.access import user_can_access_module, user_can_edit_module
@@ -79,50 +79,101 @@ def dept_overview(request, dept_id):
     total_hrs = total_mins / 60.0
     total_events = all_records.count()
     
-    # Top agency
-    agency_breakdown = all_records.values('agency').annotate(total=Sum('duration_mins')).order_by('-total')
-    top_agency = agency_breakdown[0]['agency'] if agency_breakdown else "N/A"
-    top_agency_mins = agency_breakdown[0]['total'] if agency_breakdown else 0.0
+    # Top agency (normalized)
+    agency_totals = {}
+    for r in all_records:
+        ag = (r.agency or '').strip()
+        if ag:
+            agency_totals[ag] = agency_totals.get(ag, 0.0) + (r.duration_mins or 0.0)
+            
+    agency_breakdown_sorted = sorted(agency_totals.items(), key=lambda x: x[1], reverse=True)
+    top_agency = agency_breakdown_sorted[0][0] if agency_breakdown_sorted else "N/A"
+    top_agency_mins = agency_breakdown_sorted[0][1] if agency_breakdown_sorted else 0.0
     
     avg_duration = all_records.aggregate(Avg('duration_mins'))['duration_mins__avg'] or 0.0
     
-    # Chart 1: Agency Distribution (Top 8)
-    agency_labels = [x['agency'] for x in agency_breakdown[:8]]
-    agency_data = [round(x['total'], 1) for x in agency_breakdown[:8]]
+    # Chart 1: Agency Distribution (Top 8) / Department-wise Distribution if Overall
+    if department.id == 0:
+        dept_breakdown = all_records.values('department__code').annotate(total=Sum('duration_mins')).order_by('-total')
+        agency_labels = [x['department__code'] for x in dept_breakdown[:8]]
+        agency_data = [round(x['total'], 1) for x in dept_breakdown[:8]]
+    else:
+        agency_labels = [x[0] for x in agency_breakdown_sorted[:8]]
+        agency_data = [round(x[1], 1) for x in agency_breakdown_sorted[:8]]
     
-    # Chart 2: Daily Trend (Last 30 active days, stacked by agency)
-    daily_breakdown = list(all_records.values('date').annotate(total=Sum('duration_mins')).order_by('date'))
-    daily_active_dates = [x['date'] for x in daily_breakdown[-30:]]
-    daily_labels = [d.strftime('%d-%b-%Y') for d in daily_active_dates]
-    
-    last_30_records = all_records.filter(date__in=daily_active_dates)
-    active_agencies = [a for a in last_30_records.values_list('agency', flat=True).distinct().exclude(agency='') if a]
-    if not active_agencies:
-        active_agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+    # Chart 2: Daily Trend / Department Comparison
+    if department.id == 0:
+        # For overall plant, we compare total downtime by department, stacked by agency
+        dept_downtimes = all_records.values('department__code').annotate(total=Sum('duration_mins')).order_by('-total')
+        daily_labels = [x['department__code'] for x in dept_downtimes if x['department__code']]
         
-    downtime_by_date_agency = last_30_records.values('date', 'agency').annotate(total=Sum('duration_mins'))
-    downtime_map = {}
-    for entry in downtime_by_date_agency:
-        downtime_map[(entry['date'], entry['agency'])] = entry['total']
+        raw_agencies = all_records.values_list('agency', flat=True).exclude(agency='')
+        active_groups = sorted(list(set(a.strip() for a in raw_agencies if a)))
+        if not active_groups:
+            active_groups = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+            
+        downtime_by_dept_agency = all_records.values('department__code', 'agency').annotate(total=Sum('duration_mins'))
+        downtime_map = {}
+        for entry in downtime_by_dept_agency:
+            dept = entry['department__code']
+            agency = (entry['agency'] or '').strip()
+            if not agency:
+                continue
+            downtime_map[(dept, agency)] = downtime_map.get((dept, agency), 0.0) + (entry['total'] or 0.0)
+            
+        daily_datasets = []
+        for grp in active_groups:
+            grp_data = []
+            for dept_code in daily_labels:
+                mins = downtime_map.get((dept_code, grp), 0.0)
+                grp_data.append(round(mins, 1))
+            daily_datasets.append({
+                'label': grp or "N/A",
+                'data': grp_data
+            })
+    else:
+        # For a specific department, show daily trend over last 30 active days, stacked by agency
+        daily_breakdown = list(all_records.values('date').annotate(total=Sum('duration_mins')).order_by('date'))
+        daily_active_dates = [x['date'] for x in daily_breakdown[-30:]]
+        daily_labels = [d.strftime('%d-%b-%Y') for d in daily_active_dates]
         
-    daily_datasets = []
-    for agency in active_agencies:
-        agency_daily_data = []
-        for d in daily_active_dates:
-            mins = downtime_map.get((d, agency), 0.0)
-            agency_daily_data.append(round(mins, 1))
-        daily_datasets.append({
-            'label': agency or "N/A",
-            'data': agency_daily_data
-        })
+        last_30_records = all_records.filter(date__in=daily_active_dates)
+        raw_agencies = last_30_records.values_list('agency', flat=True).exclude(agency='')
+        active_groups = sorted(list(set(a.strip() for a in raw_agencies if a)))
+        if not active_groups:
+            active_groups = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+            
+        downtime_by_date_group = last_30_records.values('date', 'agency').annotate(total=Sum('duration_mins'))
+        downtime_map = {}
+        for entry in downtime_by_date_group:
+            d_date = entry['date']
+            agency = (entry['agency'] or '').strip()
+            if not agency:
+                continue
+            downtime_map[(d_date, agency)] = downtime_map.get((d_date, agency), 0.0) + (entry['total'] or 0.0)
+            
+        daily_datasets = []
+        for grp in active_groups:
+            grp_daily_data = []
+            for d in daily_active_dates:
+                mins = downtime_map.get((d, grp), 0.0)
+                grp_daily_data.append(round(mins, 1))
+            daily_datasets.append({
+                'label': grp or "N/A",
+                'data': grp_daily_data
+            })
     
-    # Chart 3: Top bottleneck equipment
-    equip_breakdown = all_records.exclude(
-        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')
-    ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')[:5]
-    
-    equip_labels = [x['equipment'] for x in equip_breakdown]
-    equip_data = [round(x['total'], 1) for x in equip_breakdown]
+    # Chart 3: Top bottleneck equipment / Department
+    if department.id == 0:
+        dept_breakdown_bottleneck = all_records.values('department__code').annotate(total=Sum('duration_mins')).order_by('-total')[:5]
+        equip_labels = [x['department__code'] for x in dept_breakdown_bottleneck]
+        equip_data = [round(x['total'], 1) for x in dept_breakdown_bottleneck]
+    else:
+        equip_breakdown = all_records.exclude(
+            Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')
+        ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')[:5]
+        equip_labels = [x['equipment'] for x in equip_breakdown]
+        equip_data = [round(x['total'], 1) for x in equip_breakdown]
     
     # List of sheets parsed
     sheets_parsed = [s for s in all_records.order_by('sheet_name').values_list('sheet_name', flat=True).distinct() if s]
@@ -145,13 +196,13 @@ def dept_overview(request, dept_id):
     # Pareto Calculation by Agency
     agency_pareto = []
     running_mins = 0
-    for idx, ab in enumerate(agency_breakdown):
-        running_mins += ab['total']
+    for idx, (ag, total) in enumerate(agency_breakdown_sorted):
+        running_mins += total
         cum_percent = (running_mins / total_mins * 100) if total_mins > 0 else 0.0
         agency_pareto.append({
-            'agency': ab['agency'] or "N/A",
-            'mins': round(ab['total'], 1),
-            'percent': round((ab['total'] / total_mins * 100) if total_mins > 0 else 0.0, 1),
+            'agency': ag,
+            'mins': round(total, 1),
+            'percent': round((total / total_mins * 100) if total_mins > 0 else 0.0, 1),
             'cum_percent': round(cum_percent, 1),
             'rank': idx + 1,
             'is_vital': cum_percent <= 85.0 or idx == 0
@@ -262,14 +313,51 @@ def dept_overview(request, dept_id):
             'sub_agencies': sub_agencies,
             'sub_equipments': sub_equipments,
         })
- 
+    
+    dept_summaries = []
+    if department.id == 0:
+        all_depts = Department.objects.all().order_by('name')
+        for d in all_depts:
+            d_records = DelayRecord.objects.filter(department=d)
+            d_count = d_records.count()
+            if d_count > 0:
+                d_mins = d_records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
+                d_hrs = d_mins / 60.0
+                d_avg = d_records.aggregate(Avg('duration_mins'))['duration_mins__avg'] or 0.0
+                
+                d_agency_breakdown = d_records.values('agency').annotate(total=Sum('duration_mins')).order_by('-total')
+                d_top_agency = d_agency_breakdown[0]['agency'] if d_agency_breakdown else "N/A"
+                
+                dept_summaries.append({
+                    'department': d,
+                    'total_mins': round(d_mins, 1),
+                    'total_hrs': round(d_hrs, 1),
+                    'total_events': d_count,
+                    'top_agency': d_top_agency,
+                    'avg_duration': round(d_avg, 1),
+                })
+
+    # Fetch notifications
+    if department.id == 0:
+        notifications = DelayNotification.objects.all().order_by('-created_at')
+        external_departments = Department.objects.all().order_by('name')
+    else:
+        notifications = DelayNotification.objects.filter(to_department=department).order_by('-created_at')
+        external_departments = Department.objects.exclude(id=department.id).order_by('name')
+    unread_notifications_count = notifications.filter(is_read=False).count()
+
     context = {
         'department': department,
         'departments': departments,
+        'dept_summaries': dept_summaries,
         'can_edit': can_edit,
         'is_admin': is_admin,
         'status': status_filter,
         'has_unlocked': has_unlocked,
+        'notifications': notifications,
+        'unread_notifications_count': unread_notifications_count,
+        'external_departments': external_departments,
+
         'total_mins': round(total_mins, 1),
         'total_hrs': round(total_hrs, 1),
         'total_events': total_events,
@@ -305,6 +393,7 @@ def dept_overview(request, dept_id):
         
         # Autocomplete
         'agencies': agencies,
+        'table_agencies': sorted(list(set(agencies + list(Department.objects.all().values_list('name', flat=True))))),
         'sub_agencies': sub_agencies,
         'sections': sections,
         'equipments': equipments,
@@ -400,6 +489,7 @@ def records_table(request, dept_id):
         records = DelayRecord.objects.filter(department=department)
         
     query = request.GET.get('q', '').strip()
+    agency_type_filter = request.GET.get('agency_type', '').strip()
     agency_filter = request.GET.get('agency', '').strip()
     sub_agency_filter = request.GET.get('sub_agency', '').strip()
     equipment_filter = request.GET.get('equipment', '').strip()
@@ -417,8 +507,12 @@ def records_table(request, dept_id):
             Q(why__icontains=query)
         )
         
+    if agency_type_filter:
+        records = records.filter(agency_type=agency_type_filter)
+
     if agency_filter:
         records = records.filter(agency=agency_filter)
+
         
     if sub_agency_filter:
         records = records.filter(sub_agency=sub_agency_filter)
@@ -459,6 +553,8 @@ def records_table(request, dept_id):
     sub_agencies = autocompletes['sub_agencies']
     sub_equipments = autocompletes['sub_equipments']
 
+    table_agencies = sorted(list(set(agencies + list(Department.objects.all().values_list('name', flat=True)))))
+
     return render(request, 'delays/partials/_records_table.html', {
         'records': records[:150], # Limit query size for performance
         'department': department,
@@ -467,6 +563,7 @@ def records_table(request, dept_id):
         'status': status_filter,
         'has_unlocked': has_unlocked,
         'agencies': agencies,
+        'table_agencies': table_agencies,
         'equipments': equipments,
         'sub_agencies': sub_agencies,
         'sub_equipments': sub_equipments,
@@ -516,12 +613,14 @@ def new_record(request, dept_id):
         'equipments': equipments,
         'sub_equipments': sub_equipments,
         'incharges': incharges,
+        'external_departments': Department.objects.exclude(id=department.id).order_by('name'),
         
         # Sidebar
         'active_dept_id': department.id,
         'active_module': 'Delays',
         'active_section': 'department_module',
     }
+
     return render(request, 'delays/log_entry.html', context)
 
 
@@ -573,12 +672,14 @@ def edit_record(request, dept_id, record_id):
         'equipments': equipments,
         'sub_equipments': sub_equipments,
         'incharges': incharges,
+        'external_departments': Department.objects.exclude(id=department.id).order_by('name'),
         
         # Sidebar
         'active_dept_id': department.id,
         'active_module': 'Delays',
         'active_section': 'department_module',
     }
+
     return render(request, 'delays/log_entry.html', context)
 
 
@@ -647,6 +748,10 @@ def update_record_inline(request, dept_id, record_id):
                 pass
         if agency_val:
             record.agency = agency_val
+            if Department.objects.filter(name=agency_val).exists():
+                record.agency_type = 'External'
+            else:
+                record.agency_type = 'Internal'
         record.equipment = equipment_val
         record.why = why_val
         
@@ -661,6 +766,7 @@ def update_record_inline(request, dept_id, record_id):
         autocompletes = get_department_autocompletes(department, all_records)
         agencies = autocompletes['agencies']
         equipments = autocompletes['equipments']
+        table_agencies = sorted(list(set(agencies + list(Department.objects.all().values_list('name', flat=True)))))
             
         return render(request, 'delays/partials/_record_row.html', {
             'r': record,
@@ -668,6 +774,7 @@ def update_record_inline(request, dept_id, record_id):
             'can_edit': True,
             'is_admin': request.user.is_admin(),
             'agencies': agencies,
+            'table_agencies': table_agencies,
             'equipments': equipments,
         })
         
@@ -983,3 +1090,46 @@ def lock_records(request, dept_id):
     return redirect('delays:dept_overview', dept_id=dept_id)
 
 
+@login_required
+def mark_all_read(request, dept_id):
+    """
+    Mark all unread received notifications for the department as read.
+    """
+    if request.method == 'POST':
+        if int(dept_id) == 0:
+            if not request.user.is_admin():
+                messages.error(request, "Permission denied.")
+                return redirect('delays:dept_overview', dept_id=dept_id)
+            DelayNotification.objects.filter(is_read=False).update(is_read=True)
+        else:
+            department = get_object_or_404(Department, id=dept_id)
+            if not user_can_edit_module(request.user, department, 'Delays'):
+                messages.error(request, "Permission denied.")
+                return redirect('delays:dept_overview', dept_id=dept_id)
+            DelayNotification.objects.filter(to_department=department, is_read=False).update(is_read=True)
+        messages.success(request, "All notifications marked as read.")
+    return redirect('delays:dept_overview', dept_id=dept_id)
+
+
+@login_required
+def mark_read(request, dept_id, notification_id):
+    """
+    Mark a single notification as read.
+    """
+    if request.method == 'POST':
+        if int(dept_id) == 0:
+            if not request.user.is_admin():
+                messages.error(request, "Permission denied.")
+                return redirect('delays:dept_overview', dept_id=dept_id)
+            notification = get_object_or_404(DelayNotification, id=notification_id)
+        else:
+            department = get_object_or_404(Department, id=dept_id)
+            if not user_can_edit_module(request.user, department, 'Delays'):
+                messages.error(request, "Permission denied.")
+                return redirect('delays:dept_overview', dept_id=dept_id)
+            notification = get_object_or_404(DelayNotification, id=notification_id, to_department=department)
+            
+        notification.is_read = True
+        notification.save()
+        messages.success(request, "Notification marked as read.")
+    return redirect('delays:dept_overview', dept_id=dept_id)

@@ -250,3 +250,72 @@ def aggregate_ws_actual(ws_values_queryset, uom, kpi_name):
         
     return round(val, 2) if val is not None else None
 
+
+def get_jh_kaizen_count(dept, month, year):
+    from tpm.models import KaizenSheet
+    sheets = KaizenSheet.objects.filter(department=dept, pillar='JH')
+    count = 0
+    for sheet in sheets:
+        if sheet.finish_date:
+            for fmt in ('%d-%m-%Y', '%Y-%m-%d'):
+                try:
+                    dt = datetime.datetime.strptime(sheet.finish_date.strip(), fmt)
+                    if dt.month == month and dt.year == year:
+                        count += 1
+                        break
+                except ValueError:
+                    pass
+    return count
+
+
+def get_jh_kaizen_count_range(dept, from_month, from_year, to_month, to_year):
+    from tpm.models import KaizenSheet
+    sheets = KaizenSheet.objects.filter(department=dept, pillar='JH')
+    count = 0
+    start = from_year * 12 + from_month
+    end = to_year * 12 + to_month
+    for sheet in sheets:
+        if sheet.finish_date:
+            for fmt in ('%d-%m-%Y', '%Y-%m-%d'):
+                try:
+                    dt = datetime.datetime.strptime(sheet.finish_date.strip(), fmt)
+                    current = dt.year * 12 + dt.month
+                    if start <= current <= end:
+                        count += 1
+                        break
+                except ValueError:
+                    pass
+    return count
+
+
+def update_jh_kaizen_kpi_value(dept, month, year):
+    from tpm.models import PillarEntry, KPIValue
+    from tpm.utils.kpi_definitions import KPI_DEFINITIONS
+    
+    # Calculate count
+    count = get_jh_kaizen_count(dept, month, year)
+    
+    # Get or create PillarEntry for JH in this month/year
+    entry, created = PillarEntry.objects.get_or_create(
+        department=dept, pillar='JH', month=month, year=year
+    )
+    
+    # Get JH row 6 definition
+    jh_defs = KPI_DEFINITIONS.get('JH', [])
+    kpi_meta = next((d for d in jh_defs if d['sl_no'] == '6'), None)
+    if kpi_meta:
+        db_val, created_val = KPIValue.objects.get_or_create(
+            pillar_entry=entry, sl_no='6',
+            defaults={
+                'kpi_name': kpi_meta['name'],
+                'uom': kpi_meta['uom'],
+                'benchmark': kpi_meta['benchmark'],
+                'target': kpi_meta['target'],
+                'actual': count
+            }
+        )
+        if not created_val and db_val.actual != count:
+            db_val.actual = count
+            db_val.save(update_fields=['actual'])
+
+

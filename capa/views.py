@@ -166,14 +166,72 @@ def capa_dashboard(request, dept_id):
     # Comparative sheets table data
     sheet_comparisons = []
     
-    # 1. Check Docx Uploads
-    for u in uploads:
-        recs = u.reports.all()
-        if recs.exists():
-            best_date = get_upload_date_str(u, recs)
-            details = calculate_report_details(recs)
+    if int(dept_id) == 0:
+        # Group by department for overall view
+        all_depts = Department.objects.all().order_by('name')
+        for d in all_depts:
+            d_reports = reports.filter(department=d)
+            if d_reports.exists():
+                details = calculate_report_details(d_reports)
+                file_open_actions = details['open_ca'] + details['open_pa']
+                file_closed_actions = details['closed_ca'] + details['closed_pa']
+                
+                total_open_actions += file_open_actions
+                total_closed_actions += file_closed_actions
+                
+                sheet_comparisons.append({
+                    'id': d.id,
+                    'name': f"{d.name} ({d.code})",
+                    'date': '—',
+                    'total': d_reports.count(),
+                    'open': file_open_actions,
+                    'closed': file_closed_actions,
+                    'best_date': datetime.now(),
+                    'details': details,
+                    'dept_id': d.id,
+                    'dept_name': d.name,
+                    'dept_code': d.code,
+                })
+    else:
+        # 1. Check Docx Uploads
+        for u in uploads:
+            recs = u.reports.all()
+            if recs.exists():
+                best_date = get_upload_date_str(u, recs)
+                details = calculate_report_details(recs)
+                
+                # File level action counts
+                file_open_actions = details['open_ca'] + details['open_pa']
+                file_closed_actions = details['closed_ca'] + details['closed_pa']
+                
+                total_open_actions += file_open_actions
+                total_closed_actions += file_closed_actions
+                
+                sheet_comparisons.append({
+                    'id': u.id,
+                    'name': u.filename,
+                    'date': u.upload_date.strftime('%d.%m.%Y') if u.upload_date else '—',
+                    'total': recs.count(),
+                    'open': file_open_actions,
+                    'closed': file_closed_actions,
+                    'best_date': best_date or datetime.now(),
+                    'details': details,
+                    'dept_id': u.department.id,
+                    'dept_name': u.department.name,
+                    'dept_code': u.department.code,
+                })
+                
+        # 2. Check default manual list
+        manual_recs = reports.filter(docx_upload=None)
             
-            # File level action counts
+        if manual_recs.exists():
+            # Compute best_date for manual recs
+            best_date = None
+            r = manual_recs.first()
+            date_str = r.date_implementation or r.date_incident or r.issue_date
+            best_date = extract_date(date_str)
+            details = calculate_report_details(manual_recs)
+            
             file_open_actions = details['open_ca'] + details['open_pa']
             file_closed_actions = details['closed_ca'] + details['closed_pa']
             
@@ -181,55 +239,21 @@ def capa_dashboard(request, dept_id):
             total_closed_actions += file_closed_actions
             
             sheet_comparisons.append({
-                'id': u.id,
-                'name': u.filename + f" ({u.department.code})" if int(dept_id) == 0 else u.filename,
-                'date': u.upload_date.strftime('%d.%m.%Y') if u.upload_date else '—',
-                'total': recs.count(),
+                'id': 'new_file',
+                'name': 'Default manual list',
+                'date': '—',
+                'total': manual_recs.count(),
                 'open': file_open_actions,
                 'closed': file_closed_actions,
                 'best_date': best_date or datetime.now(),
                 'details': details,
-                'dept_id': u.department.id,
-                'dept_name': u.department.name,
-                'dept_code': u.department.code,
+                'dept_id': active_dept.id,
+                'dept_name': active_dept.name,
+                'dept_code': active_dept.code if hasattr(active_dept, 'code') else '',
             })
             
-    # 2. Check default manual list
-    if int(dept_id) == 0:
-        manual_recs = CAPAReport.objects.none()
-    else:
-        manual_recs = reports.filter(docx_upload=None)
-        
-    if manual_recs.exists():
-        # Compute best_date for manual recs
-        best_date = None
-        r = manual_recs.first()
-        date_str = r.date_implementation or r.date_incident or r.issue_date
-        best_date = extract_date(date_str)
-        details = calculate_report_details(manual_recs)
-        
-        file_open_actions = details['open_ca'] + details['open_pa']
-        file_closed_actions = details['closed_ca'] + details['closed_pa']
-        
-        total_open_actions += file_open_actions
-        total_closed_actions += file_closed_actions
-        
-        sheet_comparisons.append({
-            'id': 'new_file',
-            'name': 'Default manual list',
-            'date': '—',
-            'total': manual_recs.count(),
-            'open': file_open_actions,
-            'closed': file_closed_actions,
-            'best_date': best_date or datetime.now(),
-            'details': details,
-            'dept_id': active_dept.id,
-            'dept_name': active_dept.name,
-            'dept_code': active_dept.code if hasattr(active_dept, 'code') else '',
-        })
-        
-    # Sort chronologically by best_date
-    sheet_comparisons.sort(key=lambda x: x['best_date'])
+        # Sort chronologically by best_date
+        sheet_comparisons.sort(key=lambda x: x['best_date'])
     
     comp_labels = []
     comp_names = []
@@ -240,12 +264,15 @@ def capa_dashboard(request, dept_id):
     comp_details = {} # Mapping file ID -> detailed parameter comparison
     
     for item in sheet_comparisons:
-        date_str = item['best_date'].strftime('%d.%m.%Y') if item['best_date'] else '—'
-        dept_code = item.get('dept_code', '')
-        if dept_code:
-            lbl = f"({date_str}-{dept_code})"
+        if int(dept_id) == 0:
+            lbl = item.get('dept_code', '')
         else:
-            lbl = f"({date_str})"
+            date_str = item['best_date'].strftime('%d.%m.%Y') if item['best_date'] else '—'
+            dept_code = item.get('dept_code', '')
+            if dept_code:
+                lbl = f"({date_str}-{dept_code})"
+            else:
+                lbl = f"({date_str})"
         comp_labels.append(lbl)
         comp_names.append(item['name'])
         comp_ids.append(item['id'])

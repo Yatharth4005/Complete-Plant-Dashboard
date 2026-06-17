@@ -37,14 +37,7 @@
           {% endif %}
         </div>
         
-        <div class="form-field-group">
-          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Time Slot</label>
-          {{ form.time_slot }}
-          {% if form.time_slot.errors %}
-            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.time_slot.errors }}</div>
-          {% endif %}
-        </div>
-        
+
         <div class="field-row-2">
           <div class="form-field-group">
             <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Start Time</label>
@@ -76,15 +69,25 @@
       <div class="form-column">
         <h4 class="form-sec-title">🏷️ Categorization & Asset Info</h4>
         
-        <div class="form-field-group">
-          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Responsible Agency *</label>
-          {{ form.agency }}
-          {% if form.agency.errors %}
-            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.agency.errors }}</div>
-          {% endif %}
+        <div class="field-row-2">
+          <div class="form-field-group">
+            <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Agency Type *</label>
+            {{ form.agency_type }}
+            {% if form.agency_type.errors %}
+              <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.agency_type.errors }}</div>
+            {% endif %}
+          </div>
+          
+          <div class="form-field-group">
+            <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Responsible Agency *</label>
+            {{ form.agency }}
+            {% if form.agency.errors %}
+              <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.agency.errors }}</div>
+            {% endif %}
+          </div>
         </div>
         
-        <div class="form-field-group">
+        <div class="form-field-group internal-only-field">
           <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Sub Agency</label>
           {{ form.sub_agency }}
           {% if form.sub_agency.errors %}
@@ -92,7 +95,7 @@
           {% endif %}
         </div>
         
-        <div class="form-field-group">
+        <div class="form-field-group internal-only-field">
           <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Rolled Section</label>
           {{ form.section }}
           {% if form.section.errors %}
@@ -100,7 +103,7 @@
           {% endif %}
         </div>
         
-        <div class="form-field-group">
+        <div class="form-field-group internal-only-field">
           <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Equipment</label>
           {{ form.equipment }}
           {% if form.equipment.errors %}
@@ -108,7 +111,7 @@
           {% endif %}
         </div>
         
-        <div class="form-field-group">
+        <div class="form-field-group internal-only-field">
           <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Sub Equipment</label>
           {{ form.sub_equipment }}
           {% if form.sub_equipment.errors %}
@@ -194,9 +197,9 @@
   {% endfor %}
 </datalist>
 
-{% if is_edit %}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
+    // Why button CAPA redirection (from existing code)
     const selectEl = document.getElementById('id_why');
     if (selectEl) {
       selectEl.addEventListener('change', function() {
@@ -216,7 +219,124 @@
         }
       });
     }
+
+    // Dynamic internal/external agency toggle logic
+    const agencyTypeSelect = document.getElementById('id_agency_type');
+    const agencySelect = document.getElementById('id_agency');
+    
+    // Internal agencies list from the template context
+    const internalAgencies = [
+      {% for a in agencies %}
+        "{{ a|escapejs }}",
+      {% endfor %}
+    ];
+    
+    // External departments list from the template context
+    const externalAgencies = [
+      {% for d in external_departments %}
+        "{{ d.name|escapejs }}",
+      {% endfor %}
+    ];
+    
+    function updateAgencyOptions() {
+      if (!agencyTypeSelect || !agencySelect) return;
+      const type = agencyTypeSelect.value;
+      const currentValue = agencySelect.value;
+      
+      // Clear options
+      agencySelect.innerHTML = '';
+      
+      // Add default option
+      const placeholderOpt = document.createElement('option');
+      placeholderOpt.value = '';
+      placeholderOpt.textContent = type === 'External' ? 'Select External Department' : 'Select Agency';
+      agencySelect.appendChild(placeholderOpt);
+      
+      const list = type === 'External' ? externalAgencies : internalAgencies;
+      
+      list.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item;
+        opt.textContent = item;
+        if (item === currentValue) {
+          opt.selected = true;
+        }
+        agencySelect.appendChild(opt);
+      });
+    }
+    
+    const internalOnlyFields = document.querySelectorAll('.internal-only-field');
+    
+    function toggleFieldsByAgencyType() {
+      if (!agencyTypeSelect) return;
+      const type = agencyTypeSelect.value;
+      internalOnlyFields.forEach(field => {
+        if (type === 'External') {
+          field.style.display = 'none';
+        } else {
+          field.style.display = '';
+        }
+      });
+    }
+    
+    if (agencyTypeSelect && agencySelect) {
+      agencyTypeSelect.addEventListener('change', function() {
+        updateAgencyOptions();
+        toggleFieldsByAgencyType();
+      });
+      
+      // Initialize dropdown. Keep initial value of agency.
+      const initialVal = "{{ form.instance.agency|default_if_none:''|escapejs }}";
+      updateAgencyOptions();
+      toggleFieldsByAgencyType();
+      if (initialVal) {
+        agencySelect.value = initialVal;
+      }
+    }
+
+    // Automatic duration calculation based on Start Time & End Time
+    const startTimeInput = document.getElementById('id_start_time');
+    const endTimeInput = document.getElementById('id_end_time');
+    const durationInput = document.getElementById('id_duration_mins');
+    
+    function calculateDuration() {
+      if (!startTimeInput || !endTimeInput || !durationInput) return;
+      
+      const startTimeVal = startTimeInput.value.trim();
+      const endTimeVal = endTimeInput.value.trim();
+      
+      if (!startTimeVal || !endTimeVal) return;
+      
+      // Matches standard HH:MM time format
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+      const startMatch = startTimeVal.match(timeRegex);
+      const endMatch = endTimeVal.match(timeRegex);
+      
+      if (startMatch && endMatch) {
+        const startHrs = parseInt(startMatch[1], 10);
+        const startMins = parseInt(startMatch[2], 10);
+        const endHrs = parseInt(endMatch[1], 10);
+        const endMins = parseInt(endMatch[2], 10);
+        
+        let startTotal = startHrs * 60 + startMins;
+        let endTotal = endHrs * 60 + endMins;
+        
+        // Handle midnight crossing
+        if (endTotal < startTotal) {
+          endTotal += 24 * 60;
+        }
+        
+        const diff = endTotal - startTotal;
+        durationInput.value = diff;
+      }
+    }
+    
+    if (startTimeInput && endTimeInput) {
+      startTimeInput.addEventListener('input', calculateDuration);
+      endTimeInput.addEventListener('input', calculateDuration);
+      startTimeInput.addEventListener('change', calculateDuration);
+      endTimeInput.addEventListener('change', calculateDuration);
+    }
   });
 </script>
-{% endif %}
 {% endblock %}

@@ -96,42 +96,70 @@
 
   <!-- Saved Sheets Comparative Summary Table -->
   <div class="card" style="padding: 20px; margin-bottom: 30px;">
-    <h3 class="card-section-title">📁 Saved Sheets &amp; Files Comparative Summary</h3>
+    <h3 class="card-section-title">
+      {% if active_dept.id == 0 %}
+        📁 Department-wise FMEA Risk Summary
+      {% else %}
+        📁 Saved Sheets &amp; Files Comparative Summary
+      {% endif %}
+    </h3>
     <div class="table-responsive">
       <table class="dashboard-table">
         <thead>
           <tr style="background: #f8fafc;">
-            <th style="text-align: left;">File / Sheet Name</th>
-            <th style="text-align: center; width: 140px;">Sheet Date</th>
-            <th style="text-align: center; width: 140px;">Total FMEAs</th>
-            <th style="text-align: center; background-color: #fee2e2; color: #dc2626; width: 180px;">High (RPN >= 301)</th>
-            <th style="text-align: center; background-color: #fffbeb; color: #d97706; width: 180px;">Medium (101-300)</th>
-            <th style="text-align: center; background-color: #ecfdf5; color: #059669; width: 180px;">Low (1-100)</th>
-            <th style="text-align: center; width: 120px;">Action</th>
+            {% if active_dept.id == 0 %}
+              <th style="text-align: left;">Department</th>
+              <th style="text-align: center; width: 140px;">Total FMEAs</th>
+              <th style="text-align: center; background-color: #fee2e2; color: #dc2626; width: 180px;">High (RPN >= 301)</th>
+              <th style="text-align: center; background-color: #fffbeb; color: #d97706; width: 180px;">Medium (101-300)</th>
+              <th style="text-align: center; background-color: #ecfdf5; color: #059669; width: 180px;">Low (1-100)</th>
+              <th style="text-align: center; width: 120px;">Action</th>
+            {% else %}
+              <th style="text-align: left;">File / Sheet Name</th>
+              <th style="text-align: center; width: 140px;">Sheet Date</th>
+              <th style="text-align: center; width: 140px;">Total FMEAs</th>
+              <th style="text-align: center; background-color: #fee2e2; color: #dc2626; width: 180px;">High (RPN >= 301)</th>
+              <th style="text-align: center; background-color: #fffbeb; color: #d97706; width: 180px;">Medium (101-300)</th>
+              <th style="text-align: center; background-color: #ecfdf5; color: #059669; width: 180px;">Low (1-100)</th>
+              <th style="text-align: center; width: 120px;">Action</th>
+            {% endif %}
           </tr>
         </thead>
         <tbody>
           {% for sheet in sheet_comparisons %}
           <tr>
-            <td>
-              <span style="font-size: 0.95rem; font-weight: 800; color: var(--jspl-navy);">
-                {{ sheet.name }}.xlsx
-              </span>
-            </td>
-            <td style="text-align: center;" class="mono"><b>{{ sheet.date }}</b></td>
-            <td style="text-align: center; font-weight: 800; font-size: 1.05rem;">{{ sheet.total }}</td>
-            <td style="text-align: center; font-weight: 700; color: #dc2626; background-color: #fef2f2; font-size: 1rem;">{{ sheet.high }}</td>
-            <td style="text-align: center; font-weight: 700; color: #d97706; background-color: #fffdf5; font-size: 1rem;">{{ sheet.medium }}</td>
-            <td style="text-align: center; font-weight: 700; color: #059669; background-color: #f0fdf4; font-size: 1rem;">{{ sheet.low }}</td>
-            <td style="text-align: center;">
-              <a href="{% url 'fmea:report' sheet.dept_id %}?upload_id={{ sheet.id }}" class="btn" style="padding: 4px 10px; font-size: 0.75rem; background-color: var(--jspl-blue) !important; color: white !important; font-weight: bold; border-radius: 4px; border: none; height: 28px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;">
-                👁 View Sheet
-              </a>
-            </td>
+            {% if active_dept.id == 0 %}
+              <td style="text-align: left; font-weight: bold; color: var(--jspl-navy);">{{ sheet.name }}</td>
+              <td style="text-align: center; font-weight: 800; font-size: 1.05rem;">{{ sheet.total }}</td>
+              <td style="text-align: center; font-weight: 700; color: #dc2626; background-color: #fef2f2; font-size: 1rem;">{{ sheet.high }}</td>
+              <td style="text-align: center; font-weight: 700; color: #d97706; background-color: #fffdf5; font-size: 1rem;">{{ sheet.medium }}</td>
+              <td style="text-align: center; font-weight: 700; color: #059669; background-color: #f0fdf4; font-size: 1rem;">{{ sheet.low }}</td>
+              <td style="text-align: center;">
+                <a href="/fmea/department/{{ sheet.dept_id }}/" class="btn" style="padding: 4px 10px; font-size: 0.75rem; background-color: var(--jspl-blue) !important; color: white !important; font-weight: bold; border-radius: 4px; border: none; height: 28px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;">
+                  👁 View Dashboard
+                </a>
+              </td>
+            {% else %}
+              <td>
+                <span style="font-size: 0.95rem; font-weight: 800; color: var(--jspl-navy);">
+                  {{ sheet.name }}.xlsx
+                </span>
+              </td>
+              <td style="text-align: center;" class="mono"><b>{{ sheet.date }}</b></td>
+              <td style="text-align: center; font-weight: 800; font-size: 1.05rem;">{{ sheet.total }}</td>
+              <td style="text-align: center; font-weight: 700; color: #dc2626; background-color: #fef2f2; font-size: 1rem;">{{ sheet.high }}</td>
+              <td style="text-align: center; font-weight: 700; color: #d97706; background-color: #fffdf5; font-size: 1rem;">{{ sheet.medium }}</td>
+              <td style="text-align: center; font-weight: 700; color: #059669; background-color: #f0fdf4; font-size: 1rem;">{{ sheet.low }}</td>
+              <td style="text-align: center;">
+                <a href="{% url 'fmea:report' active_dept.id %}?upload_id={{ sheet.id }}" class="btn" style="padding: 4px 10px; font-size: 0.75rem; background-color: var(--jspl-blue) !important; color: white !important; font-weight: bold; border-radius: 4px; border: none; height: 28px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;">
+                  👁 View Sheet
+                </a>
+              </td>
+            {% endif %}
           </tr>
           {% empty %}
           <tr>
-            <td colspan="7" style="text-align: center; color: var(--jspl-muted); padding: 30px;">
+            <td colspan="{% if active_dept.id == 0 %}6{% else %}7{% endif %}" style="text-align: center; color: var(--jspl-muted); padding: 30px;">
               No saved files or sheets found. Please add manually or upload.
             </td>
           </tr>
@@ -140,6 +168,7 @@
       </table>
     </div>
   </div>
+
 
   <!-- Critical Risks Table Card -->
   <div class="card" style="padding: 20px; margin-bottom: 40px;">
@@ -294,17 +323,22 @@
           }
         },
         onClick: (event, elements) => {
-          if (isShowingDetail) return;
-          if (elements.length > 0) {
-            const index = elements[0].index;
-            const clickedId = compIds[index];
-            const clickedName = finalLabels[index];
-            
-            if (clickedId && detailedData[clickedId] && detailedData[clickedId].length > 0) {
-              showDetailedChart(clickedId, clickedName);
+          {% if active_dept.id == 0 %}
+            return;
+          {% else %}
+            if (isShowingDetail) return;
+            if (elements.length > 0) {
+              const index = elements[0].index;
+              const clickedId = compIds[index];
+              const clickedName = finalLabels[index];
+              
+              if (clickedId && detailedData[clickedId] && detailedData[clickedId].length > 0) {
+                showDetailedChart(clickedId, clickedName);
+              }
             }
-          }
-        }
+          {% endif %}
+        },
+
       }
     });
     
