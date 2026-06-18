@@ -1,0 +1,122 @@
+<form hx-post="{% url 'save_jh_settings' dept.id %}" hx-swap="none" style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px; background-color: var(--jspl-gray); padding: 16px; border-radius: var(--radius); border: 1px solid var(--jspl-border); flex-wrap: wrap;">
+  <input type="hidden" name="active_tab" value="equipments">
+  <div>
+    <span style="font-weight: 600; color: var(--jspl-navy);">Dept. Name :</span>
+    <span style="font-weight: bold; margin-left: 8px; color: var(--jspl-text);">{{ dept.name }}</span>
+  </div>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <label for="hod_name" style="font-weight: 600; color: var(--jspl-navy);">HoD Name :</label>
+    <input type="text" id="hod_name" name="hod_name" value="{{ settings.hod_name|default:'Mr. ' }}" class="input-mono" style="max-width: 200px;" {% if not can_edit %}disabled{% endif %}>
+  </div>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <label for="coordinator_name" style="font-weight: 600; color: var(--jspl-navy);">Department TPM Coordinator:</label>
+    <input type="text" id="coordinator_name" name="coordinator_name" value="{{ settings.coordinator_name|default:'Mr. ' }}" class="input-mono" style="max-width: 250px;" {% if not can_edit %}disabled{% endif %}>
+  </div>
+  {% if can_edit %}
+  <button type="submit" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.85rem; margin-left: auto;">Save Header Info</button>
+  {% endif %}
+</form>
+
+<div class="table-container">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--jspl-border); background-color: var(--jspl-gray); display: flex; justify-content: space-between; align-items: center;">
+    <h3 style="font-size: 1.1rem; color: var(--jspl-navy); font-weight: bold; margin: 0;">Master List of Equipment</h3>
+  </div>
+  <table class="kpi-table">
+    <thead>
+      <tr>
+        <th style="width: 80px; text-align: center;">S.No.</th>
+        <th>Machine Name</th>
+        <th>No. of Equipment</th>
+        <th style="width: 180px;">Rank (A / B / C)</th>
+        {% if can_edit %}
+        <th style="width: 120px; text-align: center;">Actions</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for machine in machines %}
+      <tr id="machine-row-{{ machine.id }}">
+        <td style="text-align: center; font-weight: 600; color: var(--jspl-muted);">{{ forloop.counter }}</td>
+        <td>
+          {% if can_edit %}
+          <input type="text" name="machine_name" value="{{ machine.machine_name }}" class="input-mono" style="max-width: 100%; border-color: transparent; background: transparent; font-weight: 600;" 
+                 hx-post="{% url 'save_jh_machine_id' dept.id machine.id %}" hx-trigger="change" hx-swap="none"
+                 onfocus="this.style.borderColor='var(--jspl-orange)'; this.style.background='var(--jspl-white)';"
+                 onblur="this.style.borderColor='transparent'; this.style.background='transparent';">
+          {% else %}
+          <span style="font-weight: 600; color: var(--jspl-text);">{{ machine.machine_name }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if can_edit %}
+          <input type="number" name="no_of_equipment" value="{{ machine.no_of_equipment }}" min="1" class="input-mono" style="max-width: 100px; border-color: transparent; background: transparent;" 
+                 hx-post="{% url 'save_jh_machine_id' dept.id machine.id %}" hx-trigger="change" hx-swap="none"
+                 onfocus="this.style.borderColor='var(--jspl-orange)'; this.style.background='var(--jspl-white)';"
+                 onblur="this.style.borderColor='transparent'; this.style.background='transparent';">
+          {% else %}
+          {{ machine.no_of_equipment }}
+          {% endif %}
+        </td>
+        <td>
+          {% if can_edit %}
+          <select name="rank" class="input-mono" style="max-width: 100px; border-color: transparent; background: transparent;" 
+                  hx-post="{% url 'save_jh_machine_id' dept.id machine.id %}" hx-trigger="change" hx-swap="none"
+                  onfocus="this.style.borderColor='var(--jspl-orange)'; this.style.background='var(--jspl-white)';"
+                  onblur="this.style.borderColor='transparent'; this.style.background='transparent';">
+            <option value="A" {% if machine.rank == 'A' %}selected{% endif %}>A</option>
+            <option value="B" {% if machine.rank == 'B' %}selected{% endif %}>B</option>
+            <option value="C" {% if machine.rank == 'C' %}selected{% endif %}>C</option>
+          </select>
+          {% else %}
+          <span class="badge {% if machine.rank == 'A' %}badge-red{% elif machine.rank == 'B' %}badge-amber{% else %}badge-green{% endif %}">{{ machine.rank }}</span>
+          {% endif %}
+        </td>
+        {% if can_edit %}
+        <td style="text-align: center;">
+          <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8rem; border-radius: 4px;" 
+                  hx-post="{% url 'delete_jh_machine' dept.id machine.id %}?tab=equipments" 
+                  hx-confirm="Are you sure you want to delete this machine? This will also remove it from other lists and the master plan." 
+                  hx-target="#tab-content" 
+                  hx-swap="innerHTML">
+            🗑️ Delete
+          </button>
+        </td>
+        {% endif %}
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="{% if can_edit %}5{% else %}4{% endif %}" style="text-align: center; padding: 24px; color: var(--jspl-muted);">No machines found. Add a machine below.</td>
+      </tr>
+      {% endfor %}
+      
+      {% if can_edit %}
+      <!-- Add Machine Row -->
+      <tr style="background-color: var(--jspl-light); border-top: 2px solid var(--jspl-border);">
+        <td style="text-align: center; font-weight: bold; color: var(--jspl-orange);">New</td>
+        <td>
+          <input type="text" id="new-machine_name" name="machine_name" placeholder="Enter machine name..." class="input-mono" style="max-width: 100%; font-weight: 600;">
+        </td>
+        <td>
+          <input type="number" id="new-no_of_equipment" name="no_of_equipment" value="1" min="1" class="input-mono" style="max-width: 100px;">
+        </td>
+        <td>
+          <select id="new-rank" name="rank" class="input-mono" style="max-width: 100px;">
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+          </select>
+        </td>
+        <td style="text-align: center;">
+          <button class="btn btn-primary" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 6px;"
+                  hx-post="{% url 'save_jh_machine' dept.id %}"
+                  hx-include="#new-machine_name, #new-no_of_equipment, #new-rank"
+                  hx-target="#tab-content"
+                  hx-swap="innerHTML">
+            ➕ Add
+          </button>
+        </td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>

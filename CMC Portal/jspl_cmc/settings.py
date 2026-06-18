@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Add Main Portal and TPM Portal directories to path to allow importing portal and tpm
 sys.path.append(str(BASE_DIR.parent))
 sys.path.append(str(BASE_DIR.parent / 'TPM Portal'))
+sys.path.append(str(BASE_DIR.parent / 'Delays Portal'))
 
 # Security Settings (MUST match TPM and Portal for session sharing)
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-jspl-tpm-portal-secret-key-1029384756')
@@ -29,6 +30,7 @@ INSTALLED_APPS = [
     'cmc',
     'tpm',
     'portal',
+    'delays',
 ]
 
 MIDDLEWARE = [

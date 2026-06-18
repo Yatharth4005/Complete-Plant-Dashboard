@@ -37,6 +37,166 @@
     #portal-sidebar::-webkit-scrollbar-thumb:hover {
       background-color: rgba(255, 255, 255, 0.4) !important;
     }
+
+    /* Unified Notification Bell & Dropdown Styles */
+    .notifications-menu {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .notifications-trigger {
+      background: var(--jspl-gray);
+      border: 1px solid var(--jspl-border);
+      padding: 0;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      height: 38px;
+      width: 38px;
+      color: var(--jspl-navy);
+      transition: all 0.2s ease;
+    }
+    .notifications-trigger:hover {
+      background: var(--jspl-light-blue) !important;
+      border-color: var(--jspl-blue) !important;
+    }
+    .notifications-trigger:active {
+      transform: scale(0.95);
+    }
+    .notification-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: var(--status-red);
+      color: white;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: 50%;
+      min-width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      box-shadow: 0 0 0 2px white;
+    }
+    .notifications-dropdown {
+      position: absolute;
+      right: 0;
+      top: 45px;
+      width: 340px;
+      background: var(--jspl-white);
+      border: 1px solid var(--jspl-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      z-index: 1000;
+      display: block;
+      text-align: left;
+    }
+    .notifications-dropdown-header {
+      padding: 14px 18px;
+      background: var(--jspl-gray);
+      border-bottom: 1px solid var(--jspl-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .notifications-dropdown-header strong {
+      color: var(--jspl-navy);
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+    .notifications-dropdown-header span {
+      font-size: 0.75rem;
+      background: var(--jspl-light);
+      color: var(--jspl-navy);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .notifications-list {
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .notification-item {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(0, 52, 120, 0.05);
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+    .notification-item:hover {
+      background: rgba(0, 52, 120, 0.02) !important;
+    }
+    .notification-content {
+      flex-grow: 1;
+      min-width: 0;
+    }
+    .notification-message {
+      font-size: 0.82rem;
+      color: var(--jspl-text);
+      font-weight: 500;
+      line-height: 1.4;
+      word-wrap: break-word;
+    }
+    .notification-message a {
+      text-decoration: none;
+      color: inherit;
+    }
+    .notification-message a:hover {
+      text-decoration: underline;
+      color: var(--jspl-blue);
+    }
+    .notification-meta {
+      font-size: 0.72rem;
+      color: var(--jspl-muted);
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .notification-mark-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      color: var(--jspl-muted);
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .notification-mark-btn:hover {
+      color: var(--status-green) !important;
+      background-color: rgba(22, 163, 74, 0.1) !important;
+    }
+    .no-notifications-placeholder {
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--jspl-muted);
+      font-size: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .no-notifications-placeholder span:first-child {
+      font-size: 1.8rem;
+      filter: grayscale(100%);
+      opacity: 0.6;
+    }
+    [x-cloak] {
+      display: none !important;
+    }
   </style>
 
   <!-- HTMX -->
@@ -72,6 +232,54 @@
 
     <div class="topbar-right">
       {% block module_badge %}{% endblock %}
+
+      <!-- Notifications Menu -->
+      <div class="notifications-menu" x-data="{ open: false }" @click.outside="open = false" style="position: relative; display: flex; align-items: center; margin-right: 15px;">
+        <button class="notifications-trigger" @click="open = !open" style="background: var(--jspl-gray); border: 1px solid var(--jspl-border); padding: 0; border-radius: var(--radius-md, 10px); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; height: 38px; width: 38px; color: var(--jspl-navy); transition: all 0.2s ease;">
+          <span style="font-size: 1.1rem; line-height: 1;">🔔</span>
+          {% if header_notifications_count > 0 %}
+          <span id="header-notification-badge" class="notification-badge" style="position: absolute; top: -5px; right: -5px; background: var(--status-red); color: white; font-size: 0.7rem; font-weight: 700; border-radius: 50%; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px white;">
+            {{ header_notifications_count }}
+          </span>
+          {% endif %}
+        </button>
+        <div class="notifications-dropdown" x-show="open" x-transition x-cloak style="position: absolute; right: 0; top: 45px; width: 340px; background: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius-lg, 16px); box-shadow: var(--shadow-lg); overflow: hidden; z-index: 1000; text-align: left;">
+          <div class="notifications-dropdown-header" style="padding: 14px 18px; background: var(--jspl-gray); border-bottom: 1px solid var(--jspl-border); display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--jspl-navy); font-size: 0.92rem; font-weight: 700;">Notifications</strong>
+            <span id="header-notification-count" style="font-size: 0.75rem; background: var(--jspl-light-blue); color: var(--jspl-blue); padding: 3px 8px; border-radius: 4px; font-weight: 600;">
+              {{ header_notifications_count }} Unread
+            </span>
+          </div>
+          <div class="notifications-list" id="notifications-list-container" style="max-height: 320px; overflow-y: auto;">
+            {% if header_notifications %}
+              {% for n in header_notifications %}
+              <div class="notification-item" id="notification-{{ n.id }}" style="padding: 14px 18px; border-bottom: 1px solid rgba(0, 52, 120, 0.05); display: flex; gap: 12px; align-items: flex-start; position: relative;">
+                <div class="notification-content" style="flex-grow: 1; min-width: 0;">
+                  <div class="notification-message" style="font-size: 0.82rem; color: var(--jspl-text); font-weight: 500; line-height: 1.4; word-wrap: break-word;">
+                    {% if n.link %}
+                      <a href="{{ n.link }}" style="text-decoration: none; color: inherit; hover: text-decoration: underline;">{{ n.message }}</a>
+                    {% else %}
+                      {{ n.message }}
+                    {% endif %}
+                  </div>
+                  <div class="notification-meta" style="font-size: 0.72rem; color: var(--jspl-muted); margin-top: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <span>{{ n.created_at|timesince }} ago</span>
+                  </div>
+                </div>
+                <button class="notification-mark-btn" @click.stop="markNotificationRead({{ n.id }})" title="Mark as read" style="background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--jspl-muted); padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.color='var(--status-green)'; this.style.backgroundColor='rgba(22, 163, 74, 0.1)';" onmouseout="this.style.color='var(--jspl-muted)'; this.style.backgroundColor='transparent';">
+                  ✓
+                </button>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="no-notifications-placeholder" id="no-notifications-placeholder" style="padding: 32px 24px; text-align: center; color: var(--jspl-muted); font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                <span style="font-size: 1.8rem; filter: grayscale(100%); opacity: 0.6;">🔔</span>
+                <span>All caught up! No unread notifications.</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
 
       <!-- User Menu -->
       <div class="user-menu" x-data="{ open: false }" @click.outside="open = false">
@@ -312,6 +520,66 @@
 
   <!-- Scripts -->
   <script src="{% static 'portal/js/portal.js' %}"></script>
+  <script>
+    function markNotificationRead(id) {
+      const url = "{% url 'portal:mark_notification_read' 0 %}".replace('0', id);
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          const element = document.getElementById(`notification-${id}`);
+          if (element) {
+            element.style.opacity = '0';
+            element.style.maxHeight = '0px';
+            element.style.padding = '0px';
+            element.style.borderBottom = 'none';
+            setTimeout(() => {
+              element.remove();
+              
+              // Update badge count
+              const badge = document.getElementById('header-notification-badge');
+              const textBadge = document.getElementById('header-notification-count');
+              
+              let count = 0;
+              if (badge) {
+                count = parseInt(badge.innerText.trim()) - 1;
+                if (count > 0) {
+                  badge.innerText = count;
+                } else {
+                  badge.remove();
+                }
+              }
+              
+              if (textBadge) {
+                textBadge.innerText = `${count} Unread`;
+              }
+              
+              // If list is empty, show empty state placeholder
+              const listContainer = document.getElementById('notifications-list-container');
+              if (listContainer && listContainer.querySelectorAll('.notification-item').length === 0) {
+                listContainer.innerHTML = `
+                  <div class="no-notifications-placeholder" id="no-notifications-placeholder">
+                    <span>🔔</span>
+                    <span>All caught up! No unread notifications.</span>
+                  </div>
+                `;
+              }
+            }, 300);
+          }
+        } else {
+          console.error("Failed to mark notification as read");
+        }
+      })
+      .catch(error => {
+        console.error("Error marking notification as read:", error);
+      });
+    }
+  </script>
   {% block extra_js %}{% endblock %}
 </body>
 

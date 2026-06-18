@@ -2,7 +2,7 @@
 
 from django.urls import path
 from tpm.views import auth_views, dashboard_views, department_views, governance_views
-from tpm.views import pillar_views, ws_kpi_views, report_views, admin_views, kaizen_views, capa_views
+from tpm.views import pillar_views, ws_kpi_views, report_views, admin_views, kaizen_views, capa_views, jh_master_views
 
 urlpatterns = [
     # Auth
@@ -133,4 +133,22 @@ urlpatterns = [
          capa_views.download_excel, name='capa_download_excel'),
     path('capa/<int:capa_id>/download/pdf/',
          capa_views.download_pdf, name='capa_download_pdf'),
+
+    # JH Master List & Plan
+    path('department/<int:dept_id>/jh-master-list/equipments/',
+         jh_master_views.jh_master_equipments, name='jh_master_equipments'),
+    path('department/<int:dept_id>/jh-master-list/machines/',
+         jh_master_views.jh_machine_list, name='jh_machine_list'),
+    path('department/<int:dept_id>/jh-master-list/plan/',
+         jh_master_views.jh_master_plan, name='jh_master_plan'),
+    path('department/<int:dept_id>/jh-master-list/save/',
+         jh_master_views.save_jh_machine, name='save_jh_machine'),
+    path('department/<int:dept_id>/jh-master-list/save/<int:machine_id>/',
+         jh_master_views.save_jh_machine, name='save_jh_machine_id'),
+    path('department/<int:dept_id>/jh-master-list/delete/<int:machine_id>/',
+         jh_master_views.delete_jh_machine, name='delete_jh_machine'),
+    path('department/<int:dept_id>/jh-master-list/settings/',
+         jh_master_views.save_jh_settings, name='save_jh_settings'),
+    path('department/<int:dept_id>/jh-master-plan/save-cell/',
+         jh_master_views.save_jh_plan_cell, name='save_jh_plan_cell'),
 ]

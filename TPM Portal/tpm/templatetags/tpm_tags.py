@@ -62,3 +62,10 @@ def get_list_item(lst, idx):
     except (IndexError, ValueError, TypeError):
         return {}
 
+
+@register.simple_tag
+def get_plan_cell_status(plan_cells_dict, machine_id, step, year, month, week):
+    key = f"{machine_id}-{step}-{year}-{month}-{week}"
+    return plan_cells_dict.get(key, "")
+
+

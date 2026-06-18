@@ -31,7 +31,7 @@ class User(AbstractUser):
     last_active = models.DateTimeField(null=True, blank=True)
 
     def is_admin(self):
-        return bool(self.is_plant_admin) or self.is_superuser
+        return bool(self.is_plant_admin)
 
 
     def get_display_name(self):
@@ -335,6 +335,71 @@ class TPMGovernanceAssignment(models.Model):
 
     def __str__(self):
         return f"{self.get_role_key_display()}: {self.user.get_display_name()}"
+
+
+class JHDepartmentSettings(models.Model):
+    department = models.OneToOneField(Department, on_delete=models.CASCADE, related_name='jh_settings')
+    hod_name = models.CharField(max_length=150, blank=True, default="Mr. ")
+    coordinator_name = models.CharField(max_length=150, blank=True, default="Mr. ")
+    plan_start_date = models.DateField(null=True, blank=True)
+    plan_end_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"JH Settings - {self.department.name}"
+
+
+class JHMachine(models.Model):
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='jh_machines')
+    machine_name = models.CharField(max_length=255)
+    no_of_equipment = models.IntegerField(default=1)
+    rank = models.CharField(max_length=10, choices=[('A', 'A'), ('B', 'B'), ('C', 'C')], default='A')
+    
+    # JH Machine list fields
+    present_step = models.CharField(
+        max_length=20, 
+        choices=[
+            ('Step 1', 'Step 1'),
+            ('Step 2', 'Step 2'),
+            ('Step 3', 'Step 3'),
+            ('Step 4', 'Step 4'),
+            ('Step 5', 'Step 5'),
+            ('Step 6', 'Step 6'),
+            ('Step 7', 'Step 7')
+        ], 
+        default='Step 1'
+    )
+    present_step_date = models.DateField(null=True, blank=True)
+    circle_name = models.CharField(max_length=255, blank=True, default="")
+    circle_leader = models.CharField(max_length=255, blank=True, default="")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.machine_name} ({self.department.name})"
+
+
+class JHMasterPlanCell(models.Model):
+    machine = models.ForeignKey(JHMachine, on_delete=models.CASCADE, related_name='plan_cells')
+    step = models.IntegerField()  # 1 to 7
+    year = models.IntegerField()
+    month = models.IntegerField()  # 1 to 12
+    week = models.IntegerField()   # 1 to 4
+    status = models.CharField(
+        max_length=20, 
+        choices=[
+            ('PLAN', 'PLAN'),
+            ('UNDER_PROGRESS', 'UNDER PROGRESS'),
+            ('COMPLETED', 'COMPLETED')
+        ]
+    )
+
+    class Meta:
+        unique_together = ('machine', 'step', 'year', 'month', 'week')
+
+    def __str__(self):
+        return f"{self.machine.machine_name} - Step {self.step} - {self.year}/{self.month} W{self.week}: {self.status}"
+
 
 
 

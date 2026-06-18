@@ -1,0 +1,391 @@
+{% load tpm_tags %}
+
+<style>
+  .plan-table-wrapper {
+    background-color: var(--jspl-white);
+    border: 1px solid var(--jspl-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: auto;
+    max-width: 100%;
+    max-height: 650px;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  
+  .plan-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: auto;
+    min-width: 100%;
+    font-size: 0.85rem;
+  }
+  
+  .plan-table th, .plan-table td {
+    padding: 8px 12px;
+    border: 1px solid var(--jspl-border);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  
+  .plan-table th {
+    background-color: var(--jspl-navy);
+    color: var(--jspl-white);
+    font-weight: 600;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  /* Double row header offsets */
+  .plan-table thead tr:nth-child(1) th {
+    top: 0;
+    height: 40px;
+  }
+  .plan-table thead tr:nth-child(2) th {
+    top: 40px;
+    height: 35px;
+  }
+  .plan-table thead tr:nth-child(3) th {
+    top: 75px;
+    height: 30px;
+  }
+  .plan-table thead tr:nth-child(4) th {
+    top: 105px;
+    height: 25px;
+  }
+  
+  /* Sticky frozen columns on the left */
+  .sticky-col {
+    position: sticky;
+    background-color: var(--jspl-white) !important;
+    z-index: 2;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+  }
+  .sticky-col-sno { left: 0; width: 45px; min-width: 45px; text-align: center; }
+  .sticky-col-name { left: 45px; width: 180px; min-width: 180px; }
+  .sticky-col-rank { left: 225px; width: 65px; min-width: 65px; text-align: center; }
+  .sticky-col-resp { left: 290px; width: 140px; min-width: 140px; }
+  .sticky-col-step { 
+    left: 430px; 
+    width: 60px; 
+    min-width: 60px; 
+    text-align: center; 
+    border-right: 3px solid var(--jspl-navy) !important; 
+  }
+  
+  th.sticky-col {
+    background-color: var(--jspl-navy) !important;
+    color: var(--jspl-white) !important;
+    z-index: 12;
+  }
+  
+  /* Active paint cell styles */
+  .plan-cell {
+    width: 25px;
+    height: 25px;
+    padding: 0 !important;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.05s ease, opacity 0.2s ease;
+    border: 1px solid var(--jspl-border);
+  }
+  
+  .plan-cell:hover {
+    transform: scale(1.15);
+    box-shadow: var(--shadow-md);
+    z-index: 5;
+    position: relative;
+  }
+  
+  .cell-plan {
+    background-color: var(--status-red) !important;
+  }
+  .cell-progress {
+    background-color: #f1c40f !important; /* Vibrant yellow */
+  }
+  .cell-completed {
+    background-color: var(--status-green) !important;
+  }
+  
+  /* Legend details */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--jspl-border);
+    cursor: pointer;
+    background-color: var(--jspl-white);
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .legend-item:hover {
+    background-color: var(--jspl-light);
+  }
+  .legend-box {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+  .brush-active {
+    border-color: var(--jspl-orange) !important;
+    box-shadow: 0 0 0 3px rgba(244,121,32,0.25) !important;
+    transform: translateY(-2px);
+  }
+</style>
+
+<div x-data="{
+  activeBrush: null,
+  highlightedStatus: null,
+  selectBrush(brush) {
+    if (this.activeBrush === brush) {
+      this.activeBrush = null;
+    } else {
+      this.activeBrush = brush;
+    }
+  },
+  paintCell(event, machineId, step, year, month, week) {
+    let cell = event.currentTarget;
+    let currentStatus = cell.dataset.status || '';
+    let newStatus = '';
+    
+    if (this.activeBrush) {
+      newStatus = this.activeBrush === 'CLEAR' ? '' : this.activeBrush;
+    } else {
+      // cycle mode
+      if (currentStatus === '') newStatus = 'PLAN';
+      else if (currentStatus === 'PLAN') newStatus = 'UNDER_PROGRESS';
+      else if (currentStatus === 'UNDER_PROGRESS') newStatus = 'COMPLETED';
+      else newStatus = '';
+    }
+    
+    // optimistic UI
+    cell.dataset.status = newStatus;
+    cell.className = 'plan-cell ' + this.getStatusClass(newStatus);
+    
+    // AJAX post
+    let formData = new FormData();
+    formData.append('machine_id', machineId);
+    formData.append('step', step);
+    formData.append('year', year);
+    formData.append('month', month);
+    formData.append('week', week);
+    formData.append('status', newStatus);
+    
+    fetch('{% url 'save_jh_plan_cell' dept.id %}', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        alert('Failed to save status cell.');
+        cell.dataset.status = currentStatus;
+        cell.className = 'plan-cell ' + this.getStatusClass(currentStatus);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      cell.dataset.status = currentStatus;
+      cell.className = 'plan-cell ' + this.getStatusClass(currentStatus);
+    });
+  },
+  getStatusClass(status) {
+    if (status === 'PLAN') return 'cell-plan';
+    if (status === 'UNDER_PROGRESS') return 'cell-progress';
+    if (status === 'COMPLETED') return 'cell-completed';
+    return '';
+  }
+}">
+  <!-- Plan Date and Header Config -->
+  <form hx-post="{% url 'save_jh_settings' dept.id %}" hx-target="#tab-content" hx-swap="innerHTML" style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px; background-color: var(--jspl-gray); padding: 16px; border-radius: var(--radius); border: 1px solid var(--jspl-border); flex-wrap: wrap;">
+    <input type="hidden" name="active_tab" value="plan">
+    <div>
+      <span style="font-weight: 600; color: var(--jspl-navy);">Department Name:</span>
+      <span style="font-weight: bold; margin-left: 8px; color: var(--jspl-text);">{{ dept.name }}</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <label for="hod_name" style="font-weight: 600; color: var(--jspl-navy);">HOD Name :</label>
+      <input type="text" id="hod_name" name="hod_name" value="{{ settings.hod_name|default:'Mr. ' }}" class="input-mono" style="max-width: 140px;" {% if not can_edit %}disabled{% endif %}>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <label for="coordinator_name" style="font-weight: 600; color: var(--jspl-navy);">Dept. Coordinator Name :</label>
+      <input type="text" id="coordinator_name" name="coordinator_name" value="{{ settings.coordinator_name|default:'Mr. ' }}" class="input-mono" style="max-width: 140px;" {% if not can_edit %}disabled{% endif %}>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <label for="plan_start_date" style="font-weight: 600; color: var(--jspl-navy);">Plan Start:</label>
+      <input type="date" id="plan_start_date" name="plan_start_date" value="{{ settings.plan_start_date|date:'Y-m-d' }}" class="input-mono" {% if not can_edit %}disabled{% endif %}>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <label for="plan_end_date" style="font-weight: 600; color: var(--jspl-navy);">Plan End:</label>
+      <input type="date" id="plan_end_date" name="plan_end_date" value="{{ settings.plan_end_date|date:'Y-m-d' }}" class="input-mono" {% if not can_edit %}disabled{% endif %}>
+    </div>
+    {% if can_edit %}
+    <button type="submit" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.85rem; margin-left: auto;">Update Plan Config</button>
+    {% endif %}
+  </form>
+
+  <!-- Planning Table Grid -->
+  <div class="plan-table-wrapper">
+    <table class="plan-table">
+      <thead>
+        <!-- Row 1: Years -->
+        <tr>
+          <th rowspan="4" class="sticky-col sticky-col-sno" style="vertical-align: middle;">S. No</th>
+          <th rowspan="4" class="sticky-col sticky-col-name" style="vertical-align: middle;">Machine Name</th>
+          <th rowspan="4" class="sticky-col sticky-col-rank" style="vertical-align: middle;">Rank (A/B/C)</th>
+          <th rowspan="4" class="sticky-col sticky-col-resp" style="vertical-align: middle;">Responsibility<br>(JH Circle Name)</th>
+          <th rowspan="4" class="sticky-col sticky-col-step" style="vertical-align: middle;">JH Steps</th>
+          {% for y in grouped_years %}
+            <th colspan="{{ y.total_cols }}" style="text-align: center; border-bottom: 1px solid var(--jspl-border);">Year ({{ y.year }})</th>
+          {% endfor %}
+        </tr>
+        
+        <!-- Row 2: Months -->
+        <tr>
+          {% for y in grouped_years %}
+            {% for m in y.months %}
+              <th colspan="4" style="text-align: center; border-bottom: 1px solid var(--jspl-border);">{{ m.name }}</th>
+            {% endfor %}
+          {% endfor %}
+        </tr>
+        
+        <!-- Row 3: Weeks Label -->
+        <tr>
+          {% for y in grouped_years %}
+            {% for m in y.months %}
+              <th colspan="4" style="text-align: center; border-bottom: 1px solid var(--jspl-border); font-size: 0.75rem; font-weight: bold; background-color: var(--jspl-navy); color: var(--jspl-white); padding: 4px;">Weeks</th>
+            {% endfor %}
+          {% endfor %}
+        </tr>
+        
+        <!-- Row 4: Week Numbers -->
+        <tr>
+          {% for y in grouped_years %}
+            {% for m in y.months %}
+              <th style="text-align: center; min-width: 25px; padding: 4px 2px;">1</th>
+              <th style="text-align: center; min-width: 25px; padding: 4px 2px;">2</th>
+              <th style="text-align: center; min-width: 25px; padding: 4px 2px;">3</th>
+              <th style="text-align: center; min-width: 25px; padding: 4px 2px;">4</th>
+            {% endfor %}
+          {% endfor %}
+        </tr>
+      </thead>
+      
+      <tbody>
+        {% for machine in machines %}
+          {% for step_num in steps_range %}
+            <tr>
+              {% if forloop.first %}
+                <td rowspan="7" class="sticky-col sticky-col-sno" style="vertical-align: middle; font-weight: bold; color: var(--jspl-muted);">{{ forloop.parentloop.counter }}</td>
+                <td rowspan="7" class="sticky-col sticky-col-name" style="vertical-align: middle; font-weight: bold; color: var(--jspl-navy); font-size: 0.85rem; white-space: normal;">{{ machine.machine_name }}</td>
+                <td rowspan="7" class="sticky-col sticky-col-rank" style="vertical-align: middle; text-align: center;">
+                  <span class="badge {% if machine.rank == 'A' %}badge-red{% elif machine.rank == 'B' %}badge-amber{% else %}badge-green{% endif %}">{{ machine.rank }}</span>
+                </td>
+                <td rowspan="7" class="sticky-col sticky-col-resp" style="vertical-align: middle; font-weight: 500; font-size: 0.8rem; white-space: normal;">{{ machine.circle_name|default:'—' }}</td>
+              {% endif %}
+              
+              <td class="sticky-col sticky-col-step" style="font-weight: 600; text-align: center; color: var(--jspl-text);">{{ step_num }}</td>
+              
+              <!-- Render cells for all months and weeks in the display range -->
+              {% for y in grouped_years %}
+                {% for m in y.months %}
+                  
+                  <!-- Week 1 -->
+                  {% get_plan_cell_status plan_cells_dict machine.id step_num y.year m.num 1 as status1 %}
+                  <td class="plan-cell {% if status1 == 'PLAN' %}cell-plan{% elif status1 == 'UNDER_PROGRESS' %}cell-progress{% elif status1 == 'COMPLETED' %}cell-completed{% endif %}"
+                      data-status="{{ status1 }}"
+                      {% if can_edit %}@click="paintCell($event, {{ machine.id }}, {{ step_num }}, {{ y.year }}, {{ m.num }}, 1)"{% endif %}
+                      :style="highlightedStatus !== null && $el.dataset.status !== highlightedStatus ? 'opacity: 0.15;' : ''">
+                  </td>
+                  
+                  <!-- Week 2 -->
+                  {% get_plan_cell_status plan_cells_dict machine.id step_num y.year m.num 2 as status2 %}
+                  <td class="plan-cell {% if status2 == 'PLAN' %}cell-plan{% elif status2 == 'UNDER_PROGRESS' %}cell-progress{% elif status2 == 'COMPLETED' %}cell-completed{% endif %}"
+                      data-status="{{ status2 }}"
+                      {% if can_edit %}@click="paintCell($event, {{ machine.id }}, {{ step_num }}, {{ y.year }}, {{ m.num }}, 2)"{% endif %}
+                      :style="highlightedStatus !== null && $el.dataset.status !== highlightedStatus ? 'opacity: 0.15;' : ''">
+                  </td>
+                  
+                  <!-- Week 3 -->
+                  {% get_plan_cell_status plan_cells_dict machine.id step_num y.year m.num 3 as status3 %}
+                  <td class="plan-cell {% if status3 == 'PLAN' %}cell-plan{% elif status3 == 'UNDER_PROGRESS' %}cell-progress{% elif status3 == 'COMPLETED' %}cell-completed{% endif %}"
+                      data-status="{{ status3 }}"
+                      {% if can_edit %}@click="paintCell($event, {{ machine.id }}, {{ step_num }}, {{ y.year }}, {{ m.num }}, 3)"{% endif %}
+                      :style="highlightedStatus !== null && $el.dataset.status !== highlightedStatus ? 'opacity: 0.15;' : ''">
+                  </td>
+                  
+                  <!-- Week 4 -->
+                  {% get_plan_cell_status plan_cells_dict machine.id step_num y.year m.num 4 as status4 %}
+                  <td class="plan-cell {% if status4 == 'PLAN' %}cell-plan{% elif status4 == 'UNDER_PROGRESS' %}cell-progress{% elif status4 == 'COMPLETED' %}cell-completed{% endif %}"
+                      data-status="{{ status4 }}"
+                      {% if can_edit %}@click="paintCell($event, {{ machine.id }}, {{ step_num }}, {{ y.year }}, {{ m.num }}, 4)"{% endif %}
+                      :style="highlightedStatus !== null && $el.dataset.status !== highlightedStatus ? 'opacity: 0.15;' : ''">
+                  </td>
+                  
+                {% endfor %}
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        {% empty %}
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 24px; color: var(--jspl-muted);">No machines found. Go to the Equipments tab to add machines.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Interactive Legends Toolbar -->
+  <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+    <h4 style="color: var(--jspl-navy); font-size: 0.95rem; font-weight: bold; margin: 0 0 4px 0;">Legends (Paintbrush & Hover Highlight Mode):</h4>
+    <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+      
+      <div class="legend-item" :class="{ 'brush-active': activeBrush === 'PLAN' }" 
+           @click="selectBrush('PLAN')"
+           @mouseenter="highlightedStatus = 'PLAN'"
+           @mouseleave="highlightedStatus = null">
+        <span class="legend-box cell-plan"></span>
+        <span style="color: var(--jspl-text);">PLAN (Red)</span>
+      </div>
+      
+      <div class="legend-item" :class="{ 'brush-active': activeBrush === 'UNDER_PROGRESS' }" 
+           @click="selectBrush('UNDER_PROGRESS')"
+           @mouseenter="highlightedStatus = 'UNDER_PROGRESS'"
+           @mouseleave="highlightedStatus = null">
+        <span class="legend-box cell-progress"></span>
+        <span style="color: var(--jspl-text);">UNDER PROGRESS (Yellow)</span>
+      </div>
+      
+      <div class="legend-item" :class="{ 'brush-active': activeBrush === 'COMPLETED' }" 
+           @click="selectBrush('COMPLETED')"
+           @mouseenter="highlightedStatus = 'COMPLETED'"
+           @mouseleave="highlightedStatus = null">
+        <span class="legend-box cell-completed"></span>
+        <span style="color: var(--jspl-text);">COMPLETED (Green)</span>
+      </div>
+      
+      <div class="legend-item" :class="{ 'brush-active': activeBrush === 'CLEAR' }" 
+           @click="selectBrush('CLEAR')"
+           @mouseenter="highlightedStatus = ''"
+           @mouseleave="highlightedStatus = null">
+        <span class="legend-box" style="background-color: var(--jspl-white);"></span>
+        <span style="color: var(--jspl-text);">CLEAR / RESET</span>
+      </div>
+      
+      <div style="font-size: 0.85rem; color: var(--jspl-muted); margin-left: auto;">
+        <span x-show="activeBrush" style="font-weight: 600; color: var(--jspl-orange);">🖌️ Brush Active: <span x-text="activeBrush"></span>. Click cells to paint. Click legend item again to deselect.</span>
+        <span x-show="!activeBrush">💡 Cycles status on direct cell click (PLAN → PROGRESS → COMPLETED → RESET). Hover a legend item to highlight!</span>
+      </div>
+      
+    </div>
+  </div>
+</div>

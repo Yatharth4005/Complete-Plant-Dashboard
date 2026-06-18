@@ -23,9 +23,21 @@ def sidebar_context_processor(request):
         {'id': 'SHE', 'label': 'SHE (Safety & Health)'},
         {'id': 'OTPM', 'label': 'OTPM (Office TPM)'},
     ]
+
+    header_notifications = []
+    header_notifications_count = 0
+    try:
+        from portal.models import PortalNotification
+        header_notifications = PortalNotification.objects.filter(user=request.user, is_read=False).order_by('-created_at')[:10]
+        header_notifications_count = PortalNotification.objects.filter(user=request.user, is_read=False).count()
+    except Exception:
+        pass
+
     return {
         'sidebar_departments': depts,
         'pillars': pillars,
+        'header_notifications': header_notifications,
+        'header_notifications_count': header_notifications_count,
     }
 
 

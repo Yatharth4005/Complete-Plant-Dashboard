@@ -33,4 +33,7 @@ urlpatterns = [
     path('forgot-password/', auth_views.forgot_password_view, name='forgot_password'),
     path('reset-password/<str:uidb64>/<str:token>/', auth_views.reset_password_view, name='reset_password'),
     path('request-access/', auth_views.request_access_view, name='request_access'),
+
+    # Notifications
+    path('notifications/<int:notification_id>/mark-read/', dashboard_views.mark_notification_read, name='mark_notification_read'),
 ]

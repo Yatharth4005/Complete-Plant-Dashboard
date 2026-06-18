@@ -208,3 +208,20 @@ def capa_reports(request):
         'prefills': prefills,
     }
     return render(request, 'portal/dashboard/capa_reports.html', context)
+
+
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from portal.models import PortalNotification
+
+@login_required
+@require_POST
+def mark_notification_read(request, notification_id):
+    try:
+        notification = PortalNotification.objects.get(id=notification_id, user=request.user)
+        notification.is_read = True
+        notification.save()
+        return JsonResponse({'status': 'success'})
+    except PortalNotification.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Notification not found'}, status=404)
+

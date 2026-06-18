@@ -16,6 +16,16 @@ def sidebar_context(request):
         'SINT', 'SPM', 'MRSS'
     ]
 
+    # Fetch unread notifications for the header icon dropdown
+    header_notifications = []
+    header_notifications_count = 0
+    try:
+        from portal.models import PortalNotification
+        header_notifications = PortalNotification.objects.filter(user=request.user, is_read=False).order_by('-created_at')[:10]
+        header_notifications_count = PortalNotification.objects.filter(user=request.user, is_read=False).count()
+    except Exception:
+        pass
+
     if request.user.is_admin():
         depts = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
     else:
@@ -92,4 +102,6 @@ def sidebar_context(request):
         'active_module': active_module,
         'user_modules_map': user_modules_map,
         'pillars': pillars,
+        'header_notifications': header_notifications,
+        'header_notifications_count': header_notifications_count,
     }

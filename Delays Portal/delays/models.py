@@ -78,6 +78,28 @@ class DelayRecord(models.Model):
                     'message': f"Department {self.department.name} ({self.department.code}) filed a delay of {self.duration_mins} mins on {self.date} against you. Reason: {self.description or ''}"
                 }
             )
+            # Create a PortalNotification for all relevant users (target department, cross-access, admins)
+            try:
+                from portal.models import PortalNotification
+                from tpm.models import User
+                from django.db.models import Q
+                
+                users = User.objects.filter(
+                    Q(department=to_dept) | 
+                    Q(module_access__department=to_dept, module_access__module__key='Delays') |
+                    Q(is_plant_admin=True)
+                ).exclude(department=self.department).distinct()
+                
+                msg = f"Department {self.department.name} ({self.department.code}) filed a delay of {self.duration_mins} mins on {self.date} against your department. Reason: {self.description or ''}"
+                for u in users:
+                    PortalNotification.objects.get_or_create(
+                        user=u,
+                        message=msg,
+                        link=f"/delays/department/{to_dept.id}/",
+                        is_read=False
+                    )
+            except Exception:
+                pass
         else:
             DelayNotification.objects.filter(delay_record=self).delete()
 

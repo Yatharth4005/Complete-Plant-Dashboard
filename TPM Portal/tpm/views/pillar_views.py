@@ -230,9 +230,64 @@ def pillar_page(request, dept_id, pillar_id):
 
     active_tab = request.GET.get('tab', 'entry')
     sheets = None
+    settings = None
+    machines = None
+    grouped_years = None
+    plan_cells_dict = None
+    steps_range = None
+    
     if active_tab == 'kaizen':
         from tpm.models import KaizenSheet
         sheets = KaizenSheet.objects.filter(department=dept, pillar=pillar_id).order_by('-created_at')
+    elif active_tab in ['jh-master-equip', 'jh-master-machines', 'jh-master-plan']:
+        from tpm.models import JHDepartmentSettings, JHMachine, JHMasterPlanCell
+        settings, created = JHDepartmentSettings.objects.get_or_create(
+            department=dept,
+            defaults={
+                'hod_name': 'Mr. ',
+                'coordinator_name': 'Mr. ',
+                'plan_start_date': datetime.date(datetime.date.today().year, 1, 1),
+                'plan_end_date': datetime.date(datetime.date.today().year, 12, 31)
+            }
+        )
+        machines = JHMachine.objects.filter(department=dept).order_by('id')
+        if active_tab == 'jh-master-plan':
+            steps_range = range(1, 8)
+            start = settings.plan_start_date or datetime.date(datetime.date.today().year, 1, 1)
+            end = settings.plan_end_date or datetime.date(datetime.date.today().year, 12, 31)
+            grouped_years = []
+            curr = datetime.date(start.year, start.month, 1)
+            end_first_day = datetime.date(end.year, end.month, 1)
+            months_count = 0
+            while curr <= end_first_day and months_count < 24:
+                year_val = curr.year
+                month_val = curr.month
+                month_name = curr.strftime('%b').upper()
+                year_item = next((item for item in grouped_years if item['year'] == year_val), None)
+                if not year_item:
+                    year_item = {
+                        'year': year_val,
+                        'months': [],
+                        'total_cols': 0
+                    }
+                    grouped_years.append(year_item)
+                year_item['months'].append({
+                    'num': month_val,
+                    'name': month_name,
+                    'cols': 4
+                })
+                year_item['total_cols'] += 4
+                if curr.month == 12:
+                    curr = datetime.date(curr.year + 1, 1, 1)
+                else:
+                    curr = datetime.date(curr.year, curr.month + 1, 1)
+                months_count += 1
+                
+            plan_cells = JHMasterPlanCell.objects.filter(machine__department=dept)
+            plan_cells_dict = {}
+            for cell in plan_cells:
+                key = f"{cell.machine_id}-{cell.step}-{cell.year}-{cell.month}-{cell.week}"
+                plan_cells_dict[key] = cell.status
 
     can_edit = user_can_edit_module(request.user, dept, 'TPM')
     context = {
@@ -256,6 +311,11 @@ def pillar_page(request, dept_id, pillar_id):
         'month_label': period_label,
         'active_tab': active_tab,
         'sheets': sheets,
+        'settings': settings,
+        'machines': machines,
+        'grouped_years': grouped_years,
+        'plan_cells_dict': plan_cells_dict,
+        'steps_range': steps_range,
         'can_edit': can_edit,
     }
     return render(request, 'department/pillar_entry.html', context)

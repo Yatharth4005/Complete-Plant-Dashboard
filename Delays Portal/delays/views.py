@@ -1107,6 +1107,22 @@ def mark_all_read(request, dept_id):
                 messages.error(request, "Permission denied.")
                 return redirect('delays:dept_overview', dept_id=dept_id)
             DelayNotification.objects.filter(to_department=department, is_read=False).update(is_read=True)
+        
+        # Also mark matching PortalNotification for this user as read
+        from portal.models import PortalNotification
+        if int(dept_id) == 0:
+            PortalNotification.objects.filter(
+                user=request.user,
+                link__startswith="/delays/department/",
+                is_read=False
+            ).update(is_read=True)
+        else:
+            PortalNotification.objects.filter(
+                user=request.user,
+                link=f"/delays/department/{dept_id}/",
+                is_read=False
+            ).update(is_read=True)
+            
         messages.success(request, "All notifications marked as read.")
     return redirect('delays:dept_overview', dept_id=dept_id)
 
@@ -1131,5 +1147,14 @@ def mark_read(request, dept_id, notification_id):
             
         notification.is_read = True
         notification.save()
+        
+        # Also mark matching PortalNotification for this user as read
+        from portal.models import PortalNotification
+        PortalNotification.objects.filter(
+            user=request.user,
+            link=f"/delays/department/{notification.to_department.id}/",
+            is_read=False
+        ).update(is_read=True)
+        
         messages.success(request, "Notification marked as read.")
     return redirect('delays:dept_overview', dept_id=dept_id)

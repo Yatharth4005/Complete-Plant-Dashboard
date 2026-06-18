@@ -25,7 +25,7 @@
 
     <!-- TABS CONTROLLER (Alpine.js + HTMX) -->
     <div x-data="{ activeTab: '{{ active_tab|default:"entry" }}' }">
-      <div class="tab-container">
+      <div class="tab-container" style="display: flex; align-items: center; flex-wrap: wrap;">
         <button class="tab-btn" :class="{ 'active': activeTab === 'entry' }"
                 hx-get="{% url 'kpi_table_partial' dept.id pillar_id %}"
                 hx-target="#tab-content"
@@ -49,6 +49,45 @@
                 @click="activeTab = 'kaizen';">
           📋 Kaizen Sheet
         </button>
+        
+        {% if pillar_id == 'JH' %}
+        <div x-data="{ open: false }" style="position: relative; display: inline-block;" @click.outside="open = false">
+          <button class="tab-btn" id="btn-jh-master" :class="{ 'active': activeTab.startsWith('jh-master') }"
+                  @click="open = !open">
+            📋 JH Master List <span style="font-size: 0.75rem; margin-left: 4px;" x-text="open ? '▲' : '▼'">▼</span>
+          </button>
+          <div x-show="open" x-transition
+               style="position: absolute; top: 100%; left: 0; background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 1000; min-width: 240px; margin-top: 4px; display: flex; flex-direction: column; overflow: hidden; padding: 4px 0;">
+            <a href="#" class="dropdown-item" style="padding: 10px 16px; font-size: 0.9rem; font-weight: 600; color: var(--jspl-text); text-decoration: none; transition: background-color 0.2s; display: block;"
+               hx-get="{% url 'jh_master_equipments' dept.id %}"
+               hx-target="#tab-content"
+               hx-swap="innerHTML"
+               @click="activeTab = 'jh-master-equip'; open = false; event.preventDefault();"
+               onmouseover="this.style.backgroundColor='var(--jspl-light)'"
+               onmouseout="this.style.backgroundColor='transparent'">
+              📋 Master list of equipments
+            </a>
+            <a href="#" class="dropdown-item" style="padding: 10px 16px; font-size: 0.9rem; font-weight: 600; color: var(--jspl-text); text-decoration: none; transition: background-color 0.2s; display: block;"
+               hx-get="{% url 'jh_machine_list' dept.id %}"
+               hx-target="#tab-content"
+               hx-swap="innerHTML"
+               @click="activeTab = 'jh-master-machines'; open = false; event.preventDefault();"
+               onmouseover="this.style.backgroundColor='var(--jspl-light)'"
+               onmouseout="this.style.backgroundColor='transparent'">
+              📋 JH machine list
+            </a>
+            <a href="#" class="dropdown-item" style="padding: 10px 16px; font-size: 0.9rem; font-weight: 600; color: var(--jspl-text); text-decoration: none; transition: background-color 0.2s; display: block;"
+               hx-get="{% url 'jh_master_plan' dept.id %}"
+               hx-target="#tab-content"
+               hx-swap="innerHTML"
+               @click="activeTab = 'jh-master-plan'; open = false; event.preventDefault();"
+               onmouseover="this.style.backgroundColor='var(--jspl-light)'"
+               onmouseout="this.style.backgroundColor='transparent'">
+              📅 JH Master plan
+            </a>
+          </div>
+        </div>
+        {% endif %}
       </div>
       
       <!-- Content Panel -->
@@ -57,6 +96,12 @@
           {% include "partials/_analytics_charts.html" %}
         {% elif active_tab == 'kaizen' %}
           {% include "partials/_kaizen_list.html" %}
+        {% elif active_tab == 'jh-master-equip' %}
+          {% include "partials/_jh_master_equipments.html" %}
+        {% elif active_tab == 'jh-master-machines' %}
+          {% include "partials/_jh_machine_list.html" %}
+        {% elif active_tab == 'jh-master-plan' %}
+          {% include "partials/_jh_master_plan.html" %}
         {% else %}
           {% include "partials/_kpi_table.html" %}
         {% endif %}

@@ -34,13 +34,32 @@ def manage_access(request):
         dept = Department.objects.get(id=dept_id)
         module = Module.objects.get(key=module_key)
         
+        from portal.models import PortalNotification
         if access_level == 'NONE':
-            UserModuleAccess.objects.filter(user=user, department=dept, module=module).delete()
+            exists = UserModuleAccess.objects.filter(user=user, department=dept, module=module).exists()
+            if exists:
+                UserModuleAccess.objects.filter(user=user, department=dept, module=module).delete()
+                PortalNotification.objects.create(
+                    user=user,
+                    message=f"Your access to the {module.key} module for department {dept.name} ({dept.code}) has been revoked by {request.user.get_display_name()}.",
+                    link="/",
+                    is_read=False
+                )
         else:
-            UserModuleAccess.objects.update_or_create(
+            existing_access = UserModuleAccess.objects.filter(user=user, department=dept, module=module).first()
+            obj, created = UserModuleAccess.objects.update_or_create(
                 user=user, department=dept, module=module,
                 defaults={'access_level': access_level, 'granted_by': request.user}
             )
+            if created or (existing_access and existing_access.access_level != access_level):
+                verb = "granted" if created else "updated to"
+                PortalNotification.objects.create(
+                    user=user,
+                    message=f"You have been {verb} {access_level} access to the {module.key} module for department {dept.name} ({dept.code}) by {request.user.get_display_name()}.",
+                    link=f"/department/{dept.id}/",
+                    is_read=False
+                )
+            
             
         if request.headers.get('HX-Request'):
             # Return updated cell partial
@@ -118,15 +137,28 @@ def toggle_admin(request):
         messages.error(request, 'User not found.')
         return redirect('portal:admin_access')
 
+    from portal.models import PortalNotification
     if action == 'promote':
         target_user.is_plant_admin = True
         target_user.role = User.ROLE_ADMIN
         target_user.save(update_fields=['is_plant_admin', 'role'])
+        PortalNotification.objects.create(
+            user=target_user,
+            message=f"You have been promoted to Plant Admin by {request.user.get_display_name()}.",
+            link="/portal-admin/access/",
+            is_read=False
+        )
         messages.success(request, f'{target_user.get_display_name()} has been made a Plant Admin.')
     elif action == 'revoke':
         target_user.is_plant_admin = False
         target_user.role = User.ROLE_USER
         target_user.save(update_fields=['is_plant_admin', 'role'])
+        PortalNotification.objects.create(
+            user=target_user,
+            message=f"Your Plant Admin privileges have been revoked by {request.user.get_display_name()}.",
+            link="/",
+            is_read=False
+        )
         messages.success(request, f'Plant Admin privileges revoked for {target_user.get_display_name()}.')
     else:
         messages.error(request, 'Invalid action.')
