@@ -371,7 +371,9 @@ def download_excel(request, capa_id):
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    return response@login_required
+    return response
+
+@login_required
 def download_pdf(request, capa_id):
     report = get_object_or_404(CAPAReport, id=capa_id)
     
