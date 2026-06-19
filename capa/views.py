@@ -1,3 +1,4 @@
+import os
 import json
 from datetime import datetime
 from django.shortcuts import render, redirect, get_object_or_404
@@ -15,7 +16,7 @@ from .docx_parser import parse_capa_file
 # For PDF export
 import io
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, PageBreak, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, PageBreak, Spacer, Image as ReportLabImage
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
@@ -787,22 +788,33 @@ def download_pdf(request, dept_id, capa_id):
     issue_no_val = report.issue_no or "8"
     issue_date_val = report.issue_date or "19.11.2025"
     
+    logo_path = os.path.join(settings.BASE_DIR, 'portal', 'static', 'portal', 'img', 'jindal_logo_dark.png')
+    logo_img = ""
+    if os.path.exists(logo_path):
+        try:
+            logo_img = ReportLabImage(logo_path, width=90, height=25)
+        except Exception:
+            pass
+
     header_data = [
         [
+            logo_img or Paragraph("<b>JINDAL STEEL</b>", title_style),
             Paragraph(f"Document No. {doc_no_val}<br/>Issue No. {issue_no_val}<br/>Issue Date {issue_date_val}", hdr_meta_style),
             Paragraph("JINDAL STEEL LIMITED, RAIGARH<br/><br/>Corrective and Preventive Action Report", title_style)
         ]
     ]
-    header_table = Table(header_data, colWidths=[150, 373])
+    header_table = Table(header_data, colWidths=[100, 120, 303])
     header_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('ALIGN', (2, 0), (2, 0), 'CENTER'),
         ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
         ('LEFTPADDING', (0, 0), (-1, -1), 6),
         ('RIGHTPADDING', (0, 0), (-1, -1), 6),
         ('LINEBEFORE', (1, 0), (1, 0), 1, colors.black),
+        ('LINEBEFORE', (2, 0), (2, 0), 1, colors.black),
     ]))
     story.append(header_table)
     story.append(Spacer(1, 8))

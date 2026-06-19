@@ -1,3 +1,4 @@
+import os
 import io
 import json
 from django.shortcuts import render, get_object_or_404
@@ -13,9 +14,61 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, PageBreak, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, PageBreak, Spacer, Image as ReportLabImage
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+def get_responsible_team_list(team_data):
+    """
+    Converts responsible_team data (which can be a list of dicts or a single dict)
+    into a structured list of dicts with 'name', 'role', and 'contact' keys.
+    """
+    if isinstance(team_data, list):
+        result = []
+        for item in team_data:
+            if isinstance(item, dict):
+                result.append({
+                    'name': item.get('name', '') or '',
+                    'role': item.get('role', '') or '',
+                    'contact': item.get('contact', '') or ''
+                })
+        return result
+        
+    if isinstance(team_data, dict):
+        team_leader = (team_data.get('team_leader') or '').strip()
+        team_members_str = team_data.get('team_members') or ''
+        role_function_str = team_data.get('role_function') or ''
+        contact_nos_str = team_data.get('contact_nos') or ''
+        
+        members = [m.strip() for m in team_members_str.split('\n') if m.strip()]
+        roles = [r.strip() for r in role_function_str.split('\n') if r.strip()]
+        contacts = [c.strip() for c in contact_nos_str.split('\n') if c.strip()]
+        
+        result = []
+        
+        # Leader contact
+        leader_contact = contacts[0] if len(contacts) > 0 else ''
+        result.append({
+            'name': team_leader,
+            'role': 'Team Leader',
+            'contact': leader_contact
+        })
+        
+        # Members
+        max_len = max(len(members), len(roles), len(contacts) - 1 if len(contacts) > 0 else 0)
+        for i in range(max_len):
+            m_name = members[i] if i < len(members) else ''
+            m_role = roles[i] if i < len(roles) else ('Team Member' if m_name else '')
+            m_contact = contacts[i + 1] if (i + 1) < len(contacts) else ''
+            if m_name or m_role or m_contact:
+                result.append({
+                    'name': m_name,
+                    'role': m_role,
+                    'contact': m_contact
+                })
+        return result
+        
+    return []
 
 @login_required
 def capa_list_partial(request):
@@ -30,6 +83,7 @@ def capa_edit_partial(request, capa_id=None):
     report = None
     if capa_id:
         report = get_object_or_404(CAPAReport, id=capa_id)
+        report.responsible_team = get_responsible_team_list(report.responsible_team)
         
     depts = Department.objects.all().order_by('name')
     
@@ -233,7 +287,7 @@ def download_excel(request, capa_id):
         cell.fill = PatternFill(start_color='0057A8', end_color='0057A8', fill_type='solid')
         
     row_idx = 14
-    for member in report.responsible_team:
+    for member in get_responsible_team_list(report.responsible_team):
         ws.cell(row=row_idx, column=1, value=member.get('name', ''))
         ws.cell(row=row_idx, column=2, value=member.get('role', ''))
         ws.cell(row=row_idx, column=3, value=member.get('contact', ''))
@@ -375,22 +429,33 @@ def download_pdf(request, capa_id):
     story = []
     
     # ------------------ PAGE 1 ------------------
+    logo_path = os.path.join(settings.BASE_DIR, 'portal', 'static', 'portal', 'img', 'jindal_logo_dark.png')
+    logo_img = ""
+    if os.path.exists(logo_path):
+        try:
+            logo_img = ReportLabImage(logo_path, width=90, height=25)
+        except Exception:
+            pass
+
     header_data = [
         [
+            logo_img or Paragraph("<b>JINDAL STEEL</b>", title_style),
             Paragraph("Document No. F-01(10.2.0-01)<br/>Issue No. 8<br/>Issue Date 19.11.2025", hdr_meta_style),
             Paragraph("JINDAL STEEL LIMITED, RAIGARH<br/><br/>Corrective and Preventive Action Report", title_style)
         ]
     ]
-    header_table = Table(header_data, colWidths=[150, 373])
+    header_table = Table(header_data, colWidths=[100, 120, 303])
     header_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('ALIGN', (2, 0), (2, 0), 'CENTER'),
         ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
         ('LEFTPADDING', (0, 0), (-1, -1), 6),
         ('RIGHTPADDING', (0, 0), (-1, -1), 6),
         ('LINEBEFORE', (1, 0), (1, 0), 1, colors.black),
+        ('LINEBEFORE', (2, 0), (2, 0), 1, colors.black),
     ]))
     story.append(header_table)
     story.append(Spacer(1, 8))
@@ -462,10 +527,11 @@ def download_pdf(request, capa_id):
             Paragraph("<b>Contact No</b>", body_bold_style)
         ]
     ]
+    normalized_team = get_responsible_team_list(report.responsible_team)
     for idx in range(3):
         member = {}
-        if idx < len(report.responsible_team):
-            member = report.responsible_team[idx]
+        if idx < len(normalized_team):
+            member = normalized_team[idx]
         role_lbl = "Team Leader" if idx == 0 else f"Team Member {idx}"
         team_rows.append([
             Paragraph(role_lbl, body_bold_style),
