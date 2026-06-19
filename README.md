@@ -109,13 +109,13 @@ Once running, access the portal in your browser:
 The database seeding command (`seed_portal`) populates standard test users and role-based access assignments:
 
 - **Plant Admin User**:
-  - **Username**: `saurabh.agrawal@jindalsteel.in`
-  - **Password**: `Admin@1234`
+  - **Username**: `name.surname@jindalsteel.in`
+  - **Password**: `Password`
   - **Role**: Administrator with full Access Matrix controls.
 
 - **Department User (SMS-2)**:
-  - **Username**: `lalit.goyal@jindalsteel.in`
-  - **Password**: `Dept@1234`
+  - **Username**: `name.surname@jindalsteel.in`
+  - **Password**: `Password`
   - **Role**: Departmental user with TPM Edit and CMC View permissions configured in SMS-2.
 
 To create a new custom administrator account with full privileges on your system, run:
