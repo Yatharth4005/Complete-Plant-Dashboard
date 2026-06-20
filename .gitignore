@@ -60,3 +60,20 @@ Thumbs.db
 # Excel/PDF Formats and Templates
 CAPA Formate.pdf
 TPM Portal/KAIZEN - Blank Format.xls
+
+# Django Uploaded Media & Collected Statics
+media/
+staticfiles/
+
+# Local Video / Large Assets
+*.mp4
+
+# Local Excel sheets and test data
+*.xlsx
+*.xls
+*.csv
+
+# Root inspection/scratch scripts
+inspect_*.py
+fetch_report.py
+test_upload.py

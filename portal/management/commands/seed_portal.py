@@ -53,7 +53,7 @@ class Command(BaseCommand):
 
     def seed_modules(self):
         # Clean up old deprecated modules
-        Module.objects.filter(key__in=['PRODUCTION', 'SAFETY', 'HR']).delete()
+        Module.objects.filter(key__in=['HR']).delete()
 
         MODULES = [
             {
@@ -127,6 +127,33 @@ class Command(BaseCommand):
                 'color_class': 'module-capa',
                 'redirect_url_template': '/capa/department/{dept_id}/',
                 'sort_order': 8,
+            },
+            {
+                'key': 'SAFETY',
+                'label': 'Safety',
+                'description': 'Safety audits, hazard reporting, and incident tracking',
+                'icon': 'life-buoy',
+                'color_class': 'module-safety',
+                'redirect_url_template': '/department/{dept_id}/coming-soon/SAFETY/',
+                'sort_order': 9,
+            },
+            {
+                'key': 'PRODUCTION',
+                'label': 'Production',
+                'description': 'Production targets, daily output logs, and efficiency metrics',
+                'icon': 'layers',
+                'color_class': 'module-production',
+                'redirect_url_template': '/department/{dept_id}/coming-soon/PRODUCTION/',
+                'sort_order': 10,
+            },
+            {
+                'key': 'QUALITY',
+                'label': 'Quality',
+                'description': 'Quality control parameters, rejection tracking, and testing logs',
+                'icon': 'check-square',
+                'color_class': 'module-quality',
+                'redirect_url_template': '/department/{dept_id}/coming-soon/QUALITY/',
+                'sort_order': 11,
             },
         ]
         

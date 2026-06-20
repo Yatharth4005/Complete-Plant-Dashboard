@@ -16,6 +16,9 @@
   <td class="td-agency">
     {% if is_admin or can_edit and not r.is_locked %}
       <select name="agency" class="table-select-agency">
+        {% if r.agency and r.agency not in table_agencies %}
+          <option value="{{ r.agency }}" selected>{{ r.agency }}</option>
+        {% endif %}
         {% for a in table_agencies %}
           <option value="{{ a }}" {% if a == r.agency %}selected{% endif %}>{{ a }}</option>
         {% endfor %}
@@ -29,13 +32,16 @@
   <td class="td-equipment">
     {% if is_admin or can_edit and not r.is_locked %}
       <select name="equipment" class="table-select-equipment">
-        <option value="">Select Equipment</option>
+        <option value="">NIL</option>
+        {% if r.equipment and r.equipment not in equipments %}
+          <option value="{{ r.equipment }}" selected>{{ r.equipment }}</option>
+        {% endif %}
         {% for eq in equipments %}
           <option value="{{ eq }}" {% if eq == r.equipment %}selected{% endif %}>{{ eq }}</option>
         {% endfor %}
       </select>
     {% else %}
-      {{ r.equipment|default:"-" }}
+      {{ r.equipment|default:"NIL" }}
     {% endif %}
   </td>
   

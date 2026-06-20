@@ -2,7 +2,7 @@ import os
 import re
 import xlrd
 import openpyxl
-from datetime import datetime, date
+from datetime import datetime, date, time
 from django.db import transaction
 from django.utils import timezone
 from tpm.models import Department
@@ -65,6 +65,220 @@ def parse_date_string(date_str):
                 continue
 
     return None
+
+
+def parse_time_to_minutes(time_val):
+    """
+    Parses a time value (time/datetime object, string, or day fraction float)
+    into the number of minutes since midnight.
+    """
+    if not time_val:
+        return None
+    if isinstance(time_val, (datetime, time)):
+        return time_val.hour * 60 + time_val.minute
+    
+    # If it's a float/int (Excel time serial):
+    if isinstance(time_val, float) and 0.0 < time_val < 1.0:
+        return round(time_val * 24 * 60)
+        
+    # Try parsing string format:
+    time_str = str(time_val).strip().replace('.', ':')
+    match = re.search(r'(\d{1,2}):(\d{2})(?::(\d{2}))?', time_str)
+    if match:
+        h = int(match.group(1))
+        m = int(match.group(2))
+        return h * 60 + m
+    return None
+
+
+def format_time_value(time_val):
+    """
+    Standardizes a time value to a string format "HH:MM".
+    """
+    if not time_val:
+        return None
+    if isinstance(time_val, (datetime, time)):
+        return time_val.strftime('%H:%M')
+    if isinstance(time_val, float) and 0.0 <= time_val <= 1.0:
+        total_mins = round(time_val * 24 * 60)
+        h = total_mins // 60
+        m = total_mins % 60
+        return f"{h:02d}:{m:02d}"
+    
+    time_str = str(time_val).strip().replace('.', ':')
+    match = re.search(r'(\d{1,2}):(\d{2})', time_str)
+    if match:
+        h = int(match.group(1))
+        m = int(match.group(2))
+        return f"{h:02d}:{m:02d}"
+    return str(time_val).strip()
+
+
+def extract_times_from_range(range_str):
+    """
+    Extracts start and end times from a time range string.
+    """
+    if not range_str:
+        return None, None
+    range_str = str(range_str).strip()
+    match = re.search(r'(\d{1,2}[:.]\d{2})\s*(?:-|to)\s*(\d{1,2}[:.]\d{2})', range_str, re.IGNORECASE)
+    if match:
+        start_raw = match.group(1).replace('.', ':')
+        end_raw = match.group(2).replace('.', ':')
+        return start_raw, end_raw
+    return None, None
+
+
+def parse_month_to_num(month_val):
+    """
+    Parses various representations of a month into an integer (1-12).
+    """
+    if not month_val:
+        return None
+    if isinstance(month_val, (int, float)):
+        val = int(month_val)
+        if 1 <= val <= 12:
+            return val
+        return None
+    month_str = str(month_val).strip().lower()
+    month_map = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+        'january': 1, 'february': 2, 'march': 3, 'april': 4, 'june': 6,
+        'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12
+    }
+    for k, v in month_map.items():
+        if month_str.startswith(k):
+            return v
+    return None
+
+
+def parse_row_date(date_val, month_num=None, default_year=None):
+    """
+    Parses a date cell value. Can handle full dates, or day integers
+    when combined with a month_num and a default_year.
+    """
+    if not date_val:
+        return None
+        
+    if isinstance(date_val, (datetime, date)):
+        if isinstance(date_val, datetime):
+            return date_val.date()
+        return date_val
+        
+    parsed_full = parse_date_string(date_val)
+    if parsed_full:
+        return parsed_full
+        
+    # Try parsing as simple day number
+    day_num = None
+    try:
+        if isinstance(date_val, (int, float)):
+            day_num = int(date_val)
+        else:
+            match = re.search(r'\d+', str(date_val))
+            if match:
+                day_num = int(match.group(0))
+    except Exception:
+        pass
+        
+    if not day_num or day_num < 1 or day_num > 31:
+        return None
+        
+    if not month_num:
+        if default_year and isinstance(default_year, (datetime, date)):
+            month_num = default_year.month
+        else:
+            month_num = timezone.now().date().month
+            
+    if default_year:
+        if isinstance(default_year, (datetime, date)):
+            year_num = default_year.year
+        else:
+            try:
+                year_num = int(default_year)
+            except Exception:
+                year_num = timezone.now().date().year
+    else:
+        year_num = timezone.now().date().year
+        
+    try:
+        return date(year_num, month_num, day_num)
+    except ValueError:
+        try:
+            return date(year_num, month_num, 28)
+        except ValueError:
+            return None
+
+
+def extract_year_from_string(s):
+    """
+    Extracts a 4-digit or 2-digit year from a string.
+    """
+    if not s:
+        return None
+    match4 = re.search(r'\b(20\d{2})\b', s)
+    if match4:
+        return int(match4.group(1))
+    match2 = re.search(r'(?:\b|\')(\d{2})\b', s)
+    if match2:
+        yr = int(match2.group(1))
+        return 2000 + yr
+    return None
+
+
+def parse_duration_to_mins(duration_val, col_type=None):
+    """
+    Parses excel duration cell into float minutes.
+    """
+    if duration_val in (None, '', '-'):
+        return 0.0
+    if isinstance(duration_val, (datetime, time)):
+        return float(duration_val.hour * 60 + duration_val.minute)
+    try:
+        val = float(duration_val)
+        if col_type == 'hours':
+            return val * 60.0
+        if 0.0 < val < 1.0 and col_type != 'minutes':
+            # Excel time serial representing day fraction
+            return float(round(val * 1440))
+        return val
+    except ValueError:
+        return 0.0
+
+
+def clean_parsed_fields(desc, agency, sub_agency=None, equipment=None, sub_equipment=None):
+    """
+    Cleans and normalizes parsed fields.
+    If the description or agency contains 'shutdown', normalizes agency to 'SHUTDOWN'
+    and clears equipment/agency details.
+    Also normalizes the agency name to match Department names/codes if possible.
+    """
+    clean_desc = str(desc).strip() if desc else 'No Description'
+    clean_agency = str(agency).strip() if agency else 'General'
+    clean_sub_agency = str(sub_agency).strip() if sub_agency else None
+    clean_equip = str(equipment).strip() if equipment else None
+    clean_sub_equip = str(sub_equipment).strip() if sub_equipment else None
+
+    # Check for shutdown
+    desc_lower = clean_desc.lower()
+    agency_lower = clean_agency.lower()
+    
+    if 'shutdown' in desc_lower or 'shutdown' in agency_lower:
+        return clean_desc, "SHUTDOWN", None, None, None
+
+    # Normalization of agency to Department name if matched
+    if clean_agency and clean_agency.upper() != 'SHUTDOWN' and clean_agency != 'General':
+        from tpm.models import Department
+        from django.db.models import Q
+        dept = Department.objects.filter(
+            Q(name__iexact=clean_agency) |
+            Q(code__iexact=clean_agency)
+        ).first()
+        if dept:
+            clean_agency = dept.name
+
+    return clean_desc, clean_agency, clean_sub_agency, clean_equip, clean_sub_equip
 
 
 def sheet_to_rows(sheet, is_xlsx=True):
@@ -172,6 +386,9 @@ def parse_sms3_sheet(rows, sheet_name, department, upload):
         if shift_b and shift_b not in ('', '-'): time_slots.append(f"Shift B ({shift_b}m)")
         time_slot = ", ".join(time_slots) if time_slots else "Daily Log"
         
+        # Clean fields
+        desc, agency, _, _, _ = clean_parsed_fields(desc, agency)
+        
         # Save record
         DelayRecord.objects.create(
             upload=upload,
@@ -180,8 +397,8 @@ def parse_sms3_sheet(rows, sheet_name, department, upload):
             date=sheet_date,
             time_slot=time_slot,
             duration_mins=duration,
-            agency=str(agency).strip() if agency else 'Unknown Agency',
-            description=str(desc).strip() if desc else 'No Description',
+            agency=agency,
+            description=desc,
         )
         records_created += 1
         
@@ -272,14 +489,19 @@ def parse_rail_mill_sheet(rows, sheet_name, department, upload):
                 propagated_time_slot = time_slot
                 
         # Agency (Col index 9)
-        agency = row[9] if row[9] and row[9] != '-' else 'Unknown Agency'
-        sub_agency = row[10] if row[10] and row[10] != '-' else ''
+        agency_val = row[9] if row[9] and row[9] != '-' else 'Unknown Agency'
+        sub_agency_val = row[10] if row[10] and row[10] != '-' else ''
         section = row[11] if row[11] and row[11] != '-' else ''
-        equipment = row[13] if row[13] and row[13] != '-' else ''
-        sub_equipment = row[14] if row[14] and row[14] != '-' else ''
+        equipment_val = row[13] if row[13] and row[13] != '-' else ''
+        sub_equipment_val = row[14] if row[14] and row[14] != '-' else ''
         shift_incharge = row[15] if row[15] and row[15] != '-' else ''
-        description = row[16] if row[16] and row[16] != '-' else 'No Description'
+        description_val = row[16] if row[16] and row[16] != '-' else 'No Description'
         why = row[17] if len(row) > 17 and row[17] and row[17] != '-' else ''
+        
+        # Clean fields
+        description, agency, sub_agency, equipment, sub_equipment = clean_parsed_fields(
+            description_val, agency_val, sub_agency_val, equipment_val, sub_equipment_val
+        )
         
         # Save record
         DelayRecord.objects.create(
@@ -291,13 +513,13 @@ def parse_rail_mill_sheet(rows, sheet_name, department, upload):
             start_time=row[4] if row[4] != '-' else None,
             end_time=row[5] if row[5] != '-' else None,
             duration_mins=duration,
-            agency=str(agency).strip(),
-            sub_agency=str(sub_agency).strip() if sub_agency else None,
+            agency=agency,
+            sub_agency=sub_agency,
             section=str(section).strip() if section else None,
-            equipment=str(equipment).strip() if equipment else None,
-            sub_equipment=str(sub_equipment).strip() if sub_equipment else None,
+            equipment=equipment,
+            sub_equipment=sub_equipment,
             shift_incharge=str(shift_incharge).strip() if shift_incharge else None,
-            description=str(description).strip(),
+            description=description,
             why=str(why).strip() if why else None,
         )
         records_created += 1
@@ -325,11 +547,10 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
                 continue
             val_str = str(val).lower().strip()
             
-            # Prioritized matching to prevent sub-keywords from matching parent fields
             if any(kw in val_str for kw in ['sub-equip', 'subequip', 'sub equip']):
                 temp_mapping['sub_equipment'] = c
                 matches += 1
-            elif any(kw in val_str for kw in ['sub-agency', 'subagency', 'sub agency']):
+            elif any(kw in val_str for kw in ['sub-agency', 'subagency', 'sub agency', 'area', 'sub-dept', 'subdept']):
                 temp_mapping['sub_agency'] = c
                 matches += 1
             elif any(kw in val_str for kw in ['equipment', 'equip', 'asset', 'machine']):
@@ -341,10 +562,26 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             elif any(kw in val_str for kw in ['date', 'day']):
                 temp_mapping['date'] = c
                 matches += 1
-            elif any(kw in val_str for kw in ['duration', 'min', 'downtime']):
-                temp_mapping['duration'] = c
+            elif any(kw in val_str for kw in ['month']):
+                temp_mapping['month'] = c
                 matches += 1
-            elif any(kw in val_str for kw in ['description', 'reason', 'cause', 'delays', 'desc']):
+            elif any(kw in val_str for kw in ['time', 'range', 'period', 'slot', 'from-to', 'start-end', 'hrs(time)']):
+                temp_mapping['time'] = c
+                matches += 1
+            elif val_str == 'from' or val_str.startswith('from ') or 'start' in val_str:
+                temp_mapping['start_time'] = c
+                matches += 1
+            elif val_str == 'to' or val_str.startswith('to ') or 'end' in val_str:
+                temp_mapping['end_time'] = c
+                matches += 1
+            elif any(kw in val_str for kw in ['duration', 'min', 'downtime', 'total', 'hours', 'hrs', 'dur']):
+                temp_mapping['duration'] = c
+                if 'hour' in val_str or 'hr' in val_str:
+                    temp_mapping['duration_type'] = 'hours'
+                elif 'min' in val_str:
+                    temp_mapping['duration_type'] = 'minutes'
+                matches += 1
+            elif any(kw in val_str for kw in ['description', 'reason', 'cause', 'delays', 'desc', 'problem', 'delay']):
                 temp_mapping['description'] = c
                 matches += 1
             elif any(kw in val_str for kw in ['why', 'capa', 'root']):
@@ -365,6 +602,10 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
         # If there are columns, just do a basic fallback
         return 0
 
+    # Determine default year from filename or sheet_name
+    year_from_sheet = extract_year_from_string(sheet_name)
+    year_from_file = extract_year_from_string(upload.filename) if upload and hasattr(upload, 'filename') else None
+    
     # Find sheet-level date as backup
     sheet_date = None
     for r in range(min(len(rows), header_row_idx + 1)):
@@ -378,61 +619,138 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             
     if not sheet_date:
         sheet_date = timezone.now().date()
+        yr = year_from_sheet or year_from_file
+        if isinstance(yr, int):
+            try:
+                sheet_date = sheet_date.replace(year=yr)
+            except ValueError:
+                pass
 
     records_created = 0
-    # Parse rows below headers
+    propagated_date = sheet_date
+    propagated_month = sheet_date.month
+    
+    # Process rows below headers
     for r in range(header_row_idx + 1, len(rows)):
         row = rows[r]
         if not row:
             continue
             
-        # Stop condition: check if first cells are totals
+        # Skip intermediate summary/total rows
         first_val = str(row[0]).upper() if row[0] else ''
         if 'TOTAL' in first_val or 'SUM' in first_val:
-            break
+            continue
             
-        # Extract columns
+        # Extract indexes
         desc_idx = col_mapping.get('description', None)
         agency_idx = col_mapping.get('agency', None)
         dur_idx = col_mapping.get('duration', None)
+        date_idx = col_mapping.get('date', None)
+        month_idx = col_mapping.get('month', None)
+        time_idx = col_mapping.get('time', None)
+        start_idx = col_mapping.get('start_time', None)
+        end_idx = col_mapping.get('end_time', None)
         
         if dur_idx is None:
             # Skip if we can't find duration column
             continue
             
         desc = row[desc_idx] if desc_idx is not None and desc_idx < len(row) else None
+        
+        # Skip if description contains total/sum
+        desc_upper = str(desc).upper() if desc else ''
+        if 'TOTAL' in desc_upper or 'SUM' in desc_upper:
+            continue
         agency = row[agency_idx] if agency_idx is not None and agency_idx < len(row) else 'General'
         duration_val = row[dur_idx] if dur_idx is not None and dur_idx < len(row) else 0.0
         
         # Skip rows that are empty of both description and date, which are typically summary/total spacer rows
-        row_date_val = row[col_mapping.get('date')] if col_mapping.get('date') is not None and col_mapping.get('date') < len(row) else None
+        row_date_val = row[date_idx] if date_idx is not None and date_idx < len(row) else None
         if not desc and not row_date_val:
             continue
             
         if not desc and (duration_val is None or duration_val == '' or duration_val == 0.0):
             continue
             
-        try:
-            duration = float(duration_val) if duration_val not in (None, '', '-') else 0.0
-        except ValueError:
-            duration = 0.0
+        # Month propagation
+        if month_idx is not None and month_idx < len(row) and row[month_idx]:
+            parsed_month = parse_month_to_num(row[month_idx])
+            if parsed_month:
+                propagated_month = parsed_month
+                
+        # Date propagation
+        row_date = propagated_date
+        if date_idx is not None and date_idx < len(row) and row[date_idx]:
+            parsed_date = parse_row_date(row[date_idx], propagated_month, default_year=sheet_date)
+            if parsed_date:
+                row_date = parsed_date
+                propagated_date = parsed_date
+                propagated_month = parsed_date.month
+                
+        # Extract start and end times
+        start_time_val = None
+        end_time_val = None
+        time_slot_val = None
+        
+        # Try retrieving start/end time from separate columns
+        if start_idx is not None and start_idx < len(row):
+            start_time_val = row[start_idx]
+        if end_idx is not None and end_idx < len(row):
+            end_time_val = row[end_idx]
+            
+        # Try retrieving single time slot column
+        if time_idx is not None and time_idx < len(row):
+            time_slot_val = row[time_idx]
+            
+        # If separate start/end are not populated but time slot is, extract them
+        if (not start_time_val or not end_time_val) and time_slot_val:
+            s_t, e_t = extract_times_from_range(time_slot_val)
+            if s_t and e_t:
+                start_time_val = s_t
+                end_time_val = e_t
+                
+        start_time_str = format_time_value(start_time_val)
+        end_time_str = format_time_value(end_time_val)
+        
+        # Compute duration from start and end times
+        start_min = parse_time_to_minutes(start_time_val)
+        end_min = parse_time_to_minutes(end_time_val)
+        computed_duration = None
+        if start_min is not None and end_min is not None:
+            diff = end_min - start_min
+            if diff < 0:
+                diff += 1440
+            computed_duration = float(diff)
+            
+        # Determine actual duration to save
+        dur_type = col_mapping.get('duration_type', None)
+        parsed_dur = parse_duration_to_mins(duration_val, col_type=dur_type)
+        
+        if computed_duration is not None:
+            if parsed_dur > 0:
+                # If they are close, or one is a fraction, align them
+                if abs(parsed_dur - computed_duration) < 0.5:
+                    duration = parsed_dur
+                elif abs(parsed_dur * 60.0 - computed_duration) < 0.5:
+                    duration = computed_duration
+                elif abs(parsed_dur * 1440.0 - computed_duration) < 0.5:
+                    duration = computed_duration
+                else:
+                    duration = parsed_dur
+            else:
+                duration = computed_duration
+        else:
+            duration = parsed_dur
             
         if duration <= 0.0 and (not desc or desc == '-'):
             continue
             
-        # Date parsing
-        row_date = sheet_date
-        date_idx = col_mapping.get('date', None)
-        if date_idx is not None and date_idx < len(row) and row[date_idx]:
-            parsed = parse_date_string(row[date_idx])
-            if parsed:
-                row_date = parsed
-                
-        # Other optional fields
+        # Construct time slot
         time_slot = ""
-        time_idx = col_mapping.get('time', None)
-        if time_idx is not None and time_idx < len(row) and row[time_idx]:
-            time_slot = str(row[time_idx])
+        if start_time_str and end_time_str:
+            time_slot = f"{start_time_str} - {end_time_str}"
+        elif time_slot_val:
+            time_slot = str(time_slot_val).strip()
             
         equipment = ""
         equip_idx = col_mapping.get('equipment', None)
@@ -459,6 +777,11 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
         if incharge_idx is not None and incharge_idx < len(row) and row[incharge_idx]:
             incharge = str(row[incharge_idx])
             
+        # Clean fields
+        desc, agency, sub_agency, equipment, sub_equipment = clean_parsed_fields(
+            desc, agency, sub_agency, equipment, sub_equipment
+        )
+        
         # Save record
         DelayRecord.objects.create(
             upload=upload,
@@ -466,14 +789,17 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             sheet_name=sheet_name,
             date=row_date,
             time_slot=time_slot,
+            start_time=start_time_str,
+            end_time=end_time_str,
             duration_mins=duration,
-            agency=str(agency).strip() if agency else 'General',
-            sub_agency=str(sub_agency).strip() if sub_agency else None,
-            equipment=str(equipment).strip() if equipment else None,
-            sub_equipment=str(sub_equipment).strip() if sub_equipment else None,
-            shift_incharge=str(incharge).strip() if incharge else None,
-            description=str(desc).strip() if desc else 'No Description',
-            why=str(why).strip() if why else None,
+            agency=agency,
+            sub_agency=sub_agency,
+            section=None,
+            equipment=equipment,
+            sub_equipment=sub_equipment,
+            shift_incharge=incharge.strip() if incharge else None,
+            description=desc,
+            why=why.strip() if why else None,
             is_locked=False,
         )
         records_created += 1
@@ -502,7 +828,7 @@ def parse_excel_file(upload_instance):
     total_records = 0
     
     try:
-        with transaction.atomic():
+        with transaction.atomic():  # type: ignore
             # Open the workbook
             if is_xlsx:
                 wb = openpyxl.load_workbook(file_path, data_only=True)
@@ -516,7 +842,7 @@ def parse_excel_file(upload_instance):
                 if is_xlsx:
                     sheet = wb[sh_name]
                 else:
-                    sheet = wb.sheet_by_name(sh_name)
+                    sheet = wb.sheet_by_name(sh_name)  # type: ignore
                     
                 rows = sheet_to_rows(sheet, is_xlsx=is_xlsx)
                 if not rows:

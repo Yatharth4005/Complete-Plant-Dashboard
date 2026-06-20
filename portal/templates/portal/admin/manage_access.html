@@ -93,11 +93,12 @@
                           ">
                     Approve
                   </button>
-                  <form method="post" action="{% url 'portal:reject_access_request' req.id %}" style="margin: 0;" onsubmit="return confirm('Are you sure you want to reject and delete this access request?');">
+                  <form id="reject-form-{{ req.id }}" method="post" action="{% url 'portal:reject_access_request' req.id %}" style="margin: 0;">
                     {% csrf_token %}
-                    <button type="submit" 
+                    <button type="button" 
                             class="btn" 
-                            style="padding: 6px 14px; font-size: 0.8rem; background: #fee2e2; color: #dc2626 !important; border: 1px solid rgba(220, 38, 38, 0.15);">
+                            style="padding: 6px 14px; font-size: 0.8rem; background: #fee2e2; color: #dc2626 !important; border: 1px solid rgba(220, 38, 38, 0.15); cursor: pointer;"
+                            onclick="window.showConfirm('Confirm Rejection', 'Are you sure you want to reject and delete this access request?', function(confirmed) { if (confirmed) { document.getElementById('reject-form-{{ req.id }}').submit(); } })">
                       Reject
                     </button>
                   </form>

@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.http import HttpResponse
 from django.contrib import messages
+from django.db import models
 from tpm.models import User, Department
 from portal.models import Module, UserModuleAccess
 from tpm.utils.decorators import admin_required
@@ -14,14 +15,8 @@ def manage_access(request):
     Matrix interface for administrators to view and configure user permissions
     across modules and departments.
     """
-    STANDARD_DEPTS = [
-        'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
-        'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
-        'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
-        'SINT', 'SPM', 'MRSS'
-    ]
     users = User.objects.filter(is_active=True, email__contains='@').order_by('-is_plant_admin', 'username')
-    departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
+    departments = Department.objects.filter(is_active=True).order_by('name')
     modules = Module.objects.filter(is_active=True).order_by('sort_order')
     
     if request.method == 'POST':
@@ -172,14 +167,8 @@ def user_informations(request):
     """
     Renders user information management table.
     """
-    STANDARD_DEPTS = [
-        'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
-        'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
-        'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
-        'SINT', 'SPM', 'MRSS'
-    ]
     users = User.objects.all().select_related('department').order_by('username')
-    departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
+    departments = Department.objects.filter(is_active=True).order_by('name')
     context = {
         'users': users,
         'departments': departments,
@@ -369,3 +358,62 @@ def reject_access_request(request, req_id):
         messages.error(request, "Access request not found.")
         
     return redirect('portal:admin_access')
+
+
+@login_required
+@admin_required
+def admin_departments(request):
+    """
+    Interface for administrators to view, create, and dissolve (deactivate) departments.
+    """
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'create':
+            name = request.POST.get('name', '').strip()
+            code = request.POST.get('code', '').strip().upper()
+            
+            if not name or not code:
+                messages.error(request, "Both Department Name and Code are required.")
+            else:
+                # Check for duplicates (active or dissolved)
+                existing = Department.objects.filter(models.Q(name__iexact=name) | models.Q(code__iexact=code)).first()
+                if existing:
+                    if not existing.is_active:
+                        messages.warning(request, f"Department '{existing.name}' ({existing.code}) already exists but is currently dissolved. You can reactivate it in the list below.")
+                    else:
+                        messages.error(request, f"A department with Name '{name}' or Code '{code}' already exists.")
+                else:
+                    Department.objects.create(name=name, code=code, is_active=True)
+                    messages.success(request, f"Department '{name}' ({code}) has been created successfully.")
+                    
+        elif action == 'toggle_status':
+            dept_id = request.POST.get('dept_id')
+            if dept_id:
+                from django.shortcuts import get_object_or_404
+                dept = get_object_or_404(Department, id=dept_id)
+                dept.is_active = not dept.is_active
+                dept.save(update_fields=['is_active'])
+                
+                status_str = "activated" if dept.is_active else "dissolved"
+                msg_type = messages.success if dept.is_active else messages.warning
+                msg_type(request, f"Department '{dept.name}' ({dept.code}) has been successfully {status_str}.")
+                
+        elif action == 'delete':
+            dept_id = request.POST.get('dept_id')
+            if dept_id:
+                from django.shortcuts import get_object_or_404
+                dept = get_object_or_404(Department, id=dept_id)
+                name = dept.name
+                code = dept.code
+                dept.delete()
+                messages.success(request, f"Department '{name}' ({code}) has been permanently deleted.")
+                
+        return redirect('portal:admin_departments')
+
+    departments = Department.objects.all().order_by('-is_active', 'name')
+    context = {
+        'departments': departments,
+        'active_section': 'admin_departments',
+    }
+    return render(request, 'portal/admin/manage_departments.html', context)

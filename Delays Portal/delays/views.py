@@ -7,6 +7,7 @@ from django.http import HttpResponse, JsonResponse
 from django.db import models
 from django.db.models import Q, Sum, Avg
 from django.utils import timezone
+from datetime import date
 from tpm.models import Department
 from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification
 from delays.forms import DelayRecordForm
@@ -19,18 +20,25 @@ def get_department_autocompletes(department, records):
     else:
         custom_options = DelayDropdownOption.objects.filter(department=department)
     
-    agencies = sorted(list(custom_options.filter(category__iexact='Agency').values_list('value', flat=True).distinct()))
-    if not agencies:
-        agencies = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+    agencies_set = set(custom_options.filter(category__iexact='Agency').values_list('value', flat=True).distinct())
+    if not agencies_set:
+        agencies_set.update(['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation'])
+    agencies = sorted(list(agencies_set))
         
-    sub_agencies = sorted(list(custom_options.filter(category__iexact='Sub-Agency').values_list('value', flat=True).distinct()))
+    sub_agencies_set = set(custom_options.filter(category__iexact='Sub-Agency').values_list('value', flat=True).distinct())
+    sub_agencies_set.update(records.exclude(sub_agency__isnull=True).exclude(sub_agency='').values_list('sub_agency', flat=True).distinct())
+    sub_agencies = sorted([x for x in sub_agencies_set if x])
     
     sections_set = set(records.order_by('section').values_list('section', flat=True).distinct().exclude(section=''))
     sections = sorted([x for x in sections_set if x])
     
-    equipments = sorted(list(custom_options.filter(category__iexact='Equipment').values_list('value', flat=True).distinct()))
+    equipments_set = set(custom_options.filter(category__iexact='Equipment').values_list('value', flat=True).distinct())
+    equipments_set.update(records.exclude(equipment__isnull=True).exclude(equipment='').exclude(equipment='NIL').values_list('equipment', flat=True).distinct())
+    equipments = sorted([x for x in equipments_set if x])
     
-    sub_equipments = sorted(list(custom_options.filter(category__iexact='Sub-Equipment').values_list('value', flat=True).distinct()))
+    sub_equipments_set = set(custom_options.filter(category__iexact='Sub-Equipment').values_list('value', flat=True).distinct())
+    sub_equipments_set.update(records.exclude(sub_equipment__isnull=True).exclude(sub_equipment='').values_list('sub_equipment', flat=True).distinct())
+    sub_equipments = sorted([x for x in sub_equipments_set if x])
     
     incharges_set = set(records.order_by('shift_incharge').values_list('shift_incharge', flat=True).distinct().exclude(shift_incharge=''))
     incharges = sorted([x for x in incharges_set if x])
@@ -50,6 +58,9 @@ def dept_overview(request, dept_id):
     Main overview and dashboard for department delays.
     Displays metrics, charts, upload features, and logs tables.
     """
+    date_start = request.GET.get('date_start', '').strip()
+    date_end = request.GET.get('date_end', '').strip()
+
     if int(dept_id) == 0:
         class DummyDept:
             id = 0
@@ -70,6 +81,11 @@ def dept_overview(request, dept_id):
         can_edit = user_can_edit_module(request.user, department, 'Delays')
         is_admin = request.user.is_admin()
         all_records = DelayRecord.objects.filter(department=department)
+    
+    if date_start:
+        all_records = all_records.filter(date__gte=date_start)
+    if date_end:
+        all_records = all_records.filter(date__lte=date_end)
     
     # Active departments for switching
     departments = Department.objects.all().order_by('name')
@@ -101,6 +117,7 @@ def dept_overview(request, dept_id):
         agency_labels = [x[0] for x in agency_breakdown_sorted[:8]]
         agency_data = [round(x[1], 1) for x in agency_breakdown_sorted[:8]]
     
+    dept_trends = {}
     # Chart 2: Daily Trend / Department Comparison
     if department.id == 0:
         # For overall plant, we compare total downtime by department, stacked by agency
@@ -131,37 +148,111 @@ def dept_overview(request, dept_id):
                 'label': grp or "N/A",
                 'data': grp_data
             })
+
+        # Calculate daily trend for each individual department to allow drill-down in overall plant dashboard
+        all_depts = Department.objects.all().order_by('name')
+        for d in all_depts:
+            d_records = all_records.filter(department=d)
+            if d_records.exists():
+                d_daily_breakdown = list(d_records.values('date').annotate(total=Sum('duration_mins')).order_by('date'))
+                d_daily_active_dates = [x['date'] for x in d_daily_breakdown[-30:]]
+                d_daily_labels = [dt.strftime('%d-%b-%Y') for dt in d_daily_active_dates]
+                
+                d_last_30_records = d_records.filter(date__in=d_daily_active_dates)
+                d_raw_agencies = d_last_30_records.values_list('agency', flat=True).exclude(agency='')
+                d_active_groups = sorted(list(set(a.strip() for a in d_raw_agencies if a)))
+                if not d_active_groups:
+                    d_active_groups = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+                
+                d_downtime_by_date_group = d_last_30_records.values('date', 'agency').annotate(total=Sum('duration_mins'))
+                d_downtime_map = {}
+                for entry in d_downtime_by_date_group:
+                    d_date = entry['date']
+                    agency = (entry['agency'] or '').strip()
+                    if not agency:
+                        continue
+                    d_downtime_map[(d_date, agency)] = d_downtime_map.get((d_date, agency), 0.0) + (entry['total'] or 0.0)
+                
+                d_daily_datasets = []
+                for grp in d_active_groups:
+                    grp_daily_data = []
+                    for dt in d_daily_active_dates:
+                        mins = d_downtime_map.get((dt, grp), 0.0)
+                        grp_daily_data.append(round(mins, 1))
+                    d_daily_datasets.append({
+                        'label': grp or "N/A",
+                        'data': grp_daily_data
+                    })
+                
+                dept_trends[d.code] = {
+                    'labels': d_daily_labels,
+                    'datasets': d_daily_datasets,
+                    'dept_name': d.name
+                }
     else:
-        # For a specific department, show daily trend over last 30 active days, stacked by agency
-        daily_breakdown = list(all_records.values('date').annotate(total=Sum('duration_mins')).order_by('date'))
-        daily_active_dates = [x['date'] for x in daily_breakdown[-30:]]
-        daily_labels = [d.strftime('%d-%b-%Y') for d in daily_active_dates]
-        
-        last_30_records = all_records.filter(date__in=daily_active_dates)
-        raw_agencies = last_30_records.values_list('agency', flat=True).exclude(agency='')
-        active_groups = sorted(list(set(a.strip() for a in raw_agencies if a)))
-        if not active_groups:
-            active_groups = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+        # For a specific department
+        if date_start or date_end:
+            # If a date range is selected, show DAILY trend
+            daily_breakdown = list(all_records.values('date').annotate(total=Sum('duration_mins')).order_by('date'))
+            daily_active_dates = [x['date'] for x in daily_breakdown]
+            daily_labels = [d.strftime('%d-%b-%Y') for d in daily_active_dates]
             
-        downtime_by_date_group = last_30_records.values('date', 'agency').annotate(total=Sum('duration_mins'))
-        downtime_map = {}
-        for entry in downtime_by_date_group:
-            d_date = entry['date']
-            agency = (entry['agency'] or '').strip()
-            if not agency:
-                continue
-            downtime_map[(d_date, agency)] = downtime_map.get((d_date, agency), 0.0) + (entry['total'] or 0.0)
+            raw_agencies = all_records.values_list('agency', flat=True).exclude(agency='')
+            active_groups = sorted(list(set(a.strip() for a in raw_agencies if a)))
+            if not active_groups:
+                active_groups = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+                
+            downtime_by_date_group = all_records.values('date', 'agency').annotate(total=Sum('duration_mins'))
+            downtime_map = {}
+            for entry in downtime_by_date_group:
+                d_date = entry['date']
+                agency_name = (entry['agency'] or '').strip()
+                if not agency_name:
+                    continue
+                downtime_map[(d_date, agency_name)] = downtime_map.get((d_date, agency_name), 0.0) + (entry['total'] or 0.0)
+                
+            daily_datasets = []
+            for grp in active_groups:
+                grp_daily_data = []
+                for d in daily_active_dates:
+                    mins = downtime_map.get((d, grp), 0.0)
+                    grp_daily_data.append(round(mins, 1))
+                daily_datasets.append({
+                    'label': grp or "N/A",
+                    'data': grp_daily_data
+                })
+        else:
+            # If NO date range is selected, show MONTHLY trend
+            months_set = set()
+            for r in all_records:
+                if r.date:
+                    months_set.add(date(r.date.year, r.date.month, 1))
+            sorted_months = sorted(list(months_set))
             
-        daily_datasets = []
-        for grp in active_groups:
-            grp_daily_data = []
-            for d in daily_active_dates:
-                mins = downtime_map.get((d, grp), 0.0)
-                grp_daily_data.append(round(mins, 1))
-            daily_datasets.append({
-                'label': grp or "N/A",
-                'data': grp_daily_data
-            })
+            daily_labels = [m.strftime('%b %Y') for m in sorted_months]
+            
+            raw_agencies = all_records.values_list('agency', flat=True).exclude(agency='')
+            active_groups = sorted(list(set(a.strip() for a in raw_agencies if a)))
+            if not active_groups:
+                active_groups = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
+                
+            downtime_map = {}
+            for r in all_records:
+                if r.date and r.agency:
+                    m_date = date(r.date.year, r.date.month, 1)
+                    ag = r.agency.strip()
+                    downtime_map[(m_date, ag)] = downtime_map.get((m_date, ag), 0.0) + (r.duration_mins or 0.0)
+                    
+            daily_datasets = []
+            for grp in active_groups:
+                grp_monthly_data = []
+                for m in sorted_months:
+                    mins = downtime_map.get((m, grp), 0.0)
+                    grp_monthly_data.append(round(mins, 1))
+                daily_datasets.append({
+                    'label': grp or "N/A",
+                    'data': grp_monthly_data
+                })
     
     # Chart 3: Top bottleneck equipment / Department
     if department.id == 0:
@@ -170,7 +261,7 @@ def dept_overview(request, dept_id):
         equip_data = [round(x['total'], 1) for x in dept_breakdown_bottleneck]
     else:
         equip_breakdown = all_records.exclude(
-            Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')
+            Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')  # type: ignore
         ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')[:5]
         equip_labels = [x['equipment'] for x in equip_breakdown]
         equip_data = [round(x['total'], 1) for x in equip_breakdown]
@@ -210,7 +301,7 @@ def dept_overview(request, dept_id):
  
     # Pareto Calculation by Equipment
     all_equip_breakdown = all_records.exclude(
-        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')
+        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')  # type: ignore
     ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')
     
     total_equip_mins = sum(x['total'] for x in all_equip_breakdown)
@@ -302,7 +393,7 @@ def dept_overview(request, dept_id):
     if request.headers.get('HX-Request') and 'records-tab' in request.GET:
         # Return log table partial
         return render(request, 'delays/partials/_records_table.html', {
-            'records': table_records[:100],
+            'records': table_records[:1000],
             'department': department,
             'can_edit': can_edit,
             'is_admin': is_admin,
@@ -349,6 +440,8 @@ def dept_overview(request, dept_id):
     context = {
         'department': department,
         'departments': departments,
+        'date_start': date_start,
+        'date_end': date_end,
         'dept_summaries': dept_summaries,
         'can_edit': can_edit,
         'is_admin': is_admin,
@@ -370,6 +463,7 @@ def dept_overview(request, dept_id):
         'agency_data_json': json.dumps(agency_data),
         'daily_labels_json': json.dumps(daily_labels),
         'daily_datasets_json': json.dumps(daily_datasets),
+        'dept_trends_json': json.dumps(dept_trends),
         'equip_labels_json': json.dumps(equip_labels),
         'equip_data_json': json.dumps(equip_data),
         
@@ -379,7 +473,7 @@ def dept_overview(request, dept_id):
         'pareto_cum_json': json.dumps([x['cum_percent'] for x in agency_pareto]),
         
         # Lists
-        'records': table_records[:100], # Limit initially
+        'records': table_records[:1000], # Limit initially
         'sheets_parsed': sheets_parsed,
         'uploads': uploads,
         
@@ -504,7 +598,7 @@ def records_table(request, dept_id):
             Q(equipment__icontains=query) |
             Q(sub_equipment__icontains=query) |
             Q(shift_incharge__icontains=query) |
-            Q(why__icontains=query)
+            Q(why__icontains=query)  # type: ignore
         )
         
     if agency_type_filter:
@@ -556,7 +650,7 @@ def records_table(request, dept_id):
     table_agencies = sorted(list(set(agencies + list(Department.objects.all().values_list('name', flat=True)))))
 
     return render(request, 'delays/partials/_records_table.html', {
-        'records': records[:150], # Limit query size for performance
+        'records': records[:1000], # Limit query size for performance
         'department': department,
         'can_edit': can_edit,
         'is_admin': is_admin,
@@ -845,7 +939,7 @@ def pareto_overall(request, dept_id):
 
     # Pareto Calculation by Equipment
     all_equip_breakdown = records.exclude(
-        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')
+        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')  # type: ignore
     ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')
     
     total_equip_mins = sum(x['total'] for x in all_equip_breakdown)
@@ -855,7 +949,7 @@ def pareto_overall(request, dept_id):
     # Fallback to description if no equipment data is available (like in SMS3 daily sheets)
     if total_equip_mins == 0:
         all_equip_breakdown = records.exclude(
-            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')
+            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')  # type: ignore
         ).values('description').annotate(total=Sum('duration_mins')).order_by('-total')
         total_equip_mins = sum(x['total'] for x in all_equip_breakdown)
         group_by_field = 'description'
@@ -913,7 +1007,7 @@ def pareto_agency(request, dept_id):
     
     # Pareto Calculation by Equipment *within* that agency
     equip_breakdown = records.exclude(
-        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='None')
+        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='None')  # type: ignore
     ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')
     
     total_mins = sum(x['total'] for x in equip_breakdown)
@@ -923,7 +1017,7 @@ def pareto_agency(request, dept_id):
     # Fallback to description if no equipment data is available (like in SMS3 daily sheets)
     if total_mins == 0:
         equip_breakdown = records.exclude(
-            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')
+            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')  # type: ignore
         ).values('description').annotate(total=Sum('duration_mins')).order_by('-total')
         total_mins = sum(x['total'] for x in equip_breakdown)
         group_by_field = 'description'
@@ -1157,4 +1251,76 @@ def mark_read(request, dept_id, notification_id):
         ).update(is_read=True)
         
         messages.success(request, "Notification marked as read.")
+    return redirect('delays:dept_overview', dept_id=dept_id)
+
+
+@login_required
+def submit_reason(request, dept_id, notification_id):
+    """
+    POST view to allow a department to submit a delay reason response.
+    This reason is stored in the database and sent back to the department that filed the delay.
+    """
+    if request.method == 'POST':
+        reason = request.POST.get('reason_response', '').strip()
+        if not reason:
+            messages.error(request, "Please enter a valid reason.")
+            return redirect('delays:dept_overview', dept_id=dept_id)
+            
+        if int(dept_id) == 0:
+            if not request.user.is_admin():
+                messages.error(request, "Permission denied.")
+                return redirect('delays:dept_overview', dept_id=dept_id)
+            notification = get_object_or_404(DelayNotification, id=notification_id)
+        else:
+            department = get_object_or_404(Department, id=dept_id)
+            if not user_can_edit_module(request.user, department, 'Delays'):
+                messages.error(request, "Permission denied.")
+                return redirect('delays:dept_overview', dept_id=dept_id)
+            notification = get_object_or_404(DelayNotification, id=notification_id, to_department=department)
+            
+        # Store reason on original notification
+        notification.response_reason = reason
+        notification.is_read = True # mark as read automatically when reason is submitted
+        notification.save()
+        
+        # Update the original DelayRecord's 'why' field with this reason
+        record = notification.delay_record
+        record.why = reason
+        super(DelayRecord, record).save()
+        
+        # Send a response notification back to the sender department
+        resp_msg = f"Department {notification.to_department.name} ({notification.to_department.code}) submitted a delay reason for the delay of {record.duration_mins} mins on {record.date}: '{reason}'"
+        
+        # Create the DelayNotification targeted to the department that filed it
+        DelayNotification.objects.create(
+            from_department=notification.to_department,
+            to_department=notification.from_department,
+            delay_record=record,
+            message=resp_msg,
+            is_read=False
+        )
+        
+        # Create a PortalNotification for the users in the filing department
+        try:
+            from portal.models import PortalNotification
+            from tpm.models import User
+            from django.db.models import Q
+            
+            users = User.objects.filter(
+                Q(department=notification.from_department) | 
+                Q(module_access__department=notification.from_department, module_access__module__key='Delays') |
+                Q(is_plant_admin=True)  # type: ignore
+            ).exclude(department=notification.to_department).distinct()
+            
+            for u in users:
+                PortalNotification.objects.get_or_create(
+                    user=u,
+                    message=resp_msg,
+                    link=f"/delays/department/{notification.from_department.id}/",
+                    is_read=False
+                )
+        except Exception:
+            pass
+            
+        messages.success(request, f"Delay reason successfully submitted to {notification.from_department.name}.")
     return redirect('delays:dept_overview', dept_id=dept_id)

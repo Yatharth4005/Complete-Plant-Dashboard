@@ -3,6 +3,7 @@ from django.conf import settings
 from tpm.models import Department
 
 class DelayUpload(models.Model):
+    objects = models.Manager()
     """
     Tracks Excel files uploaded for department delays parsing.
     """
@@ -27,6 +28,7 @@ class DelayUpload(models.Model):
 
 
 class DelayRecord(models.Model):
+    objects = models.Manager()
     """
     Represents a single delay or downtime event, either parsed from an Excel or entered manually.
     """
@@ -105,6 +107,7 @@ class DelayRecord(models.Model):
 
 
 class DelayDropdownOption(models.Model):
+    objects = models.Manager()
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='delay_dropdown_options')
     category = models.CharField(max_length=100, help_text="e.g. 'Agency', 'Sub-Agency', 'Equipment', 'Sub-Equipment', etc.")
     value = models.CharField(max_length=255)
@@ -119,10 +122,12 @@ class DelayDropdownOption(models.Model):
 
 
 class DelayNotification(models.Model):
+    objects = models.Manager()
     from_department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='sent_delay_notifications')
     to_department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='received_delay_notifications')
     delay_record = models.ForeignKey(DelayRecord, on_delete=models.CASCADE, related_name='delay_notifications')
     message = models.TextField()
+    response_reason = models.TextField(blank=True, null=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

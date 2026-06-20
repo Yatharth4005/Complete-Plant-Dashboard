@@ -11,6 +11,8 @@ whitenoise==6.7.0
 # Reporting and spreadsheet export
 reportlab==4.2.0
 openpyxl==3.1.2
+xlrd==2.0.2
+
 
 # Document Parsers (Required for CAPA document upload & processing)
 python-docx==1.1.2

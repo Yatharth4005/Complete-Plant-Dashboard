@@ -79,6 +79,7 @@ urlpatterns = [
     path('governance/structure/', governance_views.tpm_governance_structure, name='tpm_governance_structure'),
     path('governance/structure/assign/', governance_views.assign_role, name='assign_role'),
     path('governance/structure/unassign/', governance_views.unassign_role, name='unassign_role'),
+    path('governance/structure/save-role-description/', governance_views.save_role_description, name='save_role_description'),
     path('governance/users/',     governance_views.tpm_governance_users,     name='tpm_governance_users'),
 
     # Admin

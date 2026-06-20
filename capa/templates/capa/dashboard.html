@@ -122,40 +122,234 @@
             {% endif %}
           </tr>
         </thead>
-        <tbody>
+        {% if active_dept.id == 0 %}
           {% for item in sheet_comparisons %}
-            <tr>
-              {% if active_dept.id == 0 %}
-                <td style="text-align: left; font-weight: bold; color: var(--jspl-navy);">{{ item.name }}</td>
-                <td style="text-align: center; font-weight: bold;">{{ item.total }}</td>
-                <td style="text-align: center; background-color: #fffbeb; font-weight: bold; color: #d97706;">{{ item.open }}</td>
-                <td style="text-align: center; background-color: #ecfdf5; font-weight: bold; color: #059669;">{{ item.closed }}</td>
-                <td style="text-align: center;">
+            <tbody x-data="{ expanded: false }">
+              <tr>
+                <td style="text-align: left; font-weight: bold; color: var(--jspl-navy); vertical-align: middle;">
+                  <button type="button" @click="expanded = !expanded" style="background: none; border: none; font-size: 0.85rem; cursor: pointer; color: var(--jspl-navy); padding: 4px 8px; margin-right: 4px; outline: none;">
+                    <span x-show="!expanded" style="display: inline-block; transition: transform 0.2s;">▶</span>
+                    <span x-show="expanded" style="display: inline-block; transition: transform 0.2s;">▼</span>
+                  </button>
+                  {{ item.name }}
+                </td>
+                <td style="text-align: center; font-weight: bold; vertical-align: middle;">{{ item.total }}</td>
+                <td style="text-align: center; background-color: #fffbeb; font-weight: bold; color: #d97706; vertical-align: middle;">{{ item.open }}</td>
+                <td style="text-align: center; background-color: #ecfdf5; font-weight: bold; color: #059669; vertical-align: middle;">{{ item.closed }}</td>
+                <td style="text-align: center; vertical-align: middle;">
                   <a href="/capa/department/{{ item.dept_id }}/" 
                      class="btn btn-secondary" style="padding: 0 12px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 28px; line-height: 26px; display: inline-block; white-space: nowrap; text-align: center; vertical-align: middle;">
                     View Dashboard
                   </a>
                 </td>
-              {% else %}
-                <td style="text-align: left; font-weight: bold; color: var(--jspl-navy);">{{ item.name }}</td>
-                <td style="text-align: center;" class="mono">{{ item.date }}</td>
-                <td style="text-align: center; font-weight: bold;">{{ item.total }}</td>
-                <td style="text-align: center; background-color: #fffbeb; font-weight: bold; color: #d97706;">{{ item.open }}</td>
-                <td style="text-align: center; background-color: #ecfdf5; font-weight: bold; color: #059669;">{{ item.closed }}</td>
-                <td style="text-align: center;">
+              </tr>
+              <!-- Department files panel -->
+              <tr x-show="expanded" x-transition style="background-color: #fafbfc;">
+                <td colspan="5" style="border-top: none; border-bottom: 2px solid #e2e8f0; padding: 20px 30px;">
+                  <h4 style="margin: 0 0 15px; color: var(--jspl-navy); font-size: 0.95rem; font-weight: 700; text-align: left; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                    📁 Registered CAPA Files &amp; Sessions in {{ item.name }}
+                  </h4>
+                  
+                  {% if item.files %}
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                      {% for file in item.files %}
+                        <div x-data="{ fileExpanded: false }" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: var(--shadow-sm); overflow: hidden;">
+                          <!-- File Header Row -->
+                          <div @click="fileExpanded = !fileExpanded" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; cursor: pointer; background: #f8fafc; transition: background-color 0.2s;">
+                            <div style="display: flex; align-items: center; font-weight: bold; color: var(--jspl-navy); font-size: 0.88rem;">
+                              <span x-show="!fileExpanded" style="display: inline-block; margin-right: 8px; font-size: 0.75rem;">▶</span>
+                              <span x-show="fileExpanded" style="display: inline-block; margin-right: 8px; font-size: 0.75rem;">▼</span>
+                              {{ file.name }}
+                            </div>
+                            <div style="display: flex; gap: 16px; font-size: 0.8rem; color: #64748b;">
+                              <span><strong>Date:</strong> {{ file.date }}</span>
+                              <span><strong>Total:</strong> <strong style="color: var(--jspl-navy);">{{ file.total }}</strong></span>
+                              <span><strong>Open:</strong> <strong style="color: #d97706;">{{ file.open }}</strong></span>
+                              <span><strong>Closed:</strong> <strong style="color: #059669;">{{ file.closed }}</strong></span>
+                            </div>
+                          </div>
+                          
+                          <!-- File Reports Details (Expanded) -->
+                          <div x-show="fileExpanded" x-transition style="padding: 20px; border-top: 1px solid #e2e8f0; background: #fafbfc;">
+                            {% if file.reports %}
+                              {% for rep in file.reports %}
+                                <div style="margin-bottom: 25px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 20px;">
+                                  <h4 style="margin: 0 0 12px; color: var(--jspl-navy); font-size: 0.9rem; font-weight: 700; text-align: left;">
+                                    CAPA Ref: <span style="font-family: 'JetBrains Mono', monospace;">{{ rep.capa_no|default:"N/A" }}</span>
+                                    {% if rep.area_section %} in <span style="color: #64748b;">{{ rep.area_section }}</span>{% endif %}
+                                  </h4>
+                                  
+                                  <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; text-align: left;">
+                                    <!-- Left Side: Summary Details -->
+                                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; box-shadow: var(--shadow-sm);">
+                                      <h5 style="margin-top: 0; margin-bottom: 8px; font-size: 0.78rem; font-weight: bold; color: var(--jspl-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">📋 Incident Summary</h5>
+                                      <div style="font-size: 0.8rem; color: #334155; line-height: 1.5; display: flex; flex-direction: column; gap: 6px;">
+                                        <div><strong>Incident Date:</strong> {{ rep.date_incident|default:"—" }}</div>
+                                        <div><strong>Problem Statement:</strong> {{ rep.problem_what|default:"—" }}</div>
+                                        <div><strong>Root Cause (Conclusion):</strong> {{ rep.conclusion|default:"—" }}</div>
+                                      </div>
+                                    </div>
+                                    
+                                    <!-- Right Side: Action Items -->
+                                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; box-shadow: var(--shadow-sm);">
+                                      <h5 style="margin-top: 0; margin-bottom: 8px; font-size: 0.78rem; font-weight: bold; color: var(--jspl-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">⚡ Actions Progress Tracker</h5>
+                                      <div style="font-size: 0.8rem; line-height: 1.5;">
+                                        
+                                        <!-- Open Actions -->
+                                        <div style="margin-bottom: 8px;">
+                                          <strong style="color: #b45309; font-size: 0.72rem; text-transform: uppercase; display: block; margin-bottom: 4px;">⏳ Open / In-Progress Actions</strong>
+                                          <ul style="margin: 0; padding-left: 18px; color: #475569;">
+                                            {% for act in rep.open_actions %}
+                                              <li style="margin-bottom: 2px;">
+                                                {{ act.action }}
+                                                <span style="color: #94a3b8; font-size: 0.7rem;">(Resp: {{ act.responsibility|default:"—" }}, Target: {{ act.target_date|default:"—" }})</span>
+                                              </li>
+                                            {% empty %}
+                                              <li style="color: #94a3b8; list-style-type: none; margin-left: -18px;">No open actions.</li>
+                                            {% endfor %}
+                                          </ul>
+                                        </div>
+                                        
+                                        <!-- Closed Actions -->
+                                        <div>
+                                          <strong style="color: #047857; font-size: 0.72rem; text-transform: uppercase; display: block; margin-bottom: 4px;">✔️ Closed Actions</strong>
+                                          <ul style="margin: 0; padding-left: 18px; color: #475569;">
+                                            {% for act in rep.closed_actions %}
+                                              <li style="margin-bottom: 2px;">
+                                                {{ act.action }}
+                                                <span style="color: #059669; font-size: 0.7rem; font-weight: 600;">(Closed: {{ act.impl_date }})</span>
+                                              </li>
+                                            {% empty %}
+                                              <li style="color: #94a3b8; list-style-type: none; margin-left: -18px;">No closed actions.</li>
+                                            {% endfor %}
+                                          </ul>
+                                        </div>
+                                        
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              {% endfor %}
+                            {% else %}
+                              <span style="color: #94a3b8; font-size: 0.8rem;">No details available for this report.</span>
+                            {% endif %}
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <span style="color: #94a3b8; font-size: 0.85rem;">No active uploads or manually entered sessions found in this department.</span>
+                  {% endif %}
+                </td>
+              </tr>
+            </tbody>
+          {% empty %}
+            <tbody>
+              <tr>
+                <td colspan="5" style="text-align: center; color: #64748b; padding: 25px;">No active CAPA reports or uploads found.</td>
+              </tr>
+            </tbody>
+          {% endfor %}
+        {% else %}
+          {% for item in sheet_comparisons %}
+            <tbody x-data="{ expanded: false }">
+              <tr>
+                <td style="text-align: left; font-weight: bold; color: var(--jspl-navy); vertical-align: middle;">
+                  <button type="button" @click="expanded = !expanded" style="background: none; border: none; font-size: 0.85rem; cursor: pointer; color: var(--jspl-navy); padding: 4px 8px; margin-right: 4px; outline: none;">
+                    <span x-show="!expanded" style="display: inline-block; transition: transform 0.2s;">▶</span>
+                    <span x-show="expanded" style="display: inline-block; transition: transform 0.2s;">▼</span>
+                  </button>
+                  {{ item.name }}
+                </td>
+                <td style="text-align: center; vertical-align: middle;" class="mono">{{ item.date }}</td>
+                <td style="text-align: center; font-weight: bold; vertical-align: middle;">{{ item.total }}</td>
+                <td style="text-align: center; background-color: #fffbeb; font-weight: bold; color: #d97706; vertical-align: middle;">{{ item.open }}</td>
+                <td style="text-align: center; background-color: #ecfdf5; font-weight: bold; color: #059669; vertical-align: middle;">{{ item.closed }}</td>
+                <td style="text-align: center; vertical-align: middle;">
                   <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ item.id }}" 
                      class="btn btn-secondary" style="padding: 0 12px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 28px; line-height: 26px; display: inline-block; white-space: nowrap; text-align: center; vertical-align: middle;">
                     View Report
                   </a>
                 </td>
-              {% endif %}
-            </tr>
+              </tr>
+              <!-- Row Expansion Panel -->
+              <tr x-show="expanded" x-transition style="background-color: #fafbfc;">
+                <td colspan="6" style="border-top: none; border-bottom: 2px solid #e2e8f0; padding: 20px 30px;">
+                  
+                  {% if item.reports %}
+                    {% for rep in item.reports %}
+                      <div style="margin-bottom: 25px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 20px;">
+                        <h4 style="margin: 0 0 12px; color: var(--jspl-navy); font-size: 0.95rem; font-weight: 700; text-align: left;">
+                          CAPA Ref: <span style="font-family: 'JetBrains Mono', monospace;">{{ rep.capa_no|default:"N/A" }}</span>
+                          {% if rep.area_section %} in <span style="color: #64748b;">{{ rep.area_section }}</span>{% endif %}
+                        </h4>
+                        
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; text-align: left;">
+                          <!-- Left Side: Summary Details -->
+                          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; box-shadow: var(--shadow-sm);">
+                            <h5 style="margin-top: 0; margin-bottom: 8px; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">📋 Incident Summary</h5>
+                            <div style="font-size: 0.82rem; color: #334155; line-height: 1.5; display: flex; flex-direction: column; gap: 8px;">
+                              <div><strong>Incident Date:</strong> {{ rep.date_incident|default:"—" }}</div>
+                              <div><strong>Problem Statement:</strong> {{ rep.problem_what|default:"—" }}</div>
+                              <div><strong>Root Cause (Conclusion):</strong> {{ rep.conclusion|default:"—" }}</div>
+                            </div>
+                          </div>
+                          
+                          <!-- Right Side: Action Items -->
+                          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; box-shadow: var(--shadow-sm);">
+                            <h5 style="margin-top: 0; margin-bottom: 8px; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">⚡ Actions Progress Tracker</h5>
+                            <div style="font-size: 0.82rem; line-height: 1.5;">
+                              
+                              <!-- Open Actions -->
+                              <div style="margin-bottom: 12px;">
+                                <strong style="color: #b45309; font-size: 0.76rem; text-transform: uppercase; display: block; margin-bottom: 4px;">⏳ Open / In-Progress Actions</strong>
+                                <ul style="margin: 0; padding-left: 18px; color: #475569;">
+                                  {% for act in rep.open_actions %}
+                                    <li style="margin-bottom: 3px;">
+                                      {{ act.action }} 
+                                      <span style="color: #94a3b8; font-size: 0.72rem;">(Resp: {{ act.responsibility|default:"—" }}, Target: {{ act.target_date|default:"—" }})</span>
+                                    </li>
+                                  {% empty %}
+                                    <li style="color: #94a3b8; list-style-type: none; margin-left: -18px;">No open actions.</li>
+                                  {% endfor %}
+                                </ul>
+                              </div>
+                              
+                              <!-- Closed Actions -->
+                              <div>
+                                <strong style="color: #047857; font-size: 0.76rem; text-transform: uppercase; display: block; margin-bottom: 4px;">✔️ Closed Actions</strong>
+                                <ul style="margin: 0; padding-left: 18px; color: #475569;">
+                                  {% for act in rep.closed_actions %}
+                                    <li style="margin-bottom: 3px;">
+                                      {{ act.action }} 
+                                      <span style="color: #059669; font-size: 0.72rem; font-weight: 600;">(Closed: {{ act.impl_date }})</span>
+                                    </li>
+                                  {% empty %}
+                                    <li style="color: #94a3b8; list-style-type: none; margin-left: -18px;">No closed actions.</li>
+                                  {% endfor %}
+                                </ul>
+                              </div>
+                              
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  {% else %}
+                    <span style="color: #94a3b8; font-size: 0.82rem;">No details available for this report.</span>
+                  {% endif %}
+                  
+                </td>
+              </tr>
+            </tbody>
           {% empty %}
-            <tr>
-              <td colspan="6" style="text-align: center; color: #64748b; padding: 25px;">No active CAPA reports or uploads found.</td>
-            </tr>
+            <tbody>
+              <tr>
+                <td colspan="6" style="text-align: center; color: #64748b; padding: 25px;">No active CAPA reports or uploads found.</td>
+              </tr>
+            </tbody>
           {% endfor %}
-        </tbody>
+        {% endif %}
       </table>
     </div>
   </div>

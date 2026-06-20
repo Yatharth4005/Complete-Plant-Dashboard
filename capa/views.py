@@ -180,6 +180,53 @@ def capa_dashboard(request, dept_id):
                 total_open_actions += file_open_actions
                 total_closed_actions += file_closed_actions
                 
+                # Fetch files/sessions inside this department
+                dept_files = []
+                # 1. Docx Uploads for this department
+                d_uploads = CAPADocxUpload.objects.filter(department=d).order_by('-uploaded_at')
+                for u in d_uploads:
+                    recs = u.reports.all()
+                    if recs.exists():
+                        u_details = calculate_report_details(recs)
+                        u_open = u_details['open_ca'] + u_details['open_pa']
+                        u_closed = u_details['closed_ca'] + u_details['closed_pa']
+                        best_date = get_upload_date_str(u, recs)
+                        
+                        dept_files.append({
+                            'id': u.id,
+                            'name': u.filename,
+                            'date': u.upload_date.strftime('%d.%m.%Y') if u.upload_date else '—',
+                            'total': recs.count(),
+                            'open': u_open,
+                            'closed': u_closed,
+                            'best_date': best_date or datetime.now(),
+                            'reports': get_reports_history_data(recs),
+                        })
+                
+                # 2. Manual reports (docx_upload is None) for this department
+                d_manual_recs = d_reports.filter(docx_upload=None)
+                if d_manual_recs.exists():
+                    m_details = calculate_report_details(d_manual_recs)
+                    m_open = m_details['open_ca'] + m_details['open_pa']
+                    m_closed = m_details['closed_ca'] + m_details['closed_pa']
+                    r = d_manual_recs.first()
+                    date_str = r.date_implementation or r.date_incident or r.issue_date
+                    best_date = extract_date(date_str)
+                    
+                    dept_files.append({
+                        'id': f"manual_{d.id}",
+                        'name': 'Default manual list',
+                        'date': '—',
+                        'total': d_manual_recs.count(),
+                        'open': m_open,
+                        'closed': m_closed,
+                        'best_date': best_date or datetime.now(),
+                        'reports': get_reports_history_data(d_manual_recs),
+                    })
+                
+                # Sort department files chronologically/by best date
+                dept_files.sort(key=lambda x: x['best_date'])
+                
                 sheet_comparisons.append({
                     'id': d.id,
                     'name': f"{d.name} ({d.code})",
@@ -192,6 +239,7 @@ def capa_dashboard(request, dept_id):
                     'dept_id': d.id,
                     'dept_name': d.name,
                     'dept_code': d.code,
+                    'files': dept_files,
                 })
     else:
         # 1. Check Docx Uploads
@@ -220,6 +268,7 @@ def capa_dashboard(request, dept_id):
                     'dept_id': u.department.id,
                     'dept_name': u.department.name,
                     'dept_code': u.department.code,
+                    'reports': get_reports_history_data(recs),
                 })
                 
         # 2. Check default manual list
@@ -251,6 +300,7 @@ def capa_dashboard(request, dept_id):
                 'dept_id': active_dept.id,
                 'dept_name': active_dept.name,
                 'dept_code': active_dept.code if hasattr(active_dept, 'code') else '',
+                'reports': get_reports_history_data(manual_recs),
             })
             
         # Sort chronologically by best_date
@@ -428,6 +478,59 @@ def capa_report(request, dept_id):
     return render(request, 'capa/report.html', context)
 
 
+def get_reports_history_data(reports_queryset):
+    """
+    Builds a list of serialized report summaries for a given queryset.
+    """
+    recs_data = []
+    for r in reports_queryset:
+        closed_actions = []
+        open_actions = []
+        
+        for act in (r.corrective_actions or []):
+            impl = act.get('impl_date', '').strip()
+            is_closed = impl and impl != '' and impl.lower() != 'dd.mm.yyyy' and impl != '—' and impl != '-'
+            item = {
+                'type': 'Corrective',
+                'action': act.get('action', ''),
+                'responsibility': act.get('responsibility', ''),
+                'target_date': act.get('target_date', ''),
+                'impl_date': impl
+            }
+            if is_closed:
+                closed_actions.append(item)
+            else:
+                open_actions.append(item)
+                
+        for act in (r.preventive_actions or []):
+            impl = act.get('impl_date', '').strip()
+            is_closed = impl and impl != '' and impl.lower() != 'dd.mm.yyyy' and impl != '—' and impl != '-'
+            item = {
+                'type': 'Preventive',
+                'action': act.get('action', ''),
+                'responsibility': act.get('responsibility', ''),
+                'target_date': act.get('target_date', ''),
+                'impl_date': impl
+            }
+            if is_closed:
+                closed_actions.append(item)
+            else:
+                open_actions.append(item)
+                
+        recs_data.append({
+            'id': r.id,
+            'capa_no': r.capa_no,
+            'area_section': r.area_section,
+            'date_incident': r.date_incident,
+            'problem_what': r.problem_what,
+            'conclusion': r.conclusion,
+            'closed_actions': closed_actions,
+            'open_actions': open_actions,
+            'total_actions': len(closed_actions) + len(open_actions)
+        })
+    return recs_data
+
+
 def process_upload_history(uploads_queryset):
     """
     Builds a serializable/structured array of files including report summaries and closed/open actions categorised based on impl_date.
@@ -435,53 +538,7 @@ def process_upload_history(uploads_queryset):
     data = []
     for u in uploads_queryset:
         recs = u.reports.all()
-        recs_data = []
-        for r in recs:
-            closed_actions = []
-            open_actions = []
-            
-            for act in (r.corrective_actions or []):
-                impl = act.get('impl_date', '').strip()
-                is_closed = impl and impl != '' and impl.lower() != 'dd.mm.yyyy' and impl != '—' and impl != '-'
-                item = {
-                    'type': 'Corrective',
-                    'action': act.get('action', ''),
-                    'responsibility': act.get('responsibility', ''),
-                    'target_date': act.get('target_date', ''),
-                    'impl_date': impl
-                }
-                if is_closed:
-                    closed_actions.append(item)
-                else:
-                    open_actions.append(item)
-                    
-            for act in (r.preventive_actions or []):
-                impl = act.get('impl_date', '').strip()
-                is_closed = impl and impl != '' and impl.lower() != 'dd.mm.yyyy' and impl != '—' and impl != '-'
-                item = {
-                    'type': 'Preventive',
-                    'action': act.get('action', ''),
-                    'responsibility': act.get('responsibility', ''),
-                    'target_date': act.get('target_date', ''),
-                    'impl_date': impl
-                }
-                if is_closed:
-                    closed_actions.append(item)
-                else:
-                    open_actions.append(item)
-                    
-            recs_data.append({
-                'id': r.id,
-                'capa_no': r.capa_no,
-                'area_section': r.area_section,
-                'date_incident': r.date_incident,
-                'problem_what': r.problem_what,
-                'conclusion': r.conclusion,
-                'closed_actions': closed_actions,
-                'open_actions': open_actions,
-                'total_actions': len(closed_actions) + len(open_actions)
-            })
-            
+        recs_data = get_reports_history_data(recs)
         data.append({
             'id': u.id,
             'filename': u.filename,

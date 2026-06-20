@@ -263,6 +263,24 @@ def request_access_view(request):
         status=AccessRequest.STATUS_PENDING
     )
 
+    # Notify admins via PortalNotification
+    try:
+        from django.db.models import Q
+        from portal.models import PortalNotification
+        from tpm.models import User
+        
+        admins = User.objects.filter(Q(is_plant_admin=True) | Q(role='ADMIN'))
+        msg = f"New access request from {first_name} {last_name} ({email}) for department {dept.name if dept else 'None'}."
+        for admin in admins:
+            PortalNotification.objects.get_or_create(
+                user=admin,
+                message=msg,
+                link='/portal-admin/access/',
+                is_read=False
+            )
+    except Exception:
+        pass
+
     messages.success(
         request, 
         f"Access request submitted successfully for '{email}'. "

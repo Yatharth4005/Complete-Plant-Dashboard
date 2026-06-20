@@ -57,14 +57,25 @@ function initCharts() {
         }
     };
 
+    // Helper to format minutes with commas
+    function formatMins(mins) {
+        return Math.round(mins).toLocaleString() + ' mins';
+    }
+
     // ─────────────────────────────────────────────────────────
     // CHART 1: DAILY DOWNTIME TREND (Stacked Bar Chart by Agency)
     const trendCtx = document.getElementById('trendChart');
+    const backBtn = document.getElementById('backToOverallBtn');
+    const trendTitle = document.getElementById('trendChartTitle');
+    const chartContainer = document.getElementById('trendChartContainer');
+
     if (trendCtx) {
         const dailyDatasets = (data.dailyDatasets || []).map((dataset, index) => {
             const color = mixedPalette[index % mixedPalette.length];
+            const sum = dataset.data.reduce((a, b) => a + b, 0);
             return {
-                label: dataset.label,
+                label: `${dataset.label} (${formatMins(sum)})`,
+                originalLabel: dataset.label,
                 data: dataset.data,
                 backgroundColor: color,
                 borderColor: color,
@@ -72,6 +83,8 @@ function initCharts() {
                 borderRadius: 4
             };
         });
+
+        let currentView = 'overall';
 
         charts.trend = new Chart(trendCtx, {
             type: 'bar',
@@ -83,11 +96,11 @@ function initCharts() {
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'right',
+                        position: window.innerWidth > 1024 ? 'right' : 'bottom',
                         labels: {
                             boxWidth: 12,
-                            padding: 10,
-                            font: { family: "'Sora', sans-serif" }
+                            padding: 15,
+                            font: { family: "'Sora', sans-serif", size: 11 }
                         }
                     }
                 },
@@ -112,9 +125,97 @@ function initCharts() {
                             minRotation: 45
                         }
                     }
+                },
+                onClick: (event, elements) => {
+                    // Check if we have drill-down data and are in overall view
+                    if (!data.deptTrends || currentView !== 'overall') return;
+                    
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        const deptCode = charts.trend.data.labels[index];
+                        showDeptDetail(deptCode);
+                    }
                 }
             })
         });
+
+        function showDeptDetail(deptCode) {
+            const deptData = data.deptTrends[deptCode];
+            if (!deptData) return;
+
+            currentView = 'dept';
+
+            // Swipe off (slide left and fade out)
+            if (chartContainer) {
+                chartContainer.style.transform = 'translateX(-100%)';
+                chartContainer.style.opacity = '0';
+            }
+
+            setTimeout(() => {
+                if (trendTitle) {
+                    trendTitle.textContent = `📈 Daily Downtime Trend: ${deptData.dept_name} (Mins)`;
+                }
+                if (backBtn) {
+                    backBtn.style.display = 'inline-block';
+                }
+
+                // Rebuild datasets with correct sums for the legend values
+                const newDatasets = deptData.datasets.map((dataset, index) => {
+                    const color = mixedPalette[index % mixedPalette.length];
+                    const sum = dataset.data.reduce((a, b) => a + b, 0);
+                    return {
+                        label: `${dataset.label} (${formatMins(sum)})`,
+                        originalLabel: dataset.label,
+                        data: dataset.data,
+                        backgroundColor: color,
+                        borderColor: color,
+                        borderWidth: 1,
+                        borderRadius: 4
+                    };
+                });
+
+                charts.trend.data.labels = deptData.labels;
+                charts.trend.data.datasets = newDatasets;
+                charts.trend.update();
+
+                // Swipe on (slide in from right)
+                if (chartContainer) {
+                    chartContainer.style.transform = 'translateX(0)';
+                    chartContainer.style.opacity = '1';
+                }
+            }, 400);
+        }
+
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                currentView = 'overall';
+
+                // Swipe off (slide right and fade out)
+                if (chartContainer) {
+                    chartContainer.style.transform = 'translateX(100%)';
+                    chartContainer.style.opacity = '0';
+                }
+
+                setTimeout(() => {
+                    if (trendTitle) {
+                        trendTitle.textContent = '📈 Department Downtime Comparison (Mins)';
+                    }
+                    if (backBtn) {
+                        backBtn.style.display = 'none';
+                    }
+
+                    charts.trend.data.labels = data.dailyLabels;
+                    charts.trend.data.datasets = dailyDatasets;
+                    charts.trend.update();
+
+                    // Swipe on
+                    if (chartContainer) {
+                        chartContainer.style.transform = 'translateX(0)';
+                        chartContainer.style.opacity = '1';
+                    }
+                }, 400);
+            });
+        }
     }
 
     // ─────────────────────────────────────────────────────────
@@ -122,10 +223,15 @@ function initCharts() {
     // ─────────────────────────────────────────────────────────
     const agencyCtx = document.getElementById('agencyChart');
     if (agencyCtx) {
+        const agencyLabelsWithValues = (data.agencyLabels || []).map((lbl, idx) => {
+            const val = data.agencyData[idx] || 0;
+            return `${lbl} (${formatMins(val)})`;
+        });
+
         charts.agency = new Chart(agencyCtx, {
             type: 'doughnut',
             data: {
-                labels: data.agencyLabels,
+                labels: agencyLabelsWithValues,
                 datasets: [{
                     data: data.agencyData,
                     backgroundColor: mixedPalette,
@@ -137,11 +243,11 @@ function initCharts() {
             options: Object.assign({}, commonOptions, {
                 plugins: {
                     legend: {
-                        position: 'right',
+                        position: 'bottom', // Put legend at bottom so it is completely visible
                         labels: {
                             boxWidth: 12,
-                            padding: 15,
-                            font: { family: "'Sora', sans-serif" }
+                            padding: 10,
+                            font: { family: "'Sora', sans-serif", size: 11 }
                         }
                     }
                 },

@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="governance-container" x-data="structureEditor">
+<div class="governance-container" :class="{ 'showing-roles': showRoles }" x-data="structureEditor">
   
   <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
     <div>
@@ -17,20 +17,29 @@
         Organisational hierarchy and key responsibilities for the TPM implementation review cycle.
       </p>
     </div>
-    {% if request.user.is_admin %}
-    <div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <!-- Toggle Roles & Responsibilities Tab/Button -->
+      <button class="btn" 
+              :class="showRoles ? 'btn-secondary' : 'btn-primary'" 
+              @click="showRoles = !showRoles; if (showRoles) editMode = false;" 
+              style="font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: none; padding: 0 16px; cursor: pointer; color: white !important; transition: all 0.2s;"
+              :style="showRoles ? 'background-color: var(--jspl-muted) !important;' : 'background-color: var(--jspl-navy) !important;'">
+        <span x-text="showRoles ? '👁️ Hide Roles' : '💡 Roles & Responsibilities'"></span>
+      </button>
+
+      {% if request.user.is_admin %}
       <button class="btn" 
               :class="editMode ? 'btn-secondary' : 'btn-primary'" 
-              @click="editMode = !editMode" 
-              style="font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: none; padding: 0 16px; cursor: pointer; color: white !important;"
+              @click="editMode = !editMode; if (editMode) showRoles = false;" 
+              style="font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: none; padding: 0 16px; cursor: pointer; color: white !important; transition: all 0.2s;"
               :style="editMode ? 'background-color: var(--jspl-muted) !important;' : 'background-color: var(--jspl-navy) !important;'">
         <span x-text="editMode ? '💾 Exit Edit Mode' : '🛠️ Edit Hierarchy'"></span>
       </button>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 
-  <div class="structure-layout-grid" :class="{ 'editing': editMode }">
+  <div class="structure-layout-grid" :class="{ 'editing': editMode, 'showing-roles': showRoles }">
     
     <!-- FLOWCHART COLUMN -->
     <div class="flowchart-column" style="min-width: 0; width: 100%;">
@@ -44,139 +53,35 @@
         <div class="governance-flowchart">
           
           <!-- LEVEL 1: Project Sponsor -->
-          <div class="chart-row">
-            <div class="chart-node node-sponsor" 
-                 :class="{ 'drop-active': activeDropZone === 'sponsor' }"
-                 @dragover.prevent
-                 @dragenter="activeDropZone = 'sponsor'"
-                 @dragleave="activeDropZone = ''"
-                 @drop="handleDrop($event, 'sponsor')">
-              <div class="node-badge">PROJECT SPONSOR</div>
-              <div class="node-name" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-                {% if assignments.sponsor %}
-                  <span>{{ assignments.sponsor.0.user.get_display_name }}</span>
-                  <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.sponsor.0.user.id }}, 'sponsor')" class="remove-btn" title="Remove">&times;</button>
-                {% else %}
-                  <span>Executive Director</span>
-                {% endif %}
-              </div>
-              <div class="node-desc">
-                {% if assignments.sponsor %}
-                  {{ assignments.sponsor.0.user.designation|default:"Executive Director" }} — Unit Head (JSP Raigarh++)
-                {% else %}
-                  Unit Head — JSP Raigarh++
-                {% endif %}
-              </div>
-              
-              {% if request.user.is_admin %}
-              <div x-show="editMode" style="margin-top: 10px;">
-                <select @change="assignSelect($event, 'sponsor')" class="assign-select">
-                  <option value="">+ Assign Person</option>
-                  {% for u in all_users %}
-                    <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
-                  {% endfor %}
-                </select>
-              </div>
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="connector-line-vert"></div>
-
-          <!-- LEVEL 2: Steering Committee -->
-          <div class="chart-row">
-            <div class="chart-node node-steering">
-              <div class="node-badge">STEERING COMMITTEE</div>
-              
-              <div class="node-split-grid">
-                <!-- Chairman Cell -->
-                <div class="split-cell"
-                     :class="{ 'drop-active': activeDropZone === 'chairman' }"
-                     @dragover.prevent
-                     @dragenter="activeDropZone = 'chairman'"
-                     @dragleave="activeDropZone = ''"
-                     @drop="handleDrop($event, 'chairman')">
-                  <strong>Chairman</strong>
-                  <div class="name-text">
-                    {% if assignments.chairman %}
-                      <span style="display: inline-flex; align-items: center; gap: 4px;">
-                        {{ assignments.chairman.0.user.get_display_name }}
-                        <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.chairman.0.user.id }}, 'chairman')" class="remove-btn">&times;</button>
-                      </span>
-                    {% else %}
-                      <span>Mr. Anshoo Raina</span>
-                    {% endif %}
-                  </div>
-                  
-                  {% if request.user.is_admin %}
-                  <div x-show="editMode" style="margin-top: 6px;">
-                    <select @change="assignSelect($event, 'chairman')" class="assign-select">
-                      <option value="">+ Assign Chairman</option>
-                      {% for u in all_users %}
-                        <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
-                      {% endfor %}
-                    </select>
-                  </div>
-                  {% endif %}
-                </div>
-                
-                <!-- Vice Chairman Cell -->
-                <div class="split-cell" style="border-left: 1px solid rgba(255,255,255,0.25);"
-                     :class="{ 'drop-active': activeDropZone === 'vice_chairman' }"
-                     @dragover.prevent
-                     @dragenter="activeDropZone = 'vice_chairman'"
-                     @dragleave="activeDropZone = ''"
-                     @drop="handleDrop($event, 'vice_chairman')">
-                  <strong>Vice Chairman</strong>
-                  <div class="name-text">
-                    {% if assignments.vice_chairman %}
-                      <span style="display: inline-flex; align-items: center; gap: 4px;">
-                        {{ assignments.vice_chairman.0.user.get_display_name }}
-                        <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.vice_chairman.0.user.id }}, 'vice_chairman')" class="remove-btn">&times;</button>
-                      </span>
-                    {% else %}
-                      <span>Mr. Lalit Goyal</span>
-                    {% endif %}
-                  </div>
-                  
-                  {% if request.user.is_admin %}
-                  <div x-show="editMode" style="margin-top: 6px;">
-                    <select @change="assignSelect($event, 'vice_chairman')" class="assign-select">
-                      <option value="">+ Assign Vice Chairman</option>
-                      {% for u in all_users %}
-                        <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
-                      {% endfor %}
-                    </select>
-                  </div>
-                  {% endif %}
-                </div>
-              </div>
-              
-              <!-- Committee Members Box -->
-              <div class="node-footer-list"
-                   :class="{ 'drop-active': activeDropZone === 'committee_member' }"
+          <div class="governance-row">
+            <div class="governance-node-col">
+              <div class="chart-node node-sponsor" 
+                   :class="{ 'drop-active': activeDropZone === 'sponsor' }"
                    @dragover.prevent
-                   @dragenter="activeDropZone = 'committee_member'"
+                   @dragenter="activeDropZone = 'sponsor'"
                    @dragleave="activeDropZone = ''"
-                   @drop="handleDrop($event, 'committee_member')">
-                <strong>Committee Members:</strong>
-                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-height: 20px;">
-                  {% if assignments.committee_member %}
-                    {% for a in assignments.committee_member %}
-                      <span class="member-tag">
-                        {{ a.user.get_display_name }}
-                        <button type="button" x-show="editMode" @click.stop="unassign({{ a.user.id }}, 'committee_member')" class="tag-remove-btn">&times;</button>
-                      </span>
-                    {% endfor %}
+                   @drop="handleDrop($event, 'sponsor')">
+                <div class="node-badge">PROJECT SPONSOR</div>
+                <div class="node-name" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  {% if assignments.sponsor %}
+                    <span>{{ assignments.sponsor.0.user.get_display_name }}</span>
+                    <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.sponsor.0.user.id }}, 'sponsor')" class="remove-btn" title="Remove">&times;</button>
                   {% else %}
-                    <span style="font-size: 0.76rem; opacity: 0.9;">Mr. Amit Khokhar, Mr. Ankit Bansal, Mr. Praveen George, Mr. Pinaki Bhattacharjee, Mr. Moreshwar Borkar, Mr. Pradeep Kumar Agrawal, Mr. Sanjay Sharma</span>
+                    <span>Executive Director</span>
+                  {% endif %}
+                </div>
+                <div class="node-desc">
+                  {% if assignments.sponsor %}
+                    {{ assignments.sponsor.0.user.designation|default:"Executive Director" }} — Unit Head (JSP Raigarh++)
+                  {% else %}
+                    Unit Head — JSP Raigarh++
                   {% endif %}
                 </div>
                 
                 {% if request.user.is_admin %}
-                <div x-show="editMode" style="margin-top: 8px;">
-                  <select @change="assignSelect($event, 'committee_member')" class="assign-select" style="max-width: 200px;">
-                    <option value="">+ Add Committee Member</option>
+                <div x-show="editMode" style="margin-top: 10px;">
+                  <select @change="assignSelect($event, 'sponsor')" class="assign-select">
+                    <option value="">+ Assign Person</option>
                     {% for u in all_users %}
                       <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
                     {% endfor %}
@@ -184,11 +89,217 @@
                 </div>
                 {% endif %}
               </div>
-              
+            </div>
+
+            <!-- Role Card (Sponsor) -->
+            <div class="governance-role-col" x-show="showRoles" x-transition>
+              <div class="responsibility-card border-sponsor" style="padding: 16px; border-radius: 10px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm);">
+                <div x-show="editingRoleKey !== 'sponsor'">
+                  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 6px; margin-bottom: 8px;">
+                    <div class="card-role-header text-sponsor" style="font-size: 0.95rem; margin-bottom: 0; font-weight: bold;">
+                      👑 {{ role_descriptions.sponsor.title }}
+                    </div>
+                    {% if request.user.is_admin %}
+                    <button type="button" @click="startEditRole('sponsor', '{{ role_descriptions.sponsor.title|escapejs }}', '{{ role_descriptions.sponsor.designation|escapejs }}', '{{ role_descriptions.sponsor.responsibilities|escapejs }}')" class="edit-card-btn">✏️ Edit</button>
+                    {% endif %}
+                  </div>
+                  <div>
+                    <div class="card-role-designation" style="font-size: 0.75rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; color: var(--jspl-muted);">
+                      {{ role_descriptions.sponsor.designation }}
+                    </div>
+                    <ul class="resp-list" style="font-size: 0.8rem; padding-left: 16px; margin: 0; line-height: 1.45; color: #4b5563;">
+                      {% for resp in role_descriptions.sponsor.get_responsibilities_list %}
+                        <li>{{ resp }}</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                </div>
+
+                {% if request.user.is_admin %}
+                <div x-show="editingRoleKey === 'sponsor'" class="role-edit-form" @click.stop>
+                  <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" x-model="editRoleTitle">
+                  </div>
+                  <div class="form-group">
+                    <label>Designation</label>
+                    <input type="text" x-model="editRoleDesignation">
+                  </div>
+                  <div class="form-group">
+                    <label>Responsibilities (one per line)</label>
+                    <textarea x-model="editRoleResponsibilities"></textarea>
+                  </div>
+                  <div class="role-edit-actions">
+                    <button type="button" class="btn btn-secondary" @click="cancelEditRole()" style="padding: 4px 10px; font-size: 0.75rem; height: 28px;">Cancel</button>
+                    <button type="button" class="btn btn-primary" @click="saveRole('sponsor')" style="padding: 4px 10px; font-size: 0.75rem; height: 28px; background-color: var(--jspl-orange) !important;">Save</button>
+                  </div>
+                </div>
+                {% endif %}
+              </div>
             </div>
           </div>
 
-          <div class="connector-line-vert"></div>
+          <div class="connector-row" :class="{ 'showing-roles': showRoles }">
+            <div class="connector-line-vert"></div>
+          </div>
+
+          <!-- LEVEL 2: Steering Committee -->
+          <div class="governance-row">
+            <div class="governance-node-col">
+              <div class="chart-node node-steering">
+                <div class="node-badge">STEERING COMMITTEE</div>
+                
+                <div class="node-split-grid">
+                  <!-- Chairman Cell -->
+                  <div class="split-cell"
+                       :class="{ 'drop-active': activeDropZone === 'chairman' }"
+                       @dragover.prevent
+                       @dragenter="activeDropZone = 'chairman'"
+                       @dragleave="activeDropZone = ''"
+                       @drop="handleDrop($event, 'chairman')">
+                    <strong>Chairman</strong>
+                    <div class="name-text">
+                      {% if assignments.chairman %}
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                          {{ assignments.chairman.0.user.get_display_name }}
+                          <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.chairman.0.user.id }}, 'chairman')" class="remove-btn">&times;</button>
+                        </span>
+                      {% else %}
+                        <span>Mr. Anshoo Raina</span>
+                      {% endif %}
+                    </div>
+                    
+                    {% if request.user.is_admin %}
+                    <div x-show="editMode" style="margin-top: 6px;">
+                      <select @change="assignSelect($event, 'chairman')" class="assign-select">
+                        <option value="">+ Assign Chairman</option>
+                        {% for u in all_users %}
+                          <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    {% endif %}
+                  </div>
+                  
+                  <!-- Vice Chairman Cell -->
+                  <div class="split-cell" style="border-left: 1px solid rgba(255,255,255,0.25);"
+                       :class="{ 'drop-active': activeDropZone === 'vice_chairman' }"
+                       @dragover.prevent
+                       @dragenter="activeDropZone = 'vice_chairman'"
+                       @dragleave="activeDropZone = ''"
+                       @drop="handleDrop($event, 'vice_chairman')">
+                    <strong>Vice Chairman</strong>
+                    <div class="name-text">
+                      {% if assignments.vice_chairman %}
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                          {{ assignments.vice_chairman.0.user.get_display_name }}
+                          <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.vice_chairman.0.user.id }}, 'vice_chairman')" class="remove-btn">&times;</button>
+                        </span>
+                      {% else %}
+                        <span>Mr. Lalit Goyal</span>
+                      {% endif %}
+                    </div>
+                    
+                    {% if request.user.is_admin %}
+                    <div x-show="editMode" style="margin-top: 6px;">
+                      <select @change="assignSelect($event, 'vice_chairman')" class="assign-select">
+                        <option value="">+ Assign Vice Chairman</option>
+                        {% for u in all_users %}
+                          <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    {% endif %}
+                  </div>
+                </div>
+                
+                <!-- Committee Members Box -->
+                <div class="node-footer-list"
+                     :class="{ 'drop-active': activeDropZone === 'committee_member' }"
+                     @dragover.prevent
+                     @dragenter="activeDropZone = 'committee_member'"
+                     @dragleave="activeDropZone = ''"
+                     @drop="handleDrop($event, 'committee_member')">
+                  <strong>Committee Members:</strong>
+                  <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-height: 20px;">
+                    {% if assignments.committee_member %}
+                      {% for a in assignments.committee_member %}
+                        <span class="member-tag">
+                          {{ a.user.get_display_name }}
+                          <button type="button" x-show="editMode" @click.stop="unassign({{ a.user.id }}, 'committee_member')" class="tag-remove-btn">&times;</button>
+                        </span>
+                      {% endfor %}
+                    {% else %}
+                      <span style="font-size: 0.76rem; opacity: 0.9;">Mr. Amit Khokhar, Mr. Ankit Bansal, Mr. Praveen George, Mr. Pinaki Bhattacharjee, Mr. Moreshwar Borkar, Mr. Pradeep Kumar Agrawal, Mr. Sanjay Sharma</span>
+                    {% endif %}
+                  </div>
+                  
+                  {% if request.user.is_admin %}
+                  <div x-show="editMode" style="margin-top: 8px;">
+                    <select @change="assignSelect($event, 'committee_member')" class="assign-select" style="max-width: 200px;">
+                      <option value="">+ Add Committee Member</option>
+                      {% for u in all_users %}
+                        <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% endif %}
+                </div>
+                
+              </div>
+            </div>
+
+            <!-- Role Card (Steering) -->
+            <div class="governance-role-col" x-show="showRoles" x-transition>
+              <div class="responsibility-card border-steering" style="padding: 16px; border-radius: 10px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm);">
+                <div x-show="editingRoleKey !== 'steering'">
+                  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 6px; margin-bottom: 8px;">
+                    <div class="card-role-header text-steering" style="font-size: 0.95rem; margin-bottom: 0; font-weight: bold;">
+                      👥 {{ role_descriptions.steering.title }}
+                    </div>
+                    {% if request.user.is_admin %}
+                    <button type="button" @click="startEditRole('steering', '{{ role_descriptions.steering.title|escapejs }}', '{{ role_descriptions.steering.designation|escapejs }}', '{{ role_descriptions.steering.responsibilities|escapejs }}')" class="edit-card-btn">✏️ Edit</button>
+                    {% endif %}
+                  </div>
+                  <div>
+                    <div class="card-role-designation" style="font-size: 0.75rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; color: var(--jspl-muted);">
+                      {{ role_descriptions.steering.designation }}
+                    </div>
+                    <ul class="resp-list" style="font-size: 0.8rem; padding-left: 16px; margin: 0; line-height: 1.45; color: #4b5563;">
+                      {% for resp in role_descriptions.steering.get_responsibilities_list %}
+                        <li>{{ resp }}</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                </div>
+
+                {% if request.user.is_admin %}
+                <div x-show="editingRoleKey === 'steering'" class="role-edit-form" @click.stop>
+                  <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" x-model="editRoleTitle">
+                  </div>
+                  <div class="form-group">
+                    <label>Designation</label>
+                    <input type="text" x-model="editRoleDesignation">
+                  </div>
+                  <div class="form-group">
+                    <label>Responsibilities (one per line)</label>
+                    <textarea x-model="editRoleResponsibilities"></textarea>
+                  </div>
+                  <div class="role-edit-actions">
+                    <button type="button" class="btn btn-secondary" @click="cancelEditRole()" style="padding: 4px 10px; font-size: 0.75rem; height: 28px;">Cancel</button>
+                    <button type="button" class="btn btn-primary" @click="saveRole('steering')" style="padding: 4px 10px; font-size: 0.75rem; height: 28px; background-color: var(--jspl-orange) !important;">Save</button>
+                  </div>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="connector-row" :class="{ 'showing-roles': showRoles }">
+            <div class="connector-line-vert"></div>
+          </div>
 
           <!-- LEVEL 3: Split Grid for Coordinators & Area HODs -->
           <div class="chart-split-wrapper">
@@ -198,69 +309,120 @@
               <!-- Column Left: TPM Coordinators -->
               <div class="split-column">
                 <div class="connector-line-vert-half"></div>
-                <div class="chart-node node-coordinators">
-                  <div class="node-badge">TPM COORDINATORS</div>
-                  
-                  <!-- Pillar Coordinator -->
-                  <div class="coordinator-profile" style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 12px;"
-                       :class="{ 'drop-active': activeDropZone === 'coordinator_pillar' }"
-                       @dragover.prevent
-                       @dragenter="activeDropZone = 'coordinator_pillar'"
-                       @dragleave="activeDropZone = ''"
-                       @drop="handleDrop($event, 'coordinator_pillar')">
-                    <div class="desc-text" style="font-weight: bold; opacity: 0.8; margin-bottom: 2px;">Pillar Coordinator</div>
-                    <div class="name-text">
-                      {% if assignments.coordinator_pillar %}
-                        <span style="display: inline-flex; align-items: center; gap: 4px;">
-                          {{ assignments.coordinator_pillar.0.user.get_display_name }}
-                          <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.coordinator_pillar.0.user.id }}, 'coordinator_pillar')" class="remove-btn">&times;</button>
-                        </span>
-                      {% else %}
-                        <span>Mr. Raj Bhushan</span>
+                <div class="governance-row">
+                  <div class="governance-node-col">
+                    <div class="chart-node node-coordinators">
+                      <div class="node-badge">TPM COORDINATORS</div>
+                      
+                      <!-- Pillar Coordinator -->
+                      <div class="coordinator-profile" style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 12px;"
+                           :class="{ 'drop-active': activeDropZone === 'coordinator_pillar' }"
+                           @dragover.prevent
+                           @dragenter="activeDropZone = 'coordinator_pillar'"
+                           @dragleave="activeDropZone = ''"
+                           @drop="handleDrop($event, 'coordinator_pillar')">
+                        <div class="desc-text" style="font-weight: bold; opacity: 0.8; margin-bottom: 2px;">Pillar Coordinator</div>
+                        <div class="name-text">
+                          {% if assignments.coordinator_pillar %}
+                            <span style="display: inline-flex; align-items: center; gap: 4px;">
+                              {{ assignments.coordinator_pillar.0.user.get_display_name }}
+                              <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.coordinator_pillar.0.user.id }}, 'coordinator_pillar')" class="remove-btn" title="Remove">&times;</button>
+                            </span>
+                          {% else %}
+                            <span>Mr. Raj Bhushan</span>
+                          {% endif %}
+                        </div>
+                        
+                        {% if request.user.is_admin %}
+                        <div x-show="editMode" style="margin-top: 6px;">
+                          <select @change="assignSelect($event, 'coordinator_pillar')" class="assign-select">
+                            <option value="">+ Assign Pillar Coordinator</option>
+                            {% for u in all_users %}
+                              <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                        {% endif %}
+                      </div>
+                      
+                      <!-- Workstation Coordinator -->
+                      <div class="coordinator-profile"
+                           :class="{ 'drop-active': activeDropZone === 'coordinator_cell' }"
+                           @dragover.prevent
+                           @dragenter="activeDropZone = 'coordinator_cell'"
+                           @dragleave="activeDropZone = ''"
+                           @drop="handleDrop($event, 'coordinator_cell')">
+                        <div class="desc-text" style="font-weight: bold; opacity: 0.8; margin-bottom: 2px;">Workstation / Cell Team Coordinator</div>
+                        <div class="name-text">
+                          {% if assignments.coordinator_cell %}
+                            <span style="display: inline-flex; align-items: center; gap: 4px;">
+                              {{ assignments.coordinator_cell.0.user.get_display_name }}
+                              <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.coordinator_cell.0.user.id }}, 'coordinator_cell')" class="remove-btn">&times;</button>
+                            </span>
+                          {% else %}
+                            <span>Ms. Raunika</span>
+                          {% endif %}
+                        </div>
+                        
+                        {% if request.user.is_admin %}
+                        <div x-show="editMode" style="margin-top: 6px;">
+                          <select @change="assignSelect($event, 'coordinator_cell')" class="assign-select">
+                            <option value="">+ Assign WS Coordinator</option>
+                            {% for u in all_users %}
+                              <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <!-- Role Card (Coordinators) -->
+                    <div class="governance-role-col" x-show="showRoles" x-transition>
+                    <div class="responsibility-card border-coordinators" style="padding: 16px; border-radius: 10px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm);">
+                      <div x-show="editingRoleKey !== 'coordinators'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 6px; margin-bottom: 8px;">
+                          <div class="card-role-header text-coordinators" style="font-size: 0.95rem; margin-bottom: 0; font-weight: bold;">
+                            ⚙️ {{ role_descriptions.coordinators.title }}
+                          </div>
+                          {% if request.user.is_admin %}
+                          <button type="button" @click="startEditRole('coordinators', '{{ role_descriptions.coordinators.title|escapejs }}', '{{ role_descriptions.coordinators.designation|escapejs }}', '{{ role_descriptions.coordinators.responsibilities|escapejs }}')" class="edit-card-btn">✏️ Edit</button>
+                          {% endif %}
+                        </div>
+                        <div>
+                          <div class="card-role-designation" style="font-size: 0.75rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; color: var(--jspl-muted);">
+                            {{ role_descriptions.coordinators.designation }}
+                          </div>
+                          <ul class="resp-list" style="font-size: 0.8rem; padding-left: 16px; margin: 0; line-height: 1.45; color: #4b5563;">
+                            {% for resp in role_descriptions.coordinators.get_responsibilities_list %}
+                              <li>{{ resp }}</li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {% if request.user.is_admin %}
+                      <div x-show="editingRoleKey === 'coordinators'" class="role-edit-form" @click.stop>
+                        <div class="form-group">
+                          <label>Title</label>
+                          <input type="text" x-model="editRoleTitle">
+                        </div>
+                        <div class="form-group">
+                          <label>Designation</label>
+                          <input type="text" x-model="editRoleDesignation">
+                        </div>
+                        <div class="form-group">
+                          <label>Responsibilities (one per line)</label>
+                          <textarea x-model="editRoleResponsibilities"></textarea>
+                        </div>
+                        <div class="role-edit-actions">
+                          <button type="button" class="btn btn-secondary" @click="cancelEditRole()" style="padding: 4px 10px; font-size: 0.75rem; height: 28px;">Cancel</button>
+                          <button type="button" class="btn btn-primary" @click="saveRole('coordinators')" style="padding: 4px 10px; font-size: 0.75rem; height: 28px; background-color: var(--jspl-orange) !important;">Save</button>
+                        </div>
+                      </div>
                       {% endif %}
                     </div>
-                    
-                    {% if request.user.is_admin %}
-                    <div x-show="editMode" style="margin-top: 6px;">
-                      <select @change="assignSelect($event, 'coordinator_pillar')" class="assign-select">
-                        <option value="">+ Assign Pillar Coordinator</option>
-                        {% for u in all_users %}
-                          <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    {% endif %}
                   </div>
-                  
-                  <!-- Workstation Coordinator -->
-                  <div class="coordinator-profile"
-                       :class="{ 'drop-active': activeDropZone === 'coordinator_cell' }"
-                       @dragover.prevent
-                       @dragenter="activeDropZone = 'coordinator_cell'"
-                       @dragleave="activeDropZone = ''"
-                       @drop="handleDrop($event, 'coordinator_cell')">
-                    <div class="desc-text" style="font-weight: bold; opacity: 0.8; margin-bottom: 2px;">Workstation / Cell Team Coordinator</div>
-                    <div class="name-text">
-                      {% if assignments.coordinator_cell %}
-                        <span style="display: inline-flex; align-items: center; gap: 4px;">
-                          {{ assignments.coordinator_cell.0.user.get_display_name }}
-                          <button type="button" x-show="editMode" @click.stop="unassign({{ assignments.coordinator_cell.0.user.id }}, 'coordinator_cell')" class="remove-btn">&times;</button>
-                        </span>
-                      {% else %}
-                        <span>Ms. Raunika</span>
-                      {% endif %}
-                    </div>
-                    
-                    {% if request.user.is_admin %}
-                    <div x-show="editMode" style="margin-top: 6px;">
-                      <select @change="assignSelect($event, 'coordinator_cell')" class="assign-select">
-                        <option value="">+ Assign WS Coordinator</option>
-                        {% for u in all_users %}
-                          <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    {% endif %}
                   </div>
                 </div>
               </div>
@@ -270,71 +432,281 @@
                 <div class="connector-line-vert-half"></div>
                 
                 <!-- HOD Node -->
-                <div class="chart-node node-hod"
-                     :class="{ 'drop-active': activeDropZone === 'hod' }"
-                     @dragover.prevent
-                     @dragenter="activeDropZone = 'hod'"
-                     @dragleave="activeDropZone = ''"
-                     @drop="handleDrop($event, 'hod')">
-                  <div class="node-badge">HOD / AREA OWNERS</div>
-                  <div class="hod-names-grid">
-                    {% if assignments.hod %}
-                      {% for a in assignments.hod %}
-                        <span class="hod-tag">
-                          {{ a.user.get_display_name }}
-                          <button type="button" x-show="editMode" @click.stop="unassign({{ a.user.id }}, 'hod')" class="tag-remove-btn">&times;</button>
-                        </span>
-                      {% endfor %}
-                    {% else %}
-                      <span>Mr. Sandeep Tyagi</span>
-                      <span>Mr. Saptarsi Sengupta</span>
-                      <span>Mr. Varun Mishra</span>
-                      <span>Mr. Satyabrata Sahu</span>
-                      <span>Mr. Harsh Pandey</span>
-                      <span>Mr. Gunjan Jha</span>
-                      <span>Mr. Ch VSS Kumar</span>
-                      <span>Mr. Deepak Upadhyay</span>
-                      <span>Mr. Pawan Vij</span>
-                    {% endif %}
+                <div class="governance-row">
+                  <div class="governance-node-col">
+                    <div class="chart-node node-hod"
+                         :class="{ 'drop-active': activeDropZone === 'hod' }"
+                         @dragover.prevent
+                         @dragenter="activeDropZone = 'hod'"
+                         @dragleave="activeDropZone = ''"
+                         @drop="handleDrop($event, 'hod')">
+                      <div class="node-badge">HOD / AREA OWNERS</div>
+                      <div class="hod-names-grid">
+                        {% if assignments.hod %}
+                          {% for a in assignments.hod %}
+                            <span class="hod-tag">
+                              {{ a.user.get_display_name }}
+                              <button type="button" x-show="editMode" @click.stop="unassign({{ a.user.id }}, 'hod')" class="tag-remove-btn">&times;</button>
+                            </span>
+                          {% endfor %}
+                        {% else %}
+                          <span>Mr. Sandeep Tyagi</span>
+                          <span>Mr. Saptarsi Sengupta</span>
+                          <span>Mr. Varun Mishra</span>
+                          <span>Mr. Satyabrata Sahu</span>
+                          <span>Mr. Harsh Pandey</span>
+                          <span>Mr. Gunjan Jha</span>
+                          <span>Mr. Ch VSS Kumar</span>
+                          <span>Mr. Deepak Upadhyay</span>
+                          <span>Mr. Pawan Vij</span>
+                        {% endif %}
+                      </div>
+                      
+                      {% if request.user.is_admin %}
+                      <div x-show="editMode" style="margin-top: 10px;">
+                        <select @change="assignSelect($event, 'hod')" class="assign-select" style="max-width: 200px; margin: 0 auto; display: block;">
+                          <option value="">+ Add HOD</option>
+                          {% for u in all_users %}
+                            <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      {% endif %}
+                    </div>
+
+                    <!-- Role Card (HOD) -->
+                    <div class="governance-role-col" x-show="showRoles" x-transition>
+                    <div class="responsibility-card border-hod" style="padding: 16px; border-radius: 10px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm);">
+                      <div x-show="editingRoleKey !== 'hod'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 6px; margin-bottom: 8px;">
+                          <div class="card-role-header text-hod" style="font-size: 0.95rem; margin-bottom: 0; font-weight: bold;">
+                            🏢 {{ role_descriptions.hod.title }}
+                          </div>
+                          {% if request.user.is_admin %}
+                          <button type="button" @click="startEditRole('hod', '{{ role_descriptions.hod.title|escapejs }}', '{{ role_descriptions.hod.designation|escapejs }}', '{{ role_descriptions.hod.responsibilities|escapejs }}')" class="edit-card-btn">✏️ Edit</button>
+                          {% endif %}
+                        </div>
+                        <div>
+                          <div class="card-role-designation" style="font-size: 0.75rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; color: var(--jspl-muted);">
+                            {{ role_descriptions.hod.designation }}
+                          </div>
+                          <ul class="resp-list" style="font-size: 0.8rem; padding-left: 16px; margin: 0; line-height: 1.45; color: #4b5563;">
+                            {% for resp in role_descriptions.hod.get_responsibilities_list %}
+                              <li>{{ resp }}</li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {% if request.user.is_admin %}
+                      <div x-show="editingRoleKey === 'hod'" class="role-edit-form" @click.stop>
+                        <div class="form-group">
+                          <label>Title</label>
+                          <input type="text" x-model="editRoleTitle">
+                        </div>
+                        <div class="form-group">
+                          <label>Designation</label>
+                          <input type="text" x-model="editRoleDesignation">
+                        </div>
+                        <div class="form-group">
+                          <label>Responsibilities (one per line)</label>
+                          <textarea x-model="editRoleResponsibilities"></textarea>
+                        </div>
+                        <div class="role-edit-actions">
+                          <button type="button" class="btn btn-secondary" @click="cancelEditRole()" style="padding: 4px 10px; font-size: 0.75rem; height: 28px;">Cancel</button>
+                          <button type="button" class="btn btn-primary" @click="saveRole('hod')" style="padding: 4px 10px; font-size: 0.75rem; height: 28px; background-color: var(--jspl-orange) !important;">Save</button>
+                        </div>
+                      </div>
+                      {% endif %}
+                    </div>
                   </div>
-                  
-                  {% if request.user.is_admin %}
-                  <div x-show="editMode" style="margin-top: 10px;">
-                    <select @change="assignSelect($event, 'hod')" class="assign-select" style="max-width: 200px; margin: 0 auto; display: block;">
-                      <option value="">+ Add HOD</option>
-                      {% for u in all_users %}
-                        <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
-                      {% endfor %}
-                    </select>
                   </div>
-                  {% endif %}
                 </div>
 
-                <div class="connector-line-vert"></div>
+                <div class="connector-row" :class="{ 'showing-roles': showRoles }">
+                  <div class="connector-line-vert"></div>
+                </div>
 
                 <!-- Cell Leader Node -->
-                <div class="chart-node node-cell">
-                  <div class="node-badge">CELL LEADERS</div>
-                  <div class="name-text">Departmental Cell Teams</div>
-                  <div class="desc-text">Technical guidance & cross-functional coordination</div>
+                <div class="governance-row">
+                  <div class="governance-node-col">
+                    <div class="chart-node node-cell">
+                      <div class="node-badge">CELL LEADERS</div>
+                      <div class="name-text">Departmental Cell Teams</div>
+                      <div class="desc-text">Technical guidance & cross-functional coordination</div>
+                    </div>
+
+                    <!-- Role Card (Cell) -->
+                    <div class="governance-role-col" x-show="showRoles" x-transition>
+                    <div class="responsibility-card border-cell" style="padding: 16px; border-radius: 10px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm);">
+                      <div x-show="editingRoleKey !== 'cell'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 6px; margin-bottom: 8px;">
+                          <div class="card-role-header text-cell" style="font-size: 0.95rem; margin-bottom: 0; font-weight: bold;">
+                            🤝 {{ role_descriptions.cell.title }}
+                          </div>
+                          {% if request.user.is_admin %}
+                          <button type="button" @click="startEditRole('cell', '{{ role_descriptions.cell.title|escapejs }}', '{{ role_descriptions.cell.designation|escapejs }}', '{{ role_descriptions.cell.responsibilities|escapejs }}')" class="edit-card-btn">✏️ Edit</button>
+                          {% endif %}
+                        </div>
+                        <div>
+                          <div class="card-role-designation" style="font-size: 0.75rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; color: var(--jspl-muted);">
+                            {{ role_descriptions.cell.designation }}
+                          </div>
+                          <ul class="resp-list" style="font-size: 0.8rem; padding-left: 16px; margin: 0; line-height: 1.45; color: #4b5563;">
+                            {% for resp in role_descriptions.cell.get_responsibilities_list %}
+                              <li>{{ resp }}</li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {% if request.user.is_admin %}
+                      <div x-show="editingRoleKey === 'cell'" class="role-edit-form" @click.stop>
+                        <div class="form-group">
+                          <label>Title</label>
+                          <input type="text" x-model="editRoleTitle">
+                        </div>
+                        <div class="form-group">
+                          <label>Designation</label>
+                          <input type="text" x-model="editRoleDesignation">
+                        </div>
+                        <div class="form-group">
+                          <label>Responsibilities (one per line)</label>
+                          <textarea x-model="editRoleResponsibilities"></textarea>
+                        </div>
+                        <div class="role-edit-actions">
+                          <button type="button" class="btn btn-secondary" @click="cancelEditRole()" style="padding: 4px 10px; font-size: 0.75rem; height: 28px;">Cancel</button>
+                          <button type="button" class="btn btn-primary" @click="saveRole('cell')" style="padding: 4px 10px; font-size: 0.75rem; height: 28px; background-color: var(--jspl-orange) !important;">Save</button>
+                        </div>
+                      </div>
+                      {% endif %}
+                    </div>
+                  </div>
+                  </div>
                 </div>
 
-                <div class="connector-line-vert"></div>
+                <div class="connector-row" :class="{ 'showing-roles': showRoles }">
+                  <div class="connector-line-vert"></div>
+                </div>
 
                 <!-- Workstation Lead Node -->
-                <div class="chart-node node-workstation">
-                  <div class="node-badge">WORKSTATION LEADS</div>
-                  <div class="name-text">Workstation KPI SPOCs</div>
-                  <div class="desc-text">KPI targets, zero leakage, timelines</div>
+                <div class="governance-row">
+                  <div class="governance-node-col">
+                    <div class="chart-node node-workstation">
+                      <div class="node-badge">WORKSTATION LEADS</div>
+                      <div class="name-text">Workstation KPI SPOCs</div>
+                      <div class="desc-text">KPI targets, zero leakage, timelines</div>
+                    </div>
+
+                    <!-- Role Card (Workstation) -->
+                    <div class="governance-role-col" x-show="showRoles" x-transition>
+                    <div class="responsibility-card border-workstation" style="padding: 16px; border-radius: 10px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm);">
+                      <div x-show="editingRoleKey !== 'workstation'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 6px; margin-bottom: 8px;">
+                          <div class="card-role-header text-workstation" style="font-size: 0.95rem; margin-bottom: 0; font-weight: bold;">
+                            🔧 {{ role_descriptions.workstation.title }}
+                          </div>
+                          {% if request.user.is_admin %}
+                          <button type="button" @click="startEditRole('workstation', '{{ role_descriptions.workstation.title|escapejs }}', '{{ role_descriptions.workstation.designation|escapejs }}', '{{ role_descriptions.workstation.responsibilities|escapejs }}')" class="edit-card-btn">✏️ Edit</button>
+                          {% endif %}
+                        </div>
+                        <div>
+                          <div class="card-role-designation" style="font-size: 0.75rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; color: var(--jspl-muted);">
+                            {{ role_descriptions.workstation.designation }}
+                          </div>
+                          <ul class="resp-list" style="font-size: 0.8rem; padding-left: 16px; margin: 0; line-height: 1.45; color: #4b5563;">
+                            {% for resp in role_descriptions.workstation.get_responsibilities_list %}
+                              <li>{{ resp }}</li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {% if request.user.is_admin %}
+                      <div x-show="editingRoleKey === 'workstation'" class="role-edit-form" @click.stop>
+                        <div class="form-group">
+                          <label>Title</label>
+                          <input type="text" x-model="editRoleTitle">
+                        </div>
+                        <div class="form-group">
+                          <label>Designation</label>
+                          <input type="text" x-model="editRoleDesignation">
+                        </div>
+                        <div class="form-group">
+                          <label>Responsibilities (one per line)</label>
+                          <textarea x-model="editRoleResponsibilities"></textarea>
+                        </div>
+                        <div class="role-edit-actions">
+                          <button type="button" class="btn btn-secondary" @click="cancelEditRole()" style="padding: 4px 10px; font-size: 0.75rem; height: 28px;">Cancel</button>
+                          <button type="button" class="btn btn-primary" @click="saveRole('workstation')" style="padding: 4px 10px; font-size: 0.75rem; height: 28px; background-color: var(--jspl-orange) !important;">Save</button>
+                        </div>
+                      </div>
+                      {% endif %}
+                    </div>
+                  </div>
+                  </div>
                 </div>
 
-                <div class="connector-line-vert"></div>
+                <div class="connector-row" :class="{ 'showing-roles': showRoles }">
+                  <div class="connector-line-vert"></div>
+                </div>
 
                 <!-- Workstation / Cell Team Node -->
-                <div class="chart-node node-workforce">
-                  <div class="node-badge">WORKSTATION / CELL TEAMS</div>
-                  <div class="name-text">Ground Execution Workforce</div>
-                  <div class="desc-text">5S, abnormality RCA, target completion</div>
+                <div class="governance-row">
+                  <div class="governance-node-col">
+                    <div class="chart-node node-workforce">
+                      <div class="node-badge">WORKSTATION / CELL TEAMS</div>
+                      <div class="name-text">Ground Execution Workforce</div>
+                      <div class="desc-text">5S, abnormality RCA, target completion</div>
+                    </div>
+
+                    <!-- Role Card (Workforce) -->
+                    <div class="governance-role-col" x-show="showRoles" x-transition>
+                    <div class="responsibility-card border-workforce" style="padding: 16px; border-radius: 10px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm);">
+                      <div x-show="editingRoleKey !== 'workforce'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 6px; margin-bottom: 8px;">
+                          <div class="card-role-header text-workforce" style="font-size: 0.95rem; margin-bottom: 0; font-weight: bold;">
+                            🛠️ {{ role_descriptions.workforce.title }}
+                          </div>
+                          {% if request.user.is_admin %}
+                          <button type="button" @click="startEditRole('workforce', '{{ role_descriptions.workforce.title|escapejs }}', '{{ role_descriptions.workforce.designation|escapejs }}', '{{ role_descriptions.workforce.responsibilities|escapejs }}')" class="edit-card-btn">✏️ Edit</button>
+                          {% endif %}
+                        </div>
+                        <div>
+                          <div class="card-role-designation" style="font-size: 0.75rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; color: var(--jspl-muted);">
+                            {{ role_descriptions.workforce.designation }}
+                          </div>
+                          <ul class="resp-list" style="font-size: 0.8rem; padding-left: 16px; margin: 0; line-height: 1.45; color: #4b5563;">
+                            {% for resp in role_descriptions.workforce.get_responsibilities_list %}
+                              <li>{{ resp }}</li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {% if request.user.is_admin %}
+                      <div x-show="editingRoleKey === 'workforce'" class="role-edit-form" @click.stop>
+                        <div class="form-group">
+                          <label>Title</label>
+                          <input type="text" x-model="editRoleTitle">
+                        </div>
+                        <div class="form-group">
+                          <label>Designation</label>
+                          <input type="text" x-model="editRoleDesignation">
+                        </div>
+                        <div class="form-group">
+                          <label>Responsibilities (one per line)</label>
+                          <textarea x-model="editRoleResponsibilities"></textarea>
+                        </div>
+                        <div class="role-edit-actions">
+                          <button type="button" class="btn btn-secondary" @click="cancelEditRole()" style="padding: 4px 10px; font-size: 0.75rem; height: 28px;">Cancel</button>
+                          <button type="button" class="btn btn-primary" @click="saveRole('workforce')" style="padding: 4px 10px; font-size: 0.75rem; height: 28px; background-color: var(--jspl-orange) !important;">Save</button>
+                        </div>
+                      </div>
+                      {% endif %}
+                    </div>
+                  </div>
+                  </div>
                 </div>
 
               </div>
@@ -388,109 +760,123 @@
 
   </div>
 
-  <!-- RESPONSIBILITIES DETAILS -->
-  <div style="margin-top: 40px; margin-bottom: 20px;">
-    <h3 style="color: var(--jspl-navy); font-weight: 700;">💡 Governance Roles &amp; Responsibilities</h3>
-    <p style="color: var(--jspl-muted); font-size: 0.85rem; margin-top: 4px;">Detailed protocols and execution requirements for each governance level.</p>
-  </div>
-
-  <div class="responsibilities-grid">
-    <!-- Sponsor Card -->
-    <div class="responsibility-card border-sponsor">
-      <div class="card-role-header text-sponsor">👑 Project Sponsor</div>
-      <div class="card-role-designation">Executive Director (Unit Head — JSP Raigarh++)</div>
-      <ul class="resp-list">
-        <li>Ensure the TPM initiative aligns with the organization's overall strategic goals and objectives.</li>
-        <li>Resource Allocation and key Decision Making for the TPM implementation.</li>
-      </ul>
-    </div>
-
-    <!-- Steering Committee Card -->
-    <div class="responsibility-card border-steering">
-      <div class="card-role-header text-steering">👥 Steering Committee</div>
-      <div class="card-role-designation">Chairman, Vice Chairman &amp; Board Members</div>
-      <ul class="resp-list">
-        <li>Approve TPM implementation roadmap.</li>
-        <li>Conduct monthly TPM progress review.</li>
-        <li>Recommend teams for reward &amp; recognition.</li>
-        <li>Arrange for recognition and felicitation for teams achieving TPM quarterly targets.</li>
-      </ul>
-    </div>
-
-    <!-- TPM Coordinators Card -->
-    <div class="responsibility-card border-coordinators">
-      <div class="card-role-header text-coordinators">⚙️ TPM Coordinators</div>
-      <div class="card-role-designation">
-        {% if assignments.coordinator_pillar or assignments.coordinator_cell %}
-          {% if assignments.coordinator_pillar %}{{ assignments.coordinator_pillar.0.user.get_display_name }}{% else %}Raj Bhushan{% endif %} (Pillar) &amp;
-          {% if assignments.coordinator_cell %}{{ assignments.coordinator_cell.0.user.get_display_name }}{% else %}Raunika{% endif %} (Workstation/Cell)
-        {% else %}
-          Raj Bhushan (Pillar) &amp; Raunika (Workstation/Cell)
-        {% endif %}
-      </div>
-      <ul class="resp-list">
-        <li><b>Pillar (Raj Bhushan):</b> Prepare and manage the training calendar, release monthly reports, sign off milestone stages, and audit documentation (OPL/Standards).</li>
-        <li><b>Logistics (Raunika):</b> Maintain trainee attendance, coordinate assessments, and manage training organization scheduling, travel, accommodation &amp; bills.</li>
-      </ul>
-    </div>
-
-    <!-- HOD Card -->
-    <div class="responsibility-card border-hod">
-      <div class="card-role-header text-hod">🏢 HOD / Area Owners</div>
-      <div class="card-role-designation">Department Heads &amp; Zonal Heads</div>
-      <ul class="resp-list">
-        <li>Identify cells and workstations along with their team members.</li>
-        <li>Review and approve quarterly targets of workstations and cells.</li>
-        <li>Ensure participation &amp; attendance of teams in TPM related trainings.</li>
-        <li>Ensure active participation of the Cell and Workstation teams during reviews.</li>
-        <li>Provide necessary resources (e.g. tools, materials) and conduct fortnightly reviews.</li>
-      </ul>
-    </div>
-
-    <!-- Cell Leader Card -->
-    <div class="responsibility-card border-cell">
-      <div class="card-role-header text-cell">🤝 Cell Leaders</div>
-      <div class="card-role-designation">Cell Team Heads</div>
-      <ul class="resp-list">
-        <li>Provide necessary technical guidance to the workstation teams.</li>
-        <li>Address any cross-functional coordination and alignment issues.</li>
-        <li>Conduct weekly progress reviews for cell workstations.</li>
-      </ul>
-    </div>
-
-    <!-- Workstation Lead Card -->
-    <div class="responsibility-card border-workstation">
-      <div class="card-role-header text-workstation">🔧 Workstation Leads</div>
-      <div class="card-role-designation">Workstation SPOC / Lead Operators</div>
-      <ul class="resp-list">
-        <li>Achieve quarterly goals of KPIs.</li>
-        <li>Ensure timely actions on identified abnormalities.</li>
-        <li>Lead Zero leakage drives and assign tasks to team members.</li>
-        <li>Ensure presence of team and timely action on review feedbacks.</li>
-      </ul>
-    </div>
-
-    <!-- Workforce Card -->
-    <div class="responsibility-card border-workforce" style="grid-column: span 2;">
-      <div class="card-role-header text-workforce">🛠️ Workstation / Cell Teams</div>
-      <div class="card-role-designation">Ground workforce execution teams</div>
-      <ul class="resp-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 30px;">
-        <li>Identify abnormalities / failures and address them including analysis, RCA with permanent solutions.</li>
-        <li>Complete the allocated tasks on time.</li>
-        <li>Participate in internal &amp; external reviews.</li>
-        <li>Maintain 5S in Workstations.</li>
-      </ul>
-    </div>
-  </div>
+  <!-- Responsibilities section has been moved inline beside the hierarchy structure -->
 
 </div>
 
 <!-- Flowchart and node inline CSS variables -->
 <style>
+  /* Fix connection lines and alignment when showing roles */
+  .showing-roles .governance-container {
+    max-width: 1400px;
+  }
+  .showing-roles .governance-row {
+    display: flex !important;
+  }
+  .showing-roles .governance-flowchart > .governance-row {
+    display: grid !important;
+    grid-template-columns: 1.1fr 0.9fr;
+    align-items: center;
+    gap: 30px;
+  }
+  .showing-roles .governance-flowchart > .connector-row {
+    display: grid !important;
+    grid-template-columns: 1.1fr 0.9fr;
+    width: 100%;
+  }
+  .showing-roles .governance-flowchart > .governance-row > .governance-role-col {
+    margin-top: 0 !important;
+  }
+
   .governance-container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 10px;
+    transition: max-width 0.3s ease;
+  }
+  /* Governance Side-by-Side Rows and Inline Forms */
+  .governance-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    gap: 30px;
+  }
+  .governance-node-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  .governance-role-col {
+    width: 100%;
+    max-width: 480px;
+    text-align: left;
+    margin-top: 15px; /* Margin below the node card when shown vertically */
+  }
+  .connector-row .connector-line-vert {
+    margin: 0 auto;
+  }
+  
+  /* Edit roles forms */
+  .role-edit-form {
+    background: #f8fafc;
+    border: 1px dashed var(--jspl-border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-top: 8px;
+  }
+  .role-edit-form .form-group {
+    margin-bottom: 10px;
+  }
+  .role-edit-form label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--jspl-navy);
+    margin-bottom: 4px;
+  }
+  .role-edit-form input[type="text"],
+  .role-edit-form textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--jspl-border);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    outline: none;
+    font-family: inherit;
+    box-sizing: border-box;
+    color: var(--jspl-text) !important;
+    background-color: white !important;
+  }
+  .role-edit-form textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+  .role-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .edit-card-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--jspl-blue);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+  .edit-card-btn:hover {
+    background-color: var(--jspl-light);
+    color: var(--jspl-orange);
   }
   .governance-flowchart {
     display: flex;
@@ -623,7 +1009,7 @@
   /* HOD List layout */
   .hod-names-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
     gap: 8px 12px;
     font-size: 0.78rem;
     font-weight: 600;
@@ -739,6 +1125,26 @@
   @media (min-width: 1024px) {
     .structure-layout-grid.editing {
       grid-template-columns: 3.2fr 1fr;
+    }
+    .structure-layout-grid.showing-roles {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  /* Connector styles */
+  .roles-sidebar-card {
+    padding: 24px;
+    background: #FFFFFF;
+    border: 1px solid var(--jspl-border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  @media (min-width: 1024px) {
+    .roles-sidebar-card {
+      position: sticky;
+      top: 90px;
+      max-height: 80vh;
+      overflow-y: auto;
     }
   }
   .drop-active {
@@ -913,9 +1319,63 @@
 
   document.addEventListener('alpine:init', () => {
     Alpine.data('structureEditor', () => ({
+      editingRoleKey: '',
+      editRoleTitle: '',
+      editRoleDesignation: '',
+      editRoleResponsibilities: '',
+      
+      startEditRole(roleKey, title, designation, responsibilitiesText) {
+        this.editingRoleKey = roleKey;
+        this.editRoleTitle = title;
+        this.editRoleDesignation = designation;
+        this.editRoleResponsibilities = responsibilitiesText;
+      },
+      
+      cancelEditRole() {
+        this.editingRoleKey = '';
+      },
+      
+      saveRole(roleKey) {
+        const formData = new FormData();
+        formData.append('role_key', roleKey);
+        formData.append('title', this.editRoleTitle);
+        formData.append('designation', this.editRoleDesignation);
+        formData.append('responsibilities', this.editRoleResponsibilities);
+
+        fetch('{% url "save_role_description" %}', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCSRFToken()
+          },
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            window.location.reload();
+          } else {
+            alert('Error: ' + data.message);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Failed to save role description.');
+        });
+      },
+
       editMode: false,
+      showRoles: false,
       searchQuery: '',
       activeDropZone: '',
+      expandedRoles: {
+        sponsor: true,
+        steering: true,
+        coordinators: true,
+        hod: true,
+        cell: true,
+        workstation: true,
+        workforce: true
+      },
       
       dragStart(event, userId) {
         event.dataTransfer.setData('text/plain', userId);

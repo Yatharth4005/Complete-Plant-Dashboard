@@ -10,13 +10,7 @@ def plant_dashboard(request):
     Landing dashboard listing all 28 departments as cards.
     Each card displays its subparts/modules (TPM, CMC, etc.) with lock/unlock status.
     """
-    STANDARD_DEPTS = [
-        'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
-        'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
-        'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
-        'SINT', 'SPM', 'MRSS'
-    ]
-    departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
+    departments = Department.objects.filter(is_active=True).order_by('name')
     active_modules = Module.objects.filter(is_active=True).exclude(key__in=['FMEA', 'CAPA']).order_by('sort_order')
     
     departments_data = []
@@ -120,6 +114,30 @@ def overall_plant_dashboard(request):
             'color_class': 'module-capa',
             'url': '/capa/department/0/',
         },
+        {
+            'key': 'SAFETY',
+            'label': 'Safety',
+            'description': 'Safety audits, hazard reporting, and incident tracking',
+            'icon': 'life-buoy',
+            'color_class': 'module-safety',
+            'url': '/department/0/coming-soon/SAFETY/',
+        },
+        {
+            'key': 'PRODUCTION',
+            'label': 'Production',
+            'description': 'Production targets, daily output logs, and efficiency metrics',
+            'icon': 'layers',
+            'color_class': 'module-production',
+            'url': '/department/0/coming-soon/PRODUCTION/',
+        },
+        {
+            'key': 'QUALITY',
+            'label': 'Quality',
+            'description': 'Quality control parameters, rejection tracking, and testing logs',
+            'icon': 'check-square',
+            'color_class': 'module-quality',
+            'url': '/department/0/coming-soon/QUALITY/',
+        },
     ]
 
     context = {
@@ -166,7 +184,7 @@ def capa_reports(request):
     if dept_id:
         try:
             dept = Department.objects.get(id=dept_id)
-        except Department.DoesNotExist:
+        except Department.DoesNotExist:  # type: ignore
             pass
             
     report = None
@@ -222,6 +240,6 @@ def mark_notification_read(request, notification_id):
         notification.is_read = True
         notification.save()
         return JsonResponse({'status': 'success'})
-    except PortalNotification.DoesNotExist:
+    except PortalNotification.DoesNotExist:  # type: ignore
         return JsonResponse({'status': 'error', 'message': 'Notification not found'}, status=404)
 

@@ -162,7 +162,7 @@
       </div>
 
       <!-- User dropdown -->
-      <div class="user-menu" x-data="{ open: false }" @click.outside="open = false">
+      <div class="user-menu" x-data="{ open: false }" @click.outside="open = false" {% if not request.user.is_admin %}style="margin-left: 15px;"{% endif %}>
         <button class="user-menu-trigger" @click="open = !open">
           <span class="user-avatar">
             {% if request.user.photo %}

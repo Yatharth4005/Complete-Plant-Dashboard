@@ -2,8 +2,10 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 class Department(models.Model):
+    objects = models.Manager()
     name = models.CharField(max_length=100, unique=True)   # e.g., "Blast Furnace-1"
     code = models.CharField(max_length=10,  unique=True)   # e.g., "BF1"
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
@@ -234,6 +236,7 @@ class CAPADocxUpload(models.Model):
 
 
 class CAPAReport(models.Model):
+    objects = models.Manager()
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='capa_reports')
     docx_upload = models.ForeignKey(CAPADocxUpload, on_delete=models.CASCADE, null=True, blank=True, related_name='reports')
     area_section = models.CharField(max_length=255, blank=True)
@@ -399,6 +402,20 @@ class JHMasterPlanCell(models.Model):
 
     def __str__(self):
         return f"{self.machine.machine_name} - Step {self.step} - {self.year}/{self.month} W{self.week}: {self.status}"
+
+
+class TPMGovernanceRoleDescription(models.Model):
+    role_key = models.CharField(max_length=50, unique=True)
+    title = models.CharField(max_length=100)
+    designation = models.CharField(max_length=200, blank=True)
+    responsibilities = models.TextField(help_text="Responsibilities separated by newline")
+
+    def get_responsibilities_list(self):
+        return [r.strip() for r in self.responsibilities.split('\n') if r.strip()]
+
+    def __str__(self):
+        return self.title
+
 
 
 

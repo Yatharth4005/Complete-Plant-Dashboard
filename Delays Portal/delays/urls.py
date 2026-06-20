@@ -23,6 +23,7 @@ urlpatterns = [
     path('department/<int:dept_id>/report/pdf/', views.download_pdf_report, name='download_pdf_report'),
     path('department/<int:dept_id>/notifications/mark-all-read/', views.mark_all_read, name='mark_all_read'),
     path('department/<int:dept_id>/notifications/<int:notification_id>/mark-read/', views.mark_read, name='mark_read'),
+    path('department/<int:dept_id>/notifications/<int:notification_id>/submit-reason/', views.submit_reason, name='submit_reason'),
 
     
     # Pareto Analysis dynamic drilldown APIs

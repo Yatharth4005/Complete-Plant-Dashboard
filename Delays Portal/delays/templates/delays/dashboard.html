@@ -80,12 +80,30 @@
     </div>
   </div>
 
+  <style>
+    .delays-chart-large {
+      grid-column: span 2;
+    }
+    @media (max-width: 1024px) {
+      .delays-chart-large {
+        grid-column: span 1;
+      }
+    }
+  </style>
+
   <!-- ANALYTICS CHARTS SECTION -->
   <div class="analytics-charts-grid">
     <!-- Chart 1: Daily Trend / Department Comparison -->
-    <div class="chart-card">
-      <h3 class="chart-title">📈 {% if department.id == 0 %}Department Downtime Comparison (Mins){% else %}Daily Downtime Trend (Mins){% endif %}</h3>
-      <div class="chart-container">
+    <div class="chart-card delays-chart-large">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px;">
+        <h3 id="trendChartTitle" class="chart-title" style="margin: 0; border-bottom: none; padding-bottom: 0;">📈 {% if department.id == 0 %}Department Downtime Comparison (Mins){% else %}{% if date_start or date_end %}Daily Downtime Trend (Mins){% else %}Monthly Downtime Trend (Mins){% endif %}{% endif %}</h3>
+        {% if department.id == 0 %}
+          <button id="backToOverallBtn" class="btn-dashboard btn-secondary-gradient" style="display: none; font-size: 0.75rem; padding: 6px 12px; margin: 0; line-height: 1; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; background: linear-gradient(135deg, var(--jspl-blue, #0057A8) 0%, var(--jspl-navy, #003478) 100%); color: white;">
+            ← Back to Overall View
+          </button>
+        {% endif %}
+      </div>
+      <div class="chart-container" id="trendChartContainer" style="position: relative; transition: transform 0.4s ease, opacity 0.4s ease; transform: scale(1); opacity: 1; height: 260px;">
         <canvas id="trendChart"></canvas>
       </div>
     </div>
@@ -100,9 +118,59 @@
     
     <!-- Chart 3: Top Bottlenecks -->
     <div class="chart-card">
-      <h3 class="chart-title">🔥 {% if department.id == 0 %}Top 5 Bottleneck Departments{% else %}Top 5 Bottleneck Equipments{% endif %}</h3>
-      <div class="chart-container">
+      <h3 class="chart-title" style="margin-bottom: 12px; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px;">🔥 {% if department.id == 0 %}Top 5 Bottleneck Departments{% else %}Top 5 Bottleneck Equipments{% endif %}</h3>
+      <div class="chart-container" style="height: 260px;">
         <canvas id="equipmentChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- INSIGHTS CARD (Fills the empty 2-column gap next to Chart 3) -->
+    <div class="chart-card delays-chart-large" style="display: flex; flex-direction: column; justify-content: space-between;">
+      <h3 class="chart-title" style="margin-bottom: 15px; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+        💡 Downtime Insights &amp; Mitigation Action Plan
+      </h3>
+      
+      <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: start; height: calc(100% - 45px); padding-bottom: 5px;">
+        <!-- Left Column: Data-driven Insights -->
+        <div style="display: flex; flex-direction: column; gap: 15px; height: 100%; justify-content: center;">
+          <div style="background: rgba(244,121,32,0.03); border: 1px solid rgba(244,121,32,0.15); border-radius: 6px; padding: 14px;">
+            <strong style="color: var(--delays-accent); font-size: 0.82rem; text-transform: uppercase; display: block; margin-bottom: 6px;">🚨 Primary Bottleneck Alert</strong>
+            <p style="margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--delays-text);">
+              {% if department.id == 0 %}
+                The top bottleneck agency across the plant is <strong>{{ top_agency }}</strong>, causing <strong>{{ top_agency_mins }} mins</strong> of delay. Focus corrective actions on this group first.
+              {% else %}
+                The most critical breakdown area is <strong>{{ top_agency }}</strong>, contributing <strong>{{ top_agency_mins }} mins</strong> of downtime.
+              {% endif %}
+            </p>
+          </div>
+          
+          <div style="background: rgba(0,40,85,0.02); border: 1px solid rgba(0,40,85,0.1); border-radius: 6px; padding: 14px;">
+            <strong style="color: var(--delays-primary); font-size: 0.82rem; text-transform: uppercase; display: block; margin-bottom: 6px;">📈 Failure Pattern Analysis</strong>
+            <p style="margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--delays-text);">
+              Based on keyword scans in logs, <strong>{{ top_mitigation_category }}</strong> is the most frequent category. Reducing these incidents will optimize plant availability by up to 20%.
+            </p>
+          </div>
+        </div>
+        
+        <!-- Right Column: Suggestions Checklist -->
+        <div style="background: #fafbfc; border: 1px solid var(--delays-border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px; height: calc(100% - 34px); justify-content: center;">
+          <strong style="color: var(--delays-primary); font-size: 0.82rem; text-transform: uppercase; display: block; margin-bottom: 4px;">⚡ Target Action Checklist</strong>
+          
+          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.82rem; color: #4b5563;">
+            <label style="display: flex; gap: 8px; cursor: pointer; align-items: flex-start;">
+              <input type="checkbox" checked style="margin-top: 3px;">
+              <span><b>Lubrication &amp; Alignment Audits:</b> Schedule thermography on drives and couplings to check alignment.</span>
+            </label>
+            <label style="display: flex; gap: 8px; cursor: pointer; align-items: flex-start;">
+              <input type="checkbox" style="margin-top: 3px;">
+              <span><b>PM Checklist Reviews:</b> Incorporate cable cabinet dust filters and fastener checks in weekly schedules.</span>
+            </label>
+            <label style="display: flex; gap: 8px; cursor: pointer; align-items: flex-start;">
+              <input type="checkbox" style="margin-top: 3px;">
+              <span><b>SOP Compliance:</b> Audit roll change sequence and guide adjustment transitions to cut down waiting time.</span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -237,12 +305,12 @@
           
           <div class="filter-group">
             <label class="filter-label">Start Date</label>
-            <input type="date" name="date_start" class="filter-input input-mono">
+            <input type="date" name="date_start" value="{{ date_start }}" class="filter-input input-mono" onchange="updateAnalyticsDates()">
           </div>
           
           <div class="filter-group">
             <label class="filter-label">End Date</label>
-            <input type="date" name="date_end" class="filter-input input-mono">
+            <input type="date" name="date_end" value="{{ date_end }}" class="filter-input input-mono" onchange="updateAnalyticsDates()">
           </div>
 
           <div class="filter-group">
@@ -472,37 +540,76 @@
 
       <div style="display: flex; flex-direction: column; gap: 12px;">
         {% for notification in notifications %}
-          <div class="chart-card" style="box-shadow: none; border-color: var(--delays-border); padding: 18px; border-left: 5px solid {% if notification.is_read %}var(--delays-border, #e5e7eb){% else %}#F47920{% endif %}; display: flex; justify-content: space-between; align-items: center; gap: 16px; {% if not notification.is_read %}background: rgba(244,121,32,0.02);{% endif %}; border-radius: var(--radius-md);">
-            <div style="display: flex; gap: 14px; align-items: flex-start; flex: 1;">
-              <span style="font-size: 1.4rem; line-height: 1;">📢</span>
-              <div style="flex: 1;">
-                <p style="margin: 0 0 6px 0; font-size: 0.88rem; line-height: 1.5; color: var(--delays-text, #1f2937);">
-                  {{ notification.message }}
-                </p>
-                <div style="display: flex; gap: 12px; align-items: center; font-size: 0.78rem; color: var(--delays-muted, #6b7280); flex-wrap: wrap;">
-                  <span>Filed by: <b style="color: var(--jspl-navy);">{{ notification.from_department.name }}</b></span>
-                  <span>•</span>
-                  <span>Targeted to: <b style="color: var(--jspl-navy);">{{ notification.to_department.name }}</b></span>
-                  <span>•</span>
-                  <span>{{ notification.created_at|date:"d-M-Y H:i" }}</span>
-                  {% if not notification.is_read %}
+          <div class="chart-card" x-data="{ showForm: false }" style="box-shadow: none; border-color: var(--delays-border); padding: 18px; border-left: 5px solid {% if notification.is_read %}var(--delays-border, #e5e7eb){% else %}#F47920{% endif %}; display: flex; flex-direction: column; gap: 12px; {% if not notification.is_read %}background: rgba(244,121,32,0.02);{% endif %}; border-radius: var(--radius-md);">
+            <!-- Top Row: Notification Content and Quick Actions -->
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%;">
+              <div style="display: flex; gap: 14px; align-items: flex-start; flex: 1;">
+                <span style="font-size: 1.4rem; line-height: 1;">📢</span>
+                <div style="flex: 1;">
+                  <p style="margin: 0 0 6px 0; font-size: 0.88rem; line-height: 1.5; color: var(--delays-text, #1f2937);">
+                    {{ notification.message }}
+                  </p>
+                  <div style="display: flex; gap: 12px; align-items: center; font-size: 0.78rem; color: var(--delays-muted, #6b7280); flex-wrap: wrap;">
+                    <span>Filed by: <b style="color: var(--jspl-navy);">{{ notification.from_department.name }}</b></span>
                     <span>•</span>
-                    <span class="status-badge" style="background: rgba(244,121,32,0.1); color: #F47920; padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; font-weight: bold;">New</span>
-                  {% endif %}
+                    <span>Targeted to: <b style="color: var(--jspl-navy);">{{ notification.to_department.name }}</b></span>
+                    <span>•</span>
+                    <span>{{ notification.created_at|date:"d-M-Y H:i" }}</span>
+                    {% if not notification.is_read %}
+                      <span>•</span>
+                      <span class="status-badge" style="background: rgba(244,121,32,0.1); color: #F47920; padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; font-weight: bold;">New</span>
+                    {% endif %}
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div>
-              {% if not notification.is_read %}
-                <form method="POST" action="{% url 'delays:mark_read' department.id notification.id %}">
-                  {% csrf_token %}
-                  <button type="submit" class="btn-dashboard btn-primary-gradient" style="font-size: 0.75rem; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; white-space: nowrap;">
-                    Mark Read
+              
+              <div style="display: flex; align-items: center; gap: 8px;">
+                {% if not notification.is_read %}
+                  <button type="button" @click="showForm = !showForm" class="btn-dashboard" style="font-size: 0.75rem; padding: 5px 10px; border-radius: 4px; border: 1px solid var(--jspl-navy); background: transparent; color: var(--jspl-navy); cursor: pointer; white-space: nowrap; transition: all 0.2s;" onmouseover="this.style.background='var(--jspl-light-blue)'" onmouseout="this.style.background='transparent'">
+                    ✏️ Fill Delay Reason
                   </button>
-                </form>
-              {% endif %}
+                  <form method="POST" action="{% url 'delays:mark_read' department.id notification.id %}" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-dashboard btn-primary-gradient" style="font-size: 0.75rem; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; white-space: nowrap;">
+                      Mark Read
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
             </div>
+
+            <!-- Existing Response Reason Display -->
+            {% if notification.response_reason %}
+              <div style="font-size: 0.8rem; background: var(--jspl-light-blue); padding: 10px 14px; border-radius: 6px; border-left: 3px solid var(--jspl-blue); margin-top: 4px;">
+                <b style="color: var(--jspl-navy);">Response Reason submitted to {{ notification.from_department.name }}:</b>
+                <span style="color: var(--jspl-text); display: block; margin-top: 4px;">{{ notification.response_reason }}</span>
+              </div>
+            {% endif %}
+
+            <!-- Inline Fill Delay Reason Form -->
+            {% if not notification.is_read %}
+              <div x-show="showForm" x-transition x-cloak style="border-top: 1px solid var(--delays-border); padding-top: 12px; margin-top: 4px;">
+                <form method="POST" action="{% url 'delays:submit_reason' department.id notification.id %}">
+                  {% csrf_token %}
+                  <div style="margin-bottom: 10px;">
+                    <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">
+                      Explain the reason/response for this delay:
+                    </label>
+                    <textarea name="reason_response" rows="3" placeholder="Enter delay details, actions taken or root cause..." required
+                      style="width: 100%; padding: 8px 12px; border: 1px solid var(--jspl-border); border-radius: var(--radius-sm, 6px); font-family: inherit; font-size: 0.85rem; outline: none; transition: border-color 0.2s;"
+                      onfocus="this.style.borderColor='var(--jspl-blue)'" onblur="this.style.borderColor='var(--jspl-border)'"></textarea>
+                  </div>
+                  <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button type="button" @click="showForm = false" class="btn-dashboard" style="font-size: 0.75rem; padding: 5px 10px; border-radius: 4px; border: 1px solid var(--delays-border); background: transparent; color: var(--delays-muted); cursor: pointer;">
+                      Cancel
+                    </button>
+                    <button type="submit" class="btn-dashboard btn-primary-gradient" style="font-size: 0.75rem; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer;">
+                      Submit Reason
+                    </button>
+                  </div>
+                </form>
+              </div>
+            {% endif %}
           </div>
         {% empty %}
           <div style="text-align: center; padding: 40px; color: var(--delays-muted, #6b7280); border: 1px dashed var(--delays-border, #e5e7eb); border-radius: var(--radius-lg); background: #fafafa;">
@@ -591,6 +698,7 @@
     agencyData: {{ agency_data_json|safe }},
     dailyLabels: {{ daily_labels_json|safe }},
     dailyDatasets: {{ daily_datasets_json|safe }},
+    deptTrends: {{ dept_trends_json|safe }},
     equipLabels: {{ equip_labels_json|safe }},
     equipData: {{ equip_data_json|safe }},
     
@@ -675,5 +783,22 @@
       updateFilterAgencyOptions();
     }
   });
+
+  function updateAnalyticsDates() {
+    const startVal = document.getElementsByName('date_start')[0].value;
+    const endVal = document.getElementsByName('date_end')[0].value;
+    const url = new URL(window.location.href);
+    if (startVal) {
+        url.searchParams.set('date_start', startVal);
+    } else {
+        url.searchParams.delete('date_start');
+    }
+    if (endVal) {
+        url.searchParams.set('date_end', endVal);
+    } else {
+        url.searchParams.delete('date_end');
+    }
+    window.location.href = url.toString();
+  }
 </script>
 {% endblock %}

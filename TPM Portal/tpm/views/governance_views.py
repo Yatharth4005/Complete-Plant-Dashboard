@@ -3,13 +3,64 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
-from tpm.models import User, Department, TPMGovernanceAssignment
+from tpm.models import User, Department, TPMGovernanceAssignment, TPMGovernanceRoleDescription
+
+def seed_default_role_descriptions():
+    defaults = {
+        'sponsor': {
+            'title': 'Project Sponsor',
+            'designation': 'Executive Director (Unit Head — JSP Raigarh++)',
+            'responsibilities': "Ensure the TPM initiative aligns with the organization's overall strategic goals and objectives.\nResource Allocation and key Decision Making for the TPM implementation."
+        },
+        'steering': {
+            'title': 'Steering Committee',
+            'designation': 'Chairman, Vice Chairman & Board Members',
+            'responsibilities': "Approve TPM implementation roadmap.\nConduct monthly TPM progress review.\nRecommend teams for reward & recognition.\nArrange for recognition and felicitation for teams achieving TPM quarterly targets."
+        },
+        'coordinators': {
+            'title': 'TPM Coordinators',
+            'designation': 'Raj Bhushan (Pillar) & Raunika (Workstation/Cell)',
+            'responsibilities': "Pillar (Raj Bhushan): Prepare and manage the training calendar, release monthly reports, sign off milestone stages, and audit documentation (OPL/Standards).\nLogistics (Raunika): Maintain trainee attendance, coordinate assessments, and manage training organization scheduling, travel, accommodation & bills."
+        },
+        'hod': {
+            'title': 'HOD / Area Owners',
+            'designation': 'Department Heads & Zonal Heads',
+            'responsibilities': "Identify cells and workstations along with their team members.\nReview and approve quarterly targets of workstations and cells.\nEnsure participation & attendance of teams in TPM related trainings.\nEnsure active participation of the Cell and Workstation teams during reviews.\nProvide necessary resources (e.g. tools, materials) and conduct fortnightly reviews."
+        },
+        'cell': {
+            'title': 'Cell Leaders',
+            'designation': 'Cell Team Heads',
+            'responsibilities': "Provide necessary technical guidance to the workstation teams.\nAddress any cross-functional coordination and alignment issues.\nConduct weekly progress reviews for cell workstations."
+        },
+        'workstation': {
+            'title': 'Workstation Leads',
+            'designation': 'Workstation SPOC / Lead Operators',
+            'responsibilities': "Achieve quarterly goals of KPIs.\nEnsure timely actions on identified abnormalities.\nLead Zero leakage drives and assign tasks to team members.\nEnsure presence of team and timely action on review feedbacks."
+        },
+        'workforce': {
+            'title': 'Workstation / Cell Teams',
+            'designation': 'Ground workforce execution teams',
+            'responsibilities': "Identify abnormalities / failures and address them including analysis, RCA with permanent solutions.\nComplete the allocated tasks on time.\nParticipate in internal & external reviews.\nMaintain 5S in Workstations."
+        }
+    }
+    for key, data in defaults.items():
+        TPMGovernanceRoleDescription.objects.get_or_create(
+            role_key=key,
+            defaults={
+                'title': data['title'],
+                'designation': data['designation'],
+                'responsibilities': data['responsibilities']
+            }
+        )
 
 @login_required
 def tpm_governance_structure(request):
     """
     Renders the TPM Governance Structure flowchart and details.
     """
+    seed_default_role_descriptions()
+    role_descriptions = {r.role_key: r for r in TPMGovernanceRoleDescription.objects.all()}
+    
     assignments = TPMGovernanceAssignment.objects.all().select_related('user__department')
     
     # Group assignments by role_key
@@ -31,6 +82,7 @@ def tpm_governance_structure(request):
         'active_tab': 'structure',
         'assignments': assignments_by_role,
         'all_users': all_users,
+        'role_descriptions': role_descriptions,
     }
     return render(request, 'governance/structure.html', context)
 
@@ -94,13 +146,7 @@ def tpm_governance_users(request):
     Visible to all logged in users.
     Only admins have edit/delete action controls.
     """
-    STANDARD_DEPTS = [
-        'BF1', 'BF2', 'BP', 'CP', 'CO', 'DRI1', 'DRI2', 'EP', 'LDP', 'OP',
-        'PGP1', 'PGP2', 'PGP3', 'PM', 'PP1', 'PP2', 'PP3', 'PPP3',
-        'RMHS1', 'RMHS2', 'RMHS3', 'RM', 'SAF1', 'SAF2', 'SMS2', 'SMS3',
-        'SINT', 'SPM', 'MRSS'
-    ]
-    departments = Department.objects.filter(code__in=STANDARD_DEPTS).order_by('name')
+    departments = Department.objects.filter(is_active=True).order_by('name')
     
     # Get all assigned user IDs and build a mapping to their roles
     assignments = TPMGovernanceAssignment.objects.all().select_related('user')
@@ -132,4 +178,28 @@ def tpm_governance_users(request):
         'active_tab': 'users',
     }
     return render(request, 'governance/users.html', context)
+
+
+@login_required
+@require_POST
+def save_role_description(request):
+    if not request.user.is_admin():
+        return JsonResponse({'status': 'error', 'message': 'Permission denied.'}, status=403)
+        
+    role_key = request.POST.get('role_key')
+    title = request.POST.get('title')
+    designation = request.POST.get('designation')
+    responsibilities = request.POST.get('responsibilities')
+    
+    if not role_key or not title:
+        return JsonResponse({'status': 'error', 'message': 'Missing role_key or title.'}, status=400)
+        
+    role_desc, created = TPMGovernanceRoleDescription.objects.get_or_create(role_key=role_key)
+    role_desc.title = title
+    role_desc.designation = designation or ''
+    role_desc.responsibilities = responsibilities or ''
+    role_desc.save()
+    
+    return JsonResponse({'status': 'success', 'message': 'Role description updated successfully.'})
+
 

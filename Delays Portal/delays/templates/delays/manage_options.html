@@ -125,11 +125,12 @@
                         {% endif %}
                       </td>
                       <td style="text-align: center;">
-                        <form action="{% url 'delays:manage_options' department.id %}" method="POST" style="margin: 0; display: inline;" onsubmit="return confirm('Are you sure you want to delete this option?')">
+                        <form id="delete-option-form-{{ opt.id }}" action="{% url 'delays:manage_options' department.id %}" method="POST" style="margin: 0; display: inline;">
                           {% csrf_token %}
                           <input type="hidden" name="action" value="delete">
                           <input type="hidden" name="option_id" value="{{ opt.id }}">
-                          <button type="submit" class="btn-action-delete" style="background: none; border: none; padding: 4px; cursor: pointer; color: #dc2626;" title="Delete Option">
+                          <button type="button" class="btn-action-delete" style="background: none; border: none; padding: 4px; cursor: pointer; color: #dc2626;" title="Delete Option"
+                                  onclick="window.showConfirm('Delete Option', 'Are you sure you want to delete this option?', function(confirmed) { if (confirmed) { document.getElementById('delete-option-form-{{ opt.id }}').submit(); } })">
                             🗑️
                           </button>
                         </form>

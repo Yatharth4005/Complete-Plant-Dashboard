@@ -6,6 +6,7 @@ from tpm.models import Department, User
 # MODULE REGISTRY
 # ─────────────────────────────────────────────
 class Module(models.Model):
+    objects = models.Manager()
     key = models.CharField(max_length=30, unique=True) # e.g. 'TPM', 'CMC', 'PRODUCTION'
     label = models.CharField(max_length=100)
     description = models.CharField(max_length=200, blank=True)
@@ -99,6 +100,7 @@ class AccessRequest(models.Model):
 # UNIFIED SYSTEM NOTIFICATIONS
 # ─────────────────────────────────────────────
 class PortalNotification(models.Model):
+    objects = models.Manager()
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='portal_notifications')
     message = models.TextField()
     link = models.CharField(max_length=255, blank=True, null=True)

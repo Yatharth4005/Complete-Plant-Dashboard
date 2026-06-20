@@ -1,0 +1,327 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Department Management — Jindal Steel Operations Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">Manage Departments</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-container" x-data="{ deptSearch: '' }">
+  
+  <div class="dashboard-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div>
+      <h1 class="portal-page-title">🏢 Department Management</h1>
+      <p class="portal-page-subtitle">Register new plant departments or dissolve/deactivate existing ones dynamically.</p>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: start;">
+    
+    <!-- Left Column: Add Department Card -->
+    <div class="card" style="padding: 24px; border: 1px solid var(--jspl-border); border-radius: var(--radius-lg, 16px); background: var(--jspl-white);">
+      <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--jspl-navy); font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+        ➕ Register Department
+      </h3>
+      
+      <form method="POST" action="{% url 'portal:admin_departments' %}" style="display: flex; flex-direction: column; gap: 16px;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Department Name</label>
+          <input type="text" name="name" class="input-mono" placeholder="e.g. Blast Furnace-3" required style="width: 100%; height: 38px;">
+        </div>
+        
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Department Code</label>
+          <input type="text" name="code" class="input-mono" placeholder="e.g. BF3" required style="width: 100%; height: 38px; text-transform: uppercase;">
+          <small style="color: var(--jspl-muted); font-size: 0.75rem; display: block; margin-top: 4px;">Short uppercase identifier (2-6 chars).</small>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="height: 40px; font-weight: 600; width: 100%; display: flex; align-items: center; justify-content: center; border: none; margin-top: 8px;">
+          Create Department
+        </button>
+      </form>
+    </div>
+
+    <!-- Right Column: Departments List Card -->
+    <div class="card" style="padding: 24px; border: 1px solid var(--jspl-border); border-radius: var(--radius-lg, 16px); background: var(--jspl-white); display: flex; flex-direction: column; min-height: 400px;">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 15px; flex-wrap: wrap;">
+        <h3 style="margin: 0; color: var(--jspl-navy); font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+          📋 Registered Departments ({{ departments|length }})
+        </h3>
+        
+        <!-- Search bar -->
+        <div style="position: relative; width: 250px;">
+          <input type="text" x-model="deptSearch" placeholder="🔍 Search departments..." 
+                 style="width: 100%; height: 36px; padding: 6px 12px 6px 32px; border-radius: 8px; border: 1px solid var(--jspl-border); font-size: 0.85rem; outline: none; transition: border-color 0.2s;"
+                 onfocus="this.style.borderColor='var(--jspl-blue)';" onblur="this.style.borderColor='var(--jspl-border)';">
+        </div>
+      </div>
+
+      <div class="table-responsive" style="margin: 0; border: 1px solid var(--jspl-border); border-radius: 8px; overflow: hidden; background: white;">
+        <table class="matrix-table" style="width: 100%; margin: 0; border-collapse: collapse;">
+          <thead>
+            <tr style="background: var(--jspl-light-blue); color: var(--jspl-navy); border-bottom: 1px solid var(--jspl-border);">
+              <th style="padding: 12px 16px; font-weight: 600; text-align: left; font-size: 13px; color: var(--jspl-navy);">Code</th>
+              <th style="padding: 12px 16px; font-weight: 600; text-align: left; font-size: 13px; color: var(--jspl-navy);">Department Name</th>
+              <th style="padding: 12px 16px; font-weight: 600; text-align: center; font-size: 13px; color: var(--jspl-navy); width: 80px;">S.No.</th>
+              <th style="padding: 12px 16px; font-weight: 600; text-align: center; font-size: 13px; color: var(--jspl-navy); width: 120px;">Status</th>
+              <th style="padding: 12px 16px; font-weight: 600; text-align: center; font-size: 13px; color: var(--jspl-navy); width: 180px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in departments %}
+              <tr style="border-bottom: 1px solid var(--jspl-border); transition: background-color 0.2s;" 
+                  x-show="deptSearch === '' || '{{ d.name|escapejs }}'.toLowerCase().includes(deptSearch.toLowerCase()) || '{{ d.code|escapejs }}'.toLowerCase().includes(deptSearch.toLowerCase())"
+                  onmouseover="this.style.backgroundColor='rgba(0, 52, 120, 0.01)';"
+                  onmouseout="this.style.backgroundColor='transparent';">
+                <td style="padding: 12px 16px; font-weight: 700; color: var(--jspl-navy);" class="mono">{{ d.code }}</td>
+                <td style="padding: 12px 16px; color: var(--jspl-text); font-weight: 500;">{{ d.name }}</td>
+                <td style="padding: 12px 16px; text-align: center; color: var(--jspl-muted);" class="mono">{{ forloop.counter }}</td>
+                <td style="padding: 12px 16px; text-align: center; vertical-align: middle;">
+                  {% if d.is_active %}
+                    <span class="badge active" style="background-color: #dcfce7; color: #16a34a; border: 1px solid rgba(22, 163, 74, 0.15); font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; font-weight: 600;">Active</span>
+                  {% else %}
+                    <span class="badge dissolved" style="background-color: #fee2e2; color: #dc2626; border: 1px solid rgba(220, 38, 38, 0.15); font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; font-weight: 600;">Dissolved</span>
+                  {% endif %}
+                </td>
+                <td style="padding: 12px 16px; text-align: center; vertical-align: middle;">
+                  <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                    {% if d.is_active %}
+                      <button type="button" 
+                              class="btn-status-toggle btn-dissolve-style"
+                              onclick="openStatusConfirm('{{ d.id }}', '{{ d.name|escapejs }}', '{{ d.code|escapejs }}', true)">
+                        Dissolve
+                      </button>
+                    {% else %}
+                      <button type="button" 
+                              class="btn-status-toggle btn-activate-style"
+                              onclick="openStatusConfirm('{{ d.id }}', '{{ d.name|escapejs }}', '{{ d.code|escapejs }}', false)">
+                        Activate
+                      </button>
+                      <button type="button" 
+                              class="btn-status-toggle btn-delete-style"
+                              onclick="openDeleteConfirm('{{ d.id }}', '{{ d.name|escapejs }}', '{{ d.code|escapejs }}')">
+                        Delete
+                      </button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" style="padding: 32px; text-align: center; color: var(--jspl-muted);">
+                  🏢 No departments registered in the system database.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+  </div>
+
+</div>
+
+<!-- Status Toggle Confirmation Modal -->
+<div id="statusConfirmOverlay" class="confirm-overlay" onclick="closeStatusConfirm(event)">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirmIcon">🏢</div>
+    <h2 class="confirm-title" id="confirmTitle">Confirm Status Change</h2>
+    <p class="confirm-msg" id="confirmMsg">Are you sure?</p>
+
+    <div class="confirm-actions">
+      <button type="button" class="btn-confirm-cancel" onclick="closeStatusConfirm(null)">Cancel</button>
+      <form id="statusActionForm" method="post" action="{% url 'portal:admin_departments' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="toggle_status">
+        <input type="hidden" name="dept_id" id="confirmDeptId">
+        <button type="submit" class="btn-confirm-proceed" id="confirmProceedBtn">Confirm</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Permanent Delete Confirmation Modal -->
+<div id="deleteConfirmOverlay" class="confirm-overlay" onclick="closeDeleteConfirm(event)">
+  <div class="confirm-box" style="border-top: 4px solid var(--status-red, #dc2626);">
+    <div class="confirm-icon" style="color: var(--status-red, #dc2626); font-size: 42px; margin-bottom: 12px;">🚨</div>
+    <h2 class="confirm-title" style="color: #1e293b;">Delete Department Permanently?</h2>
+    <p class="confirm-msg" id="deleteConfirmMsg" style="color: #475569; font-size: 14px; margin-bottom: 24px; line-height: 1.5;"></p>
+
+    <div class="confirm-actions">
+      <button type="button" class="btn-confirm-cancel" onclick="closeDeleteConfirm(null)">Cancel</button>
+      <form id="deleteActionForm" method="post" action="{% url 'portal:admin_departments' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="dept_id" id="deleteConfirmDeptId">
+        <button type="submit" class="btn-confirm-proceed is-dissolve" style="background: var(--status-red, #dc2626);">Delete Permanently</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  .btn-status-toggle {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 6px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-dissolve-style {
+    background-color: #fee2e2;
+    color: var(--status-red, #dc2626);
+    border-color: rgba(220, 38, 38, 0.15);
+  }
+  .btn-dissolve-style:hover {
+    background-color: var(--status-red, #dc2626);
+    color: var(--jspl-white, #ffffff);
+    border-color: var(--status-red, #dc2626);
+  }
+  .btn-activate-style {
+    background-color: #dcfce7;
+    color: #16a34a;
+    border-color: rgba(22, 163, 74, 0.15);
+  }
+  .btn-activate-style:hover {
+    background-color: #16a34a;
+    color: var(--jspl-white, #ffffff);
+    border-color: #16a34a;
+  }
+  .btn-delete-style {
+    background-color: #fee2e2;
+    color: var(--status-red, #dc2626);
+    border-color: rgba(220, 38, 38, 0.15);
+  }
+  .btn-delete-style:hover {
+    background-color: var(--status-red, #dc2626);
+    color: var(--jspl-white, #ffffff);
+    border-color: var(--status-red, #dc2626);
+  }
+
+  /* Overlay Modal styles matching manage_access.html */
+  .confirm-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+  .confirm-overlay.is-open {
+    display: flex;
+    animation: fadeOverlay .18s ease;
+  }
+  @keyframes fadeOverlay { from{opacity:0} to{opacity:1} }
+
+  .confirm-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 36px 40px 30px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    animation: popIn .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn { from{transform:scale(.85);opacity:0} to{transform:scale(1);opacity:1} }
+
+  .confirm-icon { font-size: 42px; margin-bottom: 12px; }
+  .confirm-title { font-size: 20px; font-weight: 700; color: #1e293b; margin: 0 0 8px; }
+  .confirm-msg   { font-size: 14px; color: #475569; margin: 0 0 28px; line-height: 1.55; }
+
+  .confirm-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn-confirm-cancel {
+    padding: 10px 24px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .btn-confirm-cancel:hover { border-color: #94a3b8; }
+
+  .btn-confirm-proceed {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity .15s;
+    color: #fff;
+  }
+  .btn-confirm-proceed:hover { opacity: .88; }
+  .btn-confirm-proceed.is-dissolve { background: var(--status-red, #dc2626); }
+  .btn-confirm-proceed.is-activate  { background: #16a34a; }
+</style>
+
+<script>
+  function openStatusConfirm(deptId, deptName, deptCode, isActive) {
+    const overlay = document.getElementById('statusConfirmOverlay');
+    const title   = document.getElementById('confirmTitle');
+    const msg     = document.getElementById('confirmMsg');
+    const btn     = document.getElementById('confirmProceedBtn');
+
+    document.getElementById('confirmDeptId').value = deptId;
+
+    if (isActive) {
+      title.textContent = 'Dissolve Department?';
+      msg.textContent   = `Are you sure you want to dissolve the department "${deptName}" (${deptCode})? Users will lose visibility/access to this department, but historical logs will be preserved.`;
+      btn.textContent   = 'Yes, Dissolve';
+      btn.className     = 'btn-confirm-proceed is-dissolve';
+    } else {
+      title.textContent = 'Reactivate Department?';
+      msg.textContent   = `Reactivate the dissolved department "${deptName}" (${deptCode})? This will restore visibility and access for assigned users.`;
+      btn.textContent   = 'Yes, Activate';
+      btn.className     = 'btn-confirm-proceed is-activate';
+    }
+
+    overlay.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeStatusConfirm(event) {
+    if (event && event.target !== document.getElementById('statusConfirmOverlay')) return;
+    document.getElementById('statusConfirmOverlay').classList.remove('is-open');
+    document.body.style.overflow = '';
+  }
+
+  function openDeleteConfirm(deptId, deptName, deptCode) {
+    const overlay = document.getElementById('deleteConfirmOverlay');
+    const msg     = document.getElementById('deleteConfirmMsg');
+    document.getElementById('deleteConfirmDeptId').value = deptId;
+    msg.innerHTML = `Are you sure you want to <strong>permanently delete</strong> the department "${deptName}" (${deptCode})?<br><br><span style="color: var(--status-red, #dc2626); font-weight: bold;">⚠️ Warning: This will permanently delete all associated data (FMEA, TPM, Delays, CAPA, etc.) for this department. This action cannot be undone.</span>`;
+    overlay.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeDeleteConfirm(event) {
+    if (event && event.target !== document.getElementById('deleteConfirmOverlay')) return;
+    document.getElementById('deleteConfirmOverlay').classList.remove('is-open');
+    document.body.style.overflow = '';
+  }
+</script>
+{% endblock %}
