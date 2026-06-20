@@ -128,7 +128,7 @@
           {% for u_data in users_data %}
             <!-- Collapsible User Header Row -->
             <tr class="user-header-row" data-user-id="{{ u_data.user.id }}" onclick="toggleUserRows('{{ u_data.user.id }}')" style="cursor: pointer; background: var(--jspl-light-blue); border-bottom: 1px solid var(--jspl-border);">
-              <td colspan="10" style="padding: 12px 18px; vertical-align: middle;">
+              <td colspan="{{ modules|length|add:2 }}" style="padding: 12px 18px; vertical-align: middle;">
                 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 12px;">
                     <span class="toggle-arrow" id="arrow-{{ u_data.user.id }}" style="font-size: 11px; transition: transform 0.2s; display: inline-block; color: var(--jspl-muted);">▶</span>
