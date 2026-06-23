@@ -231,9 +231,38 @@ def admin_create_user(request):
             messages.error(request, "Email address is required.")
             return redirect(request.META.get('HTTP_REFERER', 'portal:user_informations'))
             
-        if User.objects.filter(username=username).exists() or User.objects.filter(email=email).exists():
-            messages.error(request, f"A user with email/username '{email}' already exists.")
-            return redirect(request.META.get('HTTP_REFERER', 'portal:user_informations'))
+        existing_user = User.objects.filter(models.Q(username=username) | models.Q(email=email)).first()
+        if existing_user:
+            if not existing_user.is_active:
+                dept = None
+                if role == 'USER' and dept_id:
+                    dept = Department.objects.filter(id=dept_id).first()
+                
+                existing_user.first_name = first_name
+                existing_user.last_name = last_name
+                existing_user.phone = phone
+                existing_user.designation = designation
+                existing_user.role = role
+                existing_user.is_plant_admin = (role == 'ADMIN')
+                existing_user.department = dept
+                existing_user.is_active = True
+                
+                if password:
+                    existing_user.set_password(password)
+                
+                existing_user.save()
+                
+                # Resolve AccessRequest if it exists
+                request_id = request.POST.get('request_id')
+                if request_id:
+                    from portal.models import AccessRequest
+                    AccessRequest.objects.filter(id=request_id).delete()
+                
+                messages.success(request, f"User '{email}' has been approved and activated. They can now log in.")
+                return redirect(request.META.get('HTTP_REFERER', 'portal:user_informations'))
+            else:
+                messages.error(request, f"A user with email/username '{email}' already exists.")
+                return redirect(request.META.get('HTTP_REFERER', 'portal:user_informations'))
             
         dept = None
         if role == 'USER' and dept_id:
@@ -367,13 +396,17 @@ def admin_delete_user(request, user_id):
 @require_http_methods(['POST'])
 def reject_access_request(request, req_id):
     """
-    Rejects/deletes an access sign-up request.
+    Rejects/deletes an access sign-up request and deletes the inactive user.
     """
     from portal.models import AccessRequest
     try:
         req = AccessRequest.objects.get(id=req_id)
         email = req.email
         req.delete()
+        
+        # Delete corresponding inactive user if it exists
+        User.objects.filter(email=email, is_active=False).delete()
+        
         messages.success(request, f"Access request for '{email}' has been rejected.")
     except AccessRequest.DoesNotExist:
         messages.error(request, "Access request not found.")

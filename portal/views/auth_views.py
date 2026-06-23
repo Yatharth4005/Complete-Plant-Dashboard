@@ -51,7 +51,15 @@ def login_view(request):
                     return redirect(next_url)
                 return redirect('portal:root')
             else:
-                error = 'Invalid email or password. Please try again.'
+                from tpm.models import User
+                inactive_user = User.objects.filter(email__iexact=email, is_active=False).first()
+                if not inactive_user:
+                    inactive_user = User.objects.filter(username__iexact=email, is_active=False).first()
+                
+                if inactive_user:
+                    error = 'Your registration request is pending admin approval.'
+                else:
+                    error = 'Invalid email or password. Please try again.'
 
     from tpm.models import Department
     departments = Department.objects.all().order_by('name')
@@ -222,9 +230,19 @@ def request_access_view(request):
     phone = request.POST.get('phone', '').strip()
     designation = request.POST.get('designation', '').strip()
     dept_id = request.POST.get('department')
+    password = request.POST.get('password', '')
+    confirm_password = request.POST.get('confirm_password', '')
 
     if not email or not first_name:
         messages.error(request, "Email and First Name are required fields.")
+        return redirect('portal:login')
+
+    if not password:
+        messages.error(request, "Password is required.")
+        return redirect('portal:login')
+
+    if password != confirm_password:
+        messages.error(request, "Passwords do not match.")
         return redirect('portal:login')
 
     if not (email.endswith('@jindalsteel.in') or email.endswith('@jspl.com') or email.endswith('@jindalsteel.com')):
@@ -252,6 +270,20 @@ def request_access_view(request):
             dept = Department.objects.get(id=dept_id)
         except Department.DoesNotExist:
             pass
+
+    # Create the user directly as inactive, storing their password securely
+    user = User(
+        username=email,
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        phone=phone,
+        designation=designation,
+        department=dept,
+        is_active=False
+    )
+    user.set_password(password)
+    user.save()
 
     AccessRequest.objects.create(
         email=email,
@@ -284,6 +316,6 @@ def request_access_view(request):
     messages.success(
         request, 
         f"Access request submitted successfully for '{email}'. "
-        "The Plant Admin has been notified to grant you access."
+        "Once approved by the Plant Admin, you will be able to log in using your password."
     )
     return redirect('portal:login')

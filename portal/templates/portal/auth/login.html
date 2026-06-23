@@ -428,7 +428,7 @@
           <div class="login-form-group" style="margin-bottom: 16px;">
             <label for="signup_email">Jindal Steel Email</label>
             <input type="email" id="signup_email" name="email" class="login-form-input"
-              placeholder="name.surname@jindalsteel.in" required>
+              placeholder="name.surname@jindalsteel.in" required autocomplete="off">
           </div>
 
           <div class="login-form-group" style="margin-bottom: 16px;">
@@ -456,6 +456,19 @@
                 <option value="Engineer" style="background: #020b18; color: #fff;">Engineer</option>
                 <option value="Operator" style="background: #020b18; color: #fff;">Operator</option>
               </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 22px;">
+            <div class="login-form-group" style="margin-bottom: 0;">
+              <label for="signup_password">Password</label>
+              <input type="password" id="signup_password" name="password" class="login-form-input"
+                placeholder="Enter password" required autocomplete="new-password">
+            </div>
+            <div class="login-form-group" style="margin-bottom: 0;">
+              <label for="signup_confirm_password">Confirm Password</label>
+              <input type="password" id="signup_confirm_password" name="confirm_password" class="login-form-input"
+                placeholder="Confirm password" required autocomplete="new-password">
             </div>
           </div>
 
