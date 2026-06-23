@@ -1,6 +1,16 @@
 {# partials/_toast.html #}
 <div id="toast-container" hx-swap-oob="true">
-  <div class="toast toast-{{ type|default:'success' }}">
-    {{ message }}
+  <div class="toast toast-{{ type|default:'success' }}" 
+       style="position: relative !important; padding-right: 36px !important;"
+       x-data="{ show: true }"
+       x-show="show"
+       x-init="setTimeout(() => {
+         $el.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+         $el.style.opacity = '0';
+         $el.style.transform = 'translateX(100%)';
+         setTimeout(() => { $el.remove() }, 500);
+       }, 5000)">
+    <span>{{ message }}</span>
+    <button type="button" onclick="this.parentElement.remove()" style="background: none !important; border: none !important; color: white !important; font-size: 1.25rem !important; cursor: pointer !important; position: absolute !important; right: 8px !important; top: 8px !important; opacity: 0.75 !important; transition: opacity 0.15s ease !important; line-height: 1 !important; padding: 4px !important; display: flex !important; align-items: center !important; justify-content: center !important;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.75'">&times;</button>
   </div>
 </div>

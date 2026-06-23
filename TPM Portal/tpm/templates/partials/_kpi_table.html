@@ -35,6 +35,9 @@
           {% endif %}
           <th style="width: 110px;">Achievement</th>
           <th>Remarks / Explanations</th>
+          {% if filter_type != 'range' and can_edit and not is_locked %}
+            <th style="width: 80px; text-align: center;">Action</th>
+          {% endif %}
         </tr>
       </thead>
       <tbody>
@@ -60,7 +63,7 @@
           {% if pillar_id == 'KK' %}
             <td colspan="3"></td>
           {% endif %}
-          <td colspan="2" style="text-align: center; vertical-align: middle;">
+          <td colspan="3" style="text-align: center; vertical-align: middle;">
             <div style="display: flex; gap: 8px; justify-content: center;">
               <button type="button" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem;"
                       hx-post="{% url 'add_custom_kpi' dept.id pillar_id %}?month={{ month }}&year={{ year }}"

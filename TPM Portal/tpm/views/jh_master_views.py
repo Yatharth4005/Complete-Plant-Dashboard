@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 
 from tpm.models import Department, JHMachine, JHDepartmentSettings, JHMasterPlanCell
 from tpm.utils.decorators import dept_access_required
+from tpm.utils.toasts import render_toast
 from portal.utils.access import user_can_edit_module
 
 
@@ -178,7 +179,7 @@ def save_jh_machine(request, dept_id, machine_id=None):
         else:
             return jh_master_equipments(request, dept_id)
     else:
-        toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Saved "{machine.machine_name}"</div></div>'
+        toast_html = render_toast(f'Saved "{machine.machine_name}"')
         return HttpResponse(toast_html)
 
 
@@ -194,7 +195,7 @@ def delete_jh_machine(request, dept_id, machine_id):
     name = machine.machine_name
     machine.delete()
     
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Deleted "{name}"</div></div>'
+    toast_html = render_toast(f'Deleted "{name}"')
     
     tab = request.GET.get('tab', 'equipments')
     if tab == 'machines':
@@ -235,7 +236,7 @@ def save_jh_settings(request, dept_id):
             
     settings.save()
     
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Settings updated successfully</div></div>'
+    toast_html = render_toast("Settings updated successfully")
     
     active_tab = request.POST.get('active_tab', 'equipments')
     if active_tab == 'plan':

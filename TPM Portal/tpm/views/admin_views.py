@@ -7,6 +7,7 @@ from tpm.models import User, Department, PillarEntry, KPIValue
 from tpm.utils.decorators import admin_required
 from tpm.utils.kpi_definitions import KPI_DEFINITIONS
 from tpm.utils.calculations import compute_achievement
+from tpm.utils.toasts import render_toast
 
 @admin_required
 def users_list(request):
@@ -147,8 +148,7 @@ def unlock_entry(request, entry_id):
         'entry': entry,
         'month_label': month_label,
     }
-    
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Entry Unlocked Successfully</div></div>'
+    toast_html = render_toast("Entry Unlocked Successfully")
     response = render(request, 'partials/_kpi_table.html', context)
     response.content = response.content + toast_html.encode('utf-8')
     return response

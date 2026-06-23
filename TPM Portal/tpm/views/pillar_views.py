@@ -8,6 +8,7 @@ from tpm.models import Department, PillarEntry, KPIValue, CustomKPIDefinition
 from tpm.utils.decorators import dept_access_required
 from tpm.utils.kpi_definitions import KPI_DEFINITIONS
 from tpm.utils.calculations import compute_achievement, compute_PRODUCTION, parse_period, get_date_range_q, aggregate_kpi_actual, get_jh_kaizen_count, get_jh_kaizen_count_range
+from tpm.utils.toasts import render_toast
 from portal.utils.access import user_can_edit_module
 
 def get_months_list():
@@ -391,6 +392,8 @@ def save_kpi_row(request, dept_id, pillar_id):
             'uom': cd.uom,
             'benchmark': cd.benchmark,
             'target': cd.target,
+            'is_custom': True,
+            'custom_id': cd.id,
         })
     kpi_meta = next((d for d in definitions if d['sl_no'] == sl_no), None)
     if not kpi_meta:
@@ -456,10 +459,10 @@ def save_kpi_row(request, dept_id, pillar_id):
         'remarks': db_val.remarks,
         'is_PRODUCTION_row': is_PRODUCTION_row,
         'achievement': achievement,
+        'is_custom': kpi_meta.get('is_custom', False),
+        'custom_id': kpi_meta.get('custom_id'),
     }
     
-    # Return row template view along with the toast script tag
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Row {sl_no} Saved</div></div>'
     context = {
         'row': row_data,
         'dept': dept,
@@ -468,11 +471,12 @@ def save_kpi_row(request, dept_id, pillar_id):
         'year': year,
         'is_locked': False,
         'can_edit': True,
+        'filter_type': 'single',
+        'show_toast': True,
+        'toast_message': f"Row {row_data['sl_no']} Saved",
     }
     
-    response = render(request, 'partials/_kpi_row.html', context)
-    response.content = response.content + toast_html.encode('utf-8')
-    return response
+    return render(request, 'partials/_kpi_row.html', context)
 
 
 @dept_access_required
@@ -508,7 +512,7 @@ def submit_pillar_entry(request, dept_id, pillar_id):
         'can_edit': user_can_edit_module(request.user, dept, 'TPM'),
     }
     
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Entry Submitted & Locked Successfully</div></div>'
+    toast_html = render_toast("Entry Submitted & Locked Successfully")
     response = render(request, 'partials/_kpi_table.html', context)
     response.content = response.content + toast_html.encode('utf-8')
     return response
@@ -547,7 +551,7 @@ def delete_pillar_entry(request, dept_id, pillar_id):
         'can_edit': True,
     }
     
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Monthly entry cleared/deleted successfully</div></div>'
+    toast_html = render_toast("Monthly entry cleared/deleted successfully")
     response = render(request, 'partials/_kpi_table.html', context)
     response.content = response.content + toast_html.encode('utf-8')
     return response
@@ -605,7 +609,7 @@ def add_custom_kpi(request, dept_id, pillar_id):
         'can_edit': can_edit,
     }
     
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Custom field &quot;{name}&quot; added successfully</div></div>'
+    toast_html = render_toast(f'Custom field "{name}" added successfully')
     response = render(request, 'partials/_kpi_table.html', context)
     response.content = response.content + toast_html.encode('utf-8')
     return response
@@ -644,7 +648,7 @@ def delete_custom_kpi(request, dept_id, pillar_id, custom_id):
         'can_edit': can_edit,
     }
     
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Custom field &quot;{name}&quot; deleted</div></div>'
+    toast_html = render_toast(f'Custom field "{name}" deleted')
     response = render(request, 'partials/_kpi_table.html', context)
     response.content = response.content + toast_html.encode('utf-8')
     return response

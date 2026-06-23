@@ -44,3 +44,33 @@ document.addEventListener('htmx:afterSwap', function(event) {
     }
   }
 });
+
+// Auto-dismiss toast notifications after 5 seconds
+function setupToastDismissal() {
+  const toasts = document.querySelectorAll('#toast-container .toast');
+  toasts.forEach(toast => {
+    if (!toast.dataset.scheduled) {
+      toast.dataset.scheduled = 'true';
+      setTimeout(() => {
+        toast.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+          toast.remove();
+        }, 500);
+      }, 5000);
+    }
+  });
+}
+
+// Observe body mutations to catch HTMX OOB swaps instantly
+const toastObserver = new MutationObserver(setupToastDismissal);
+toastObserver.observe(document.body, { childList: true, subtree: true });
+
+document.addEventListener('htmx:load', setupToastDismissal);
+document.addEventListener('htmx:afterSwap', setupToastDismissal);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupToastDismissal);
+} else {
+  setupToastDismissal();
+}

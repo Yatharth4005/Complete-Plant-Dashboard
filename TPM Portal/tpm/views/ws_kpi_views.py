@@ -7,6 +7,7 @@ from django.contrib import messages
 from tpm.models import Department, Workstation, WorkstationKPI, WorkstationValue
 from tpm.utils.decorators import dept_access_required
 from tpm.utils.calculations import compute_achievement, parse_period, get_date_range_q, aggregate_ws_actual
+from tpm.utils.toasts import render_toast
 from portal.utils.access import user_can_edit_module
 
 def get_months_list():
@@ -227,7 +228,7 @@ def save_workstation(request, dept_id, ws_id):
         'kpis': kpis_data,
     }
     
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Saved Workstation "{ws.name}"</div></div>'
+    toast_html = render_toast(f'Saved Workstation "{ws.name}"')
     context = {
         'ws': ws_data,
         'dept': dept,
@@ -282,7 +283,7 @@ def delete_workstation_values(request, dept_id, ws_id):
         'kpis': kpis_data,
     }
     
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Workstation "{ws.name}" values cleared/deleted</div></div>'
+    toast_html = render_toast(f'Workstation "{ws.name}" values cleared/deleted')
     context = {
         'ws': ws_data,
         'dept': dept,
@@ -362,7 +363,7 @@ def add_workstation_kpi(request, dept_id, ws_id):
         'kpis': kpis_data,
     }
     
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Custom KPI &quot;{kpi_name}&quot; added successfully</div></div>'
+    toast_html = render_toast(f'Custom KPI "{kpi_name}" added successfully')
     context = {
         'ws': ws_data,
         'dept': dept,
@@ -425,7 +426,7 @@ def delete_workstation_kpi(request, dept_id, ws_id, kpi_id):
         'kpis': kpis_data,
     }
     
-    toast_html = f'<div id="toast-container" hx-swap-oob="true"><div class="toast toast-success">Custom KPI &quot;{name}&quot; deleted</div></div>'
+    toast_html = render_toast(f'Custom KPI "{name}" deleted')
     context = {
         'ws': ws_data,
         'dept': dept,
