@@ -23,6 +23,7 @@ urlpatterns = [
     path('portal-admin/users/', admin_views.user_informations, name='user_informations'),
     path('portal-admin/users/create/', admin_views.admin_create_user, name='admin_create_user'),
     path('portal-admin/users/edit/<int:user_id>/', admin_views.admin_edit_user, name='admin_edit_user'),
+    path('portal-admin/users/delete/<int:user_id>/', admin_views.admin_delete_user, name='admin_delete_user'),
     path('portal-admin/users/reset-password/', admin_views.admin_reset_password, name='admin_reset_password'),
     path('portal-admin/access-requests/reject/<int:req_id>/', admin_views.reject_access_request, name='reject_access_request'),
     path('portal-admin/departments/', admin_views.admin_departments, name='admin_departments'),

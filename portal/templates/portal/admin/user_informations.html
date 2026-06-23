@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-container" x-data="{ resetUserId: null, resetUserName: '', resetModalOpen: false, addModalOpen: false, editModalOpen: false, editUser: {} }">
+<div class="page-container" x-data="{ resetUserId: null, resetUserName: '', resetModalOpen: false, addModalOpen: false, editModalOpen: false, editUser: {}, deleteUserId: null, deleteUserName: '', deleteModalOpen: false }">
   
   <div class="dashboard-header-row">
     <div>
@@ -28,13 +28,13 @@
       <table class="kpi-table" style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 0; table-layout: fixed;">
         <colgroup>
           <col style="width: 70px;">
-          <col style="width: 160px;">
-          <col style="width: 230px;">
-          <col style="width: 130px;">
           <col style="width: 150px;">
+          <col style="width: 200px;">
           <col style="width: 120px;">
-          <col style="width: 120px;">
-          <col style="width: 180px;">
+          <col style="width: 140px;">
+          <col style="width: 110px;">
+          <col style="width: 100px;">
+          <col style="width: 270px;">
         </colgroup>
         <thead>
           <tr style="background-color: var(--jspl-navy); color: var(--jspl-white);">
@@ -129,9 +129,17 @@
                   <button type="button" 
                           class="btn" 
                           style="padding: 6px 12px; font-size: 0.78rem; background-color: var(--jspl-navy); color: white !important;"
-                          @click="resetUserId = '{{ u.id }}'; resetUserName = '{{ u.first_name }} {{ u.last_name }}'; resetModalOpen = true;">
+                          @click="resetUserId = '{{ u.id }}'; resetUserName = '{{ u.first_name|escapejs }} {{ u.last_name|escapejs }}'; resetModalOpen = true;">
                     🔑 Reset PW
                   </button>
+                  {% if u.id != request.user.id %}
+                  <button type="button" 
+                          class="btn" 
+                          style="padding: 6px 12px; font-size: 0.78rem; background-color: #DC2626; color: white !important;"
+                          @click="deleteUserId = '{{ u.id }}'; deleteUserName = '{{ u.first_name|escapejs }} {{ u.last_name|escapejs }}'; deleteModalOpen = true;">
+                    🗑️ Delete
+                  </button>
+                  {% endif %}
                 </div>
               </td>
             </tr>
@@ -376,6 +384,48 @@
         </div>
       </form>
 
+    </div>
+  </div>
+
+  <!-- DELETE USER MODAL -->
+  <div x-show="deleteModalOpen" 
+       x-cloak 
+       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 9999;"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0">
+       
+    <!-- Centering Wrapper -->
+    <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 440px; max-width: 90%; z-index: 10000; outline: none;">
+      
+      <!-- Actual Modal Card -->
+      <div @click.outside="deleteModalOpen = false" 
+           style="background: white; border-radius: 16px; width: 100%; box-shadow: var(--shadow-lg); border: 1px solid var(--jspl-border); overflow: hidden;">
+        
+        <!-- Modal Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--jspl-border);">
+          <h3 style="color: #DC2626; margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">⚠️ Delete User Account</h3>
+          <button @click="deleteModalOpen = false" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--jspl-muted);">&times;</button>
+        </div>
+
+        <!-- Modal Body -->
+        <form :action="'{% url 'portal:admin_delete_user' 99999 %}'.replace('99999', deleteUserId)" method="POST" style="padding: 24px;">
+          {% csrf_token %}
+          
+          <p style="margin-bottom: 20px; font-size: 0.95rem; color: var(--jspl-text); line-height: 1.5;">
+            Are you sure you want to permanently delete the user <strong x-text="deleteUserName" style="color: var(--jspl-navy);"></strong>? This action cannot be undone and will revoke all access privileges.
+          </p>
+
+          <!-- Form Actions -->
+          <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" @click="deleteModalOpen = false" class="btn" style="background-color: var(--jspl-gray); color: var(--jspl-text) !important; border: 1px solid var(--jspl-border);">Cancel</button>
+            <button type="submit" class="btn" style="background-color: #DC2626; color: white !important;">Delete User</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </div>

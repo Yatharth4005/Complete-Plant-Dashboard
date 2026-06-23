@@ -343,6 +343,27 @@ def admin_edit_user(request, user_id):
 
 @login_required
 @admin_required
+def admin_delete_user(request, user_id):
+    """
+    Permanently deletes a user account.
+    """
+    if request.method == 'POST':
+        if request.user.id == user_id:
+            messages.error(request, "You cannot delete your own account.")
+            return redirect('portal:user_informations')
+            
+        from django.shortcuts import get_object_or_404
+        user = get_object_or_404(User, id=user_id)
+        username = user.username
+        user.delete()
+        messages.success(request, f"User '{username}' has been deleted successfully.")
+        
+    return redirect('portal:user_informations')
+
+
+
+@login_required
+@admin_required
 @require_http_methods(['POST'])
 def reject_access_request(request, req_id):
     """
