@@ -42,20 +42,20 @@
     
     <div class="kpi-card" style="border-left: 5px solid #f59e0b; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="kpi-title" style="color: #64748b; font-weight: bold;">Open / In Progress</span>
+        <span class="kpi-title" style="color: #64748b; font-weight: bold;">Pending CA</span>
         <span style="font-size: 1.5rem; color: #f59e0b;">⏳</span>
       </div>
-      <div class="kpi-value" style="color: #d97706; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ open_capas }}</div>
-      <div class="kpi-subtext">Actions undergoing execution</div>
+      <div class="kpi-value" style="color: #d97706; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ open_ca_count }}</div>
+      <div class="kpi-subtext">Pending Corrective Actions</div>
     </div>
 
-    <div class="kpi-card" style="border-left: 5px solid #10b981; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
+    <div class="kpi-card" style="border-left: 5px solid #3b82f6; background: #fff; border-radius: 8px; box-shadow: var(--shadow-sm); padding: 18px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="kpi-title" style="color: #64748b; font-weight: bold;">Closed CAPAs</span>
-        <span style="font-size: 1.5rem; color: #10b981;">✅</span>
+        <span class="kpi-title" style="color: #64748b; font-weight: bold;">Pending PA</span>
+        <span style="font-size: 1.5rem; color: #3b82f6;">⏳</span>
       </div>
-      <div class="kpi-value" style="color: #10b981; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ closed_capas }}</div>
-      <div class="kpi-subtext">Actions verified and resolved</div>
+      <div class="kpi-value" style="color: #1d4ed8; font-size: 2.2rem; font-weight: 700; margin: 8px 0;">{{ open_pa_count }}</div>
+      <div class="kpi-subtext">Pending Preventive Actions</div>
     </div>
   </div>
 
@@ -109,15 +109,15 @@
             {% if active_dept.id == 0 %}
               <th style="text-align: left;">Department</th>
               <th style="text-align: center; width: 140px;">Total CAPAs</th>
-              <th style="text-align: center; background-color: #fffbeb; color: #d97706; width: 180px;">Open Actions</th>
-              <th style="text-align: center; background-color: #ecfdf5; color: #059669; width: 180px;">Closed Actions</th>
+              <th style="text-align: center; background-color: #fffbeb; color: #d97706; width: 180px;">Pending CA</th>
+              <th style="text-align: center; background-color: #eff6ff; color: #1d4ed8; width: 180px;">Pending PA</th>
               <th style="text-align: center; width: 120px;">Action</th>
             {% else %}
               <th style="text-align: left;">File / Sheet Name</th>
               <th style="text-align: center; width: 140px;">Upload/Entry Date</th>
               <th style="text-align: center; width: 140px;">Total CAPAs</th>
-              <th style="text-align: center; background-color: #fffbeb; color: #d97706; width: 180px;">Open</th>
-              <th style="text-align: center; background-color: #ecfdf5; color: #059669; width: 180px;">Closed</th>
+              <th style="text-align: center; background-color: #fffbeb; color: #d97706; width: 180px;">Pending CA</th>
+              <th style="text-align: center; background-color: #eff6ff; color: #1d4ed8; width: 180px;">Pending PA</th>
               <th style="text-align: center; width: 120px;">Action</th>
             {% endif %}
           </tr>
@@ -134,8 +134,8 @@
                   {{ item.name }}
                 </td>
                 <td style="text-align: center; font-weight: bold; vertical-align: middle;">{{ item.total }}</td>
-                <td style="text-align: center; background-color: #fffbeb; font-weight: bold; color: #d97706; vertical-align: middle;">{{ item.open }}</td>
-                <td style="text-align: center; background-color: #ecfdf5; font-weight: bold; color: #059669; vertical-align: middle;">{{ item.closed }}</td>
+                <td style="text-align: center; background-color: #fffbeb; font-weight: bold; color: #d97706; vertical-align: middle;">{{ item.open_ca }}</td>
+                <td style="text-align: center; background-color: #eff6ff; font-weight: bold; color: #1d4ed8; vertical-align: middle;">{{ item.open_pa }}</td>
                 <td style="text-align: center; vertical-align: middle;">
                   <a href="/capa/department/{{ item.dept_id }}/" 
                      class="btn btn-secondary" style="padding: 0 12px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 28px; line-height: 26px; display: inline-block; white-space: nowrap; text-align: center; vertical-align: middle;">
@@ -164,8 +164,8 @@
                             <div style="display: flex; gap: 16px; font-size: 0.8rem; color: #64748b;">
                               <span><strong>Date:</strong> {{ file.date }}</span>
                               <span><strong>Total:</strong> <strong style="color: var(--jspl-navy);">{{ file.total }}</strong></span>
-                              <span><strong>Open:</strong> <strong style="color: #d97706;">{{ file.open }}</strong></span>
-                              <span><strong>Closed:</strong> <strong style="color: #059669;">{{ file.closed }}</strong></span>
+                              <span><strong>Pending CA:</strong> <strong style="color: #d97706;">{{ file.open_ca }}</strong></span>
+                              <span><strong>Pending PA:</strong> <strong style="color: #1d4ed8;">{{ file.open_pa }}</strong></span>
                             </div>
                           </div>
                           
@@ -263,8 +263,8 @@
                 </td>
                 <td style="text-align: center; vertical-align: middle;" class="mono">{{ item.date }}</td>
                 <td style="text-align: center; font-weight: bold; vertical-align: middle;">{{ item.total }}</td>
-                <td style="text-align: center; background-color: #fffbeb; font-weight: bold; color: #d97706; vertical-align: middle;">{{ item.open }}</td>
-                <td style="text-align: center; background-color: #ecfdf5; font-weight: bold; color: #059669; vertical-align: middle;">{{ item.closed }}</td>
+                <td style="text-align: center; background-color: #fffbeb; font-weight: bold; color: #d97706; vertical-align: middle;">{{ item.open_ca }}</td>
+                <td style="text-align: center; background-color: #eff6ff; font-weight: bold; color: #1d4ed8; vertical-align: middle;">{{ item.open_pa }}</td>
                 <td style="text-align: center; vertical-align: middle;">
                   <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ item.id }}" 
                      class="btn btn-secondary" style="padding: 0 12px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 28px; line-height: 26px; display: inline-block; white-space: nowrap; text-align: center; vertical-align: middle;">
@@ -362,8 +362,8 @@
   document.addEventListener('DOMContentLoaded', () => {
     // 1. Comparative Bar Chart
     const labels = {{ comp_labels|safe }};
-    const openData = {{ comp_open|safe }};
-    const closedData = {{ comp_closed|safe }};
+    const openCaData = {{ comp_open_ca|safe }};
+    const openPaData = {{ comp_open_pa|safe }};
     const compIds = {{ comp_ids|safe }};
     const compDetails = {{ comp_details|safe }};
     const compNames = {{ comp_names|safe }};
@@ -377,15 +377,15 @@
         labels: labels,
         datasets: [
           {
-            label: 'Open / In Progress',
-            data: openData,
+            label: 'Pending CA',
+            data: openCaData,
             backgroundColor: '#f59e0b',
             borderRadius: 4,
           },
           {
-            label: 'Closed',
-            data: closedData,
-            backgroundColor: '#10b981',
+            label: 'Pending PA',
+            data: openPaData,
+            backgroundColor: '#3b82f6',
             borderRadius: 4,
           }
         ]
@@ -495,15 +495,15 @@
         barChart.data.labels = labels;
         barChart.data.datasets = [
           {
-            label: 'Open / In Progress',
-            data: openData,
+            label: 'Pending CA',
+            data: openCaData,
             backgroundColor: '#f59e0b',
             borderRadius: 4,
           },
           {
-            label: 'Closed',
-            data: closedData,
-            backgroundColor: '#10b981',
+            label: 'Pending PA',
+            data: openPaData,
+            backgroundColor: '#3b82f6',
             borderRadius: 4,
           }
         ];

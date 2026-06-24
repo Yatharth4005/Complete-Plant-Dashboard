@@ -199,6 +199,8 @@ def capa_dashboard(request, dept_id):
                             'total': recs.count(),
                             'open': u_open,
                             'closed': u_closed,
+                            'open_ca': u_details['open_ca'],
+                            'open_pa': u_details['open_pa'],
                             'best_date': best_date or datetime.now(),
                             'reports': get_reports_history_data(recs),
                         })
@@ -220,6 +222,8 @@ def capa_dashboard(request, dept_id):
                         'total': d_manual_recs.count(),
                         'open': m_open,
                         'closed': m_closed,
+                        'open_ca': m_details['open_ca'],
+                        'open_pa': m_details['open_pa'],
                         'best_date': best_date or datetime.now(),
                         'reports': get_reports_history_data(d_manual_recs),
                     })
@@ -234,6 +238,8 @@ def capa_dashboard(request, dept_id):
                     'total': d_reports.count(),
                     'open': file_open_actions,
                     'closed': file_closed_actions,
+                    'open_ca': details['open_ca'],
+                    'open_pa': details['open_pa'],
                     'best_date': datetime.now(),
                     'details': details,
                     'dept_id': d.id,
@@ -263,6 +269,8 @@ def capa_dashboard(request, dept_id):
                     'total': recs.count(),
                     'open': file_open_actions,
                     'closed': file_closed_actions,
+                    'open_ca': details['open_ca'],
+                    'open_pa': details['open_pa'],
                     'best_date': best_date or datetime.now(),
                     'details': details,
                     'dept_id': u.department.id,
@@ -295,6 +303,8 @@ def capa_dashboard(request, dept_id):
                 'total': manual_recs.count(),
                 'open': file_open_actions,
                 'closed': file_closed_actions,
+                'open_ca': details['open_ca'],
+                'open_pa': details['open_pa'],
                 'best_date': best_date or datetime.now(),
                 'details': details,
                 'dept_id': active_dept.id,
@@ -312,6 +322,8 @@ def capa_dashboard(request, dept_id):
     comp_total = []
     comp_open = []
     comp_closed = []
+    comp_open_ca = []
+    comp_open_pa = []
     comp_details = {} # Mapping file ID -> detailed parameter comparison
     
     for item in sheet_comparisons:
@@ -330,11 +342,17 @@ def capa_dashboard(request, dept_id):
         comp_total.append(item['total'])
         comp_open.append(item['open'])
         comp_closed.append(item['closed'])
+        comp_open_ca.append(item['open_ca'])
+        comp_open_pa.append(item['open_pa'])
         comp_details[item['id']] = item['details']
         
     open_capas = total_open_actions
     closed_capas = total_closed_actions
     status_chart_data = [closed_capas, open_capas]
+    
+    active_details = calculate_report_details(reports)
+    open_ca_count = active_details['open_ca']
+    open_pa_count = active_details['open_pa']
     
     context = {
         'active_dept_id': dept_id,
@@ -346,6 +364,8 @@ def capa_dashboard(request, dept_id):
         'total_capas': total_capas,
         'open_capas': open_capas,
         'closed_capas': closed_capas,
+        'open_ca_count': open_ca_count,
+        'open_pa_count': open_pa_count,
         
         # Table lists
         'sheet_comparisons': sheet_comparisons,
@@ -357,6 +377,8 @@ def capa_dashboard(request, dept_id):
         'comp_total': json.dumps(comp_total),
         'comp_open': json.dumps(comp_open),
         'comp_closed': json.dumps(comp_closed),
+        'comp_open_ca': json.dumps(comp_open_ca),
+        'comp_open_pa': json.dumps(comp_open_pa),
         'comp_details': json.dumps(comp_details),
         'status_chart_data': json.dumps(status_chart_data),
     }
