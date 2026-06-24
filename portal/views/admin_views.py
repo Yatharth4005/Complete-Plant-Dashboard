@@ -26,6 +26,8 @@ def manage_access(request):
         access_level = request.POST.get('access_level') # 'VIEW', 'EDIT', 'NONE'
         
         user = User.objects.get(id=user_id)
+        if user.is_super_admin():
+            return HttpResponse("Cannot modify access for the super admin.", status=403)
         dept = Department.objects.get(id=dept_id)
         module = Module.objects.get(key=module_key)
         
@@ -145,6 +147,9 @@ def toggle_admin(request):
         )
         messages.success(request, f'{target_user.get_display_name()} has been made a Plant Admin.')
     elif action == 'revoke':
+        if target_user.is_super_admin():
+            messages.error(request, 'Super admin privileges cannot be revoked.')
+            return redirect('portal:admin_access')
         target_user.is_plant_admin = False
         target_user.role = User.ROLE_USER
         target_user.save(update_fields=['is_plant_admin', 'role'])
@@ -348,18 +353,30 @@ def admin_edit_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
     
     if request.method == 'POST':
+        new_email = request.POST.get('email', '').strip().lower()
+        if user.is_super_admin() and new_email != user.email.strip().lower():
+            messages.error(request, "Super admin email address cannot be changed.")
+            return redirect('portal:user_informations')
+        if new_email == 'lalit.goyal@jindalsteel.in' and not user.is_super_admin():
+            messages.error(request, "Cannot set user email to the super admin email address.")
+            return redirect('portal:user_informations')
+
         user.first_name = request.POST.get('first_name', '').strip()
         user.last_name = request.POST.get('last_name', '').strip()
-        user.email = request.POST.get('email', '').strip()
+        user.email = new_email
         user.phone = request.POST.get('phone', '').strip()
         user.designation = request.POST.get('designation', '').strip()
         
-        role = request.POST.get('role', 'USER')
-        user.role = role
-        user.is_plant_admin = (role == 'ADMIN')
+        if user.is_super_admin():
+            user.role = 'ADMIN'
+            user.is_plant_admin = True
+        else:
+            role = request.POST.get('role', 'USER')
+            user.role = role
+            user.is_plant_admin = (role == 'ADMIN')
         
         dept_id = request.POST.get('department')
-        if role == 'USER' and dept_id:
+        if user.role == 'USER' and dept_id:
             user.department = Department.objects.filter(id=dept_id).first()
         else:
             user.department = None
@@ -377,12 +394,15 @@ def admin_delete_user(request, user_id):
     Permanently deletes a user account.
     """
     if request.method == 'POST':
+        from django.shortcuts import get_object_or_404
+        user = get_object_or_404(User, id=user_id)
+        if user.is_super_admin():
+            messages.error(request, "Super admin account cannot be deleted.")
+            return redirect('portal:user_informations')
         if request.user.id == user_id:
             messages.error(request, "You cannot delete your own account.")
             return redirect('portal:user_informations')
             
-        from django.shortcuts import get_object_or_404
-        user = get_object_or_404(User, id=user_id)
         username = user.username
         user.delete()
         messages.success(request, f"User '{username}' has been deleted successfully.")

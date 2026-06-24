@@ -212,7 +212,8 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
           <div>
             <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">System Role</label>
-            <select name="role" class="input-mono" style="width: 100%; max-width: 100%;" x-model="editUser.role">
+            <select name="role" class="input-mono" style="width: 100%; max-width: 100%;" x-model="editUser.role"
+                    :disabled="editUser.email === 'lalit.goyal@jindalsteel.in' || editUser.username === 'lalit.goyal@jindalsteel.in'">
               <option value="USER">Department User</option>
               <option value="ADMIN">Administrator</option>
             </select>
@@ -229,7 +230,8 @@
         </div>
 
         <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
-          <input type="checkbox" name="is_active" id="edit_is_active" x-model="editUser.is_active">
+          <input type="checkbox" name="is_active" id="edit_is_active" x-model="editUser.is_active"
+                 :disabled="editUser.email === 'lalit.goyal@jindalsteel.in' || editUser.username === 'lalit.goyal@jindalsteel.in'">
           <label for="edit_is_active" style="font-weight: 600; font-size: 0.9rem;">User Account Active</label>
         </div>
 

@@ -57,11 +57,27 @@ def add_user(request):
 def edit_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
     if request.method == 'POST':
-        user.email = request.POST.get('email', '').strip()
+        new_email = request.POST.get('email', '').strip().lower()
+        if user.is_super_admin() and new_email != user.email.strip().lower():
+            messages.error(request, "Super admin email address cannot be changed.")
+            return redirect('admin_users')
+        if new_email == 'lalit.goyal@jindalsteel.in' and not user.is_super_admin():
+            messages.error(request, "Cannot set user email to the super admin email address.")
+            return redirect('admin_users')
+
+        user.email = new_email
         user.first_name = request.POST.get('first_name', '').strip()
         user.last_name = request.POST.get('last_name', '').strip()
-        user.role = request.POST.get('role', 'USER')
-        user.is_plant_admin = (user.role == 'ADMIN')
+        
+        if user.is_super_admin():
+            user.role = 'ADMIN'
+            user.is_plant_admin = True
+            user.is_active = True
+        else:
+            user.role = request.POST.get('role', 'USER')
+            user.is_plant_admin = (user.role == 'ADMIN')
+            user.is_active = 'is_active' in request.POST
+
         user.designation = request.POST.get('designation', '').strip()
         
         dept_id = request.POST.get('department')
@@ -74,7 +90,6 @@ def edit_user(request, user_id):
         if password:
             user.password = make_password(password)
             
-        user.is_active = 'is_active' in request.POST
         user.save()
         messages.success(request, f"User '{user.username}' updated successfully.")
     return redirect('admin_users')
@@ -158,7 +173,9 @@ def unlock_entry(request, entry_id):
 @require_POST
 def admin_delete_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
-    if user == request.user:
+    if user.is_super_admin():
+        messages.error(request, "Super admin account cannot be deleted.")
+    elif user == request.user:
         messages.error(request, "You cannot delete your own account.")
     else:
         username = user.username

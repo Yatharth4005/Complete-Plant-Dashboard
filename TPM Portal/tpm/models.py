@@ -32,9 +32,19 @@ class User(AbstractUser):
     designation = models.CharField(max_length=100, blank=True)
     last_active = models.DateTimeField(null=True, blank=True)
 
-    def is_admin(self):
-        return bool(self.is_plant_admin)
+    def is_super_admin(self):
+        return (self.email and self.email.strip().lower() == 'lalit.goyal@jindalsteel.in') or \
+               (self.username and self.username.strip().lower() == 'lalit.goyal@jindalsteel.in')
 
+    def is_admin(self):
+        return bool(self.is_plant_admin) or self.is_super_admin()
+
+    def save(self, *args, **kwargs):
+        if self.is_super_admin():
+            self.role = self.ROLE_ADMIN
+            self.is_plant_admin = True
+            self.is_active = True
+        super().save(*args, **kwargs)
 
     def get_display_name(self):
         full_name = self.get_full_name().strip()

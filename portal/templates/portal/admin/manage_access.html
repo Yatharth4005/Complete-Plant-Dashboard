@@ -143,7 +143,9 @@
                   
                   <!-- Admin action buttons -->
                   <div class="admin-action-btns" style="display:flex; gap:6px;" onclick="event.stopPropagation();">
-                    {% if u_data.user.is_plant_admin %}
+                    {% if u_data.user.is_super_admin %}
+                      <span class="badge admin" style="background: var(--jspl-orange); color: white; border: none; align-self: center; margin-right: 8px;">SUPER ADMIN</span>
+                    {% elif u_data.user.is_plant_admin %}
                       <!-- Admin: only Revoke -->
                       <button type="button"
                         class="btn-admin-action btn-revoke"

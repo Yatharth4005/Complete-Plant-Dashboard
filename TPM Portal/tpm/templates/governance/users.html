@@ -136,6 +136,7 @@
                       ✏️ Edit
                     </button>
                     
+                    {% if not u.is_super_admin %}
                     <form method="POST" action="{% url 'admin_delete_user' u.id %}" style="display:inline; margin: 0;"
                           onsubmit="return confirm('Are you sure you want to permanently delete user account \'{{ u.username|escapejs }}\'?')">
                       {% csrf_token %}
@@ -143,6 +144,7 @@
                         🗑️ Delete
                       </button>
                     </form>
+                    {% endif %}
                   </div>
                 </td>
               {% endif %}
@@ -295,7 +297,8 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
           <div>
             <label class="field-label-text">System Role</label>
-            <select name="role" x-model="editUser.role" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
+            <select name="role" x-model="editUser.role" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;"
+                    :disabled="editUser.email === 'lalit.goyal@jindalsteel.in' || editUser.username === 'lalit.goyal@jindalsteel.in'">
               <option value="USER">Department User</option>
               <option value="ADMIN">Administrator</option>
             </select>
@@ -328,7 +331,8 @@
         </div>
 
         <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
-          <input type="checkbox" name="is_active" id="edit_is_active" x-model="editUser.is_active">
+          <input type="checkbox" name="is_active" id="edit_is_active" x-model="editUser.is_active"
+                 :disabled="editUser.email === 'lalit.goyal@jindalsteel.in' || editUser.username === 'lalit.goyal@jindalsteel.in'">
           <label for="edit_is_active" style="font-weight: 600; font-size: 0.9rem; cursor: pointer; color: var(--jspl-navy);">User Account Active</label>
         </div>
 
