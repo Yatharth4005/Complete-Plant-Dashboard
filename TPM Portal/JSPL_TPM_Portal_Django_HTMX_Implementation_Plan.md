@@ -69,7 +69,7 @@ This is a completely different structure from the 8 standard pillars. It tracks 
 ### KK Pillar (Kobetsu Kaizen)
 | Sl | KPI | UOM |
 |----|-----|-----|
-| 1 | Overall equipment efficiency-PRODUCTION(%) | % |
+| 1 | Overall equipment efficiency-OEE(%) | % |
 | 2 | Productivity (Ton/Man or MWh/Man) (Company Employee only) | Ton/Man |
 | 5 | Total losses [Updation of Loss Tree] | Hrs |
 | 6 | Kobetsu Kaizen registered | Nos |
@@ -736,7 +736,7 @@ def get_status_css_class(status: str) -> str:
 
 KPI_DEFINITIONS = {
     'KK': [
-        {'sl_no': '1',  'name': 'Overall equipment efficiency-PRODUCTION(%)', 'uom': '%',
+        {'sl_no': '1',  'name': 'Overall equipment efficiency-OEE(%)', 'uom': '%',
          'benchmark': 80.0, 'target': 90.0, 'is_PRODUCTION_row': True},
         {'sl_no': '2',  'name': 'Productivity (Ton/Man or MWh/Man) (considering Company Employee only)', 'uom': 'Ton/Man',
          'benchmark': 480.0, 'target': 460.0},

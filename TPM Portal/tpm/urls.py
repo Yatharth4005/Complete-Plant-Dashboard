@@ -15,6 +15,8 @@ urlpatterns = [
     # Department
     path('department/<int:dept_id>/',
          department_views.dept_overview, name='dept_overview'),
+    path('department/<int:dept_id>/upload/',
+         department_views.upload_tpm_excel, name='upload_tpm_excel'),
 
     # Workstation KPI
     path('department/<int:dept_id>/pillar/ws-kpi/',

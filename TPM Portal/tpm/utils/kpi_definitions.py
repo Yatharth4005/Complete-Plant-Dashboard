@@ -2,8 +2,8 @@
 
 KPI_DEFINITIONS = {
     'KK': [
-        {'sl_no': '1',  'name': 'Overall equipment efficiency-PRODUCTION(%)', 'uom': '%',
-         'benchmark': 80.0, 'target': 90.0, 'is_PRODUCTION_row': True},
+        {'sl_no': '1',  'name': 'Overall equipment efficiency-OEE(%)', 'uom': '%',
+         'benchmark': 80.0, 'target': 90.0, 'is_OEE_row': True},
         {'sl_no': '2',  'name': 'Productivity (Ton/Man or MWh/Man) (considering Company Employee only)', 'uom': 'Ton/Man',
          'benchmark': 480.0, 'target': 460.0},
         {'sl_no': '5',  'name': 'Total losses [Updation of Loss Tree] (Hrs.)', 'uom': 'Hrs',
@@ -161,7 +161,7 @@ KPI_DEFINITIONS = {
         {'sl_no': '9',  'name': 'Low Illuminated area rectified (Nos.)', 'uom': 'Nos', 'benchmark': 0.0, 'target': 0.0},
         {'sl_no': '10', 'name': 'Dust level monitoring at stacks (mg/M3)', 'uom': 'mg/M3', 'benchmark': 50.0, 'target': 30.0},
         {'sl_no': '11', 'name': 'No. of Kaizen themes or improvement project taken for improvement in Safety (Nos.)', 'uom': 'Nos', 'benchmark': 2.0, 'target': 2.0},
-        {'sl_no': '12', 'name': 'Training on SHE (Man hours)', 'uom': 'Man hours', 'benchmark': 20.0, 'target': 20.0},
+        {'sl_no': '12', 'name': 'Training on SHE (Man Hours)', 'uom': 'Man Hours', 'benchmark': 20.0, 'target': 20.0},
     ],
     'OTPM': [
         {'sl_no': '1',  'name': 'Losses Identified in Office TPM process (Hours)', 'uom': 'Hours', 'benchmark': 0.0, 'target': 0.0},
