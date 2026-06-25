@@ -1,0 +1,309 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Safety Management Portal — {{ department.name }} — Jindal Steel Operations Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  {% if department.id == 0 %}
+    <span class="breadcrumb-current">Safety Portal</span>
+  {% else %}
+    <a href="{% url 'portal:dept_hub' department.id %}">{{ department.name }}</a>
+    <span class="breadcrumb-sep">›</span>
+    <span class="breadcrumb-current">Safety Portal</span>
+  {% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .safety-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 24px;
+    margin-bottom: 30px;
+  }
+  
+  .safety-card {
+    background: #ffffff;
+    border-radius: var(--radius-lg, 16px);
+    border: 1px solid var(--jspl-border);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 250px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .safety-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-md, 0 10px 20px rgba(0, 52, 120, 0.1));
+    border-color: rgba(0, 87, 168, 0.3);
+  }
+  
+  .safety-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .safety-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+  }
+  
+  .safety-badge {
+    background: #e8f8f0;
+    color: #10b981;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .safety-card-middle h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--jspl-navy);
+    margin-bottom: 8px;
+    font-family: 'Sora', sans-serif;
+  }
+  
+  .safety-card-middle p {
+    font-size: 0.82rem;
+    color: var(--jspl-muted);
+    line-height: 1.45;
+    margin: 0;
+  }
+  
+  .safety-card-bottom {
+    margin-top: 20px;
+  }
+  
+  .open-dashboard-link {
+    color: var(--jspl-blue);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.2s;
+  }
+  
+  .safety-card:hover .open-dashboard-link {
+    color: var(--jspl-navy);
+  }
+  
+  .open-dashboard-link .arrow {
+    transition: transform 0.2s ease;
+  }
+  
+  .safety-card:hover .open-dashboard-link .arrow {
+    transform: translateX(4px);
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+  
+  <!-- Safety Management Portal Header -->
+  <div class="dept-hub-header card" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-left: 5px solid #dc2626; display: flex; align-items: center; gap: 20px; padding: 24px; border-radius: var(--radius-lg, 16px); margin-bottom: 30px; border-top: none;">
+    <div style="font-size: 2.8rem; line-height: 1; padding: 12px; background: rgba(220, 38, 38, 0.08); border-radius: 14px; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px;">🦺</div>
+    <div class="dept-header-info">
+      <h1 style="font-size: 1.8rem; font-weight: 700; color: var(--jspl-navy); margin: 0;">Safety Management Portal</h1>
+      <p style="color: var(--jspl-muted); font-size: 0.95rem; margin-top: 4px; margin-bottom: 0;">
+        Select a safety module below to view active reports and logs for <strong>{{ department.name }}</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Safety Modules Grid -->
+  <div class="safety-grid">
+    <!-- Card 1: Safety Interaction -->
+    <div class="safety-card card" style="border-top: 4px solid #3b82f6;" id="card-safety-interaction">
+      <div class="safety-card-top">
+        <div class="safety-icon-wrapper" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">🤝</div>
+        <span class="safety-badge">VIEW</span>
+      </div>
+      <div class="safety-card-middle">
+        <h3>Safety Interaction</h3>
+        <p>Employee observations, peer safety interactions, and behavioral safety observation tracking.</p>
+      </div>
+      <div class="safety-card-bottom">
+        <a href="#" class="open-dashboard-link" id="link-safety-interaction" onclick="showSubmoduleDevelopment('Safety Interaction')">
+          Open Dashboard <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Card 2: Incident Management -->
+    <div class="safety-card card" style="border-top: 4px solid #ef4444;" id="card-incident-management">
+      <div class="safety-card-top">
+        <div class="safety-icon-wrapper" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">🚨</div>
+        <span class="safety-badge">VIEW</span>
+      </div>
+      <div class="safety-card-middle">
+        <h3>Incident Management</h3>
+        <p>Incident reporting, investigation logs, near-miss tracking, and root cause analysis (RCA).</p>
+      </div>
+      <div class="safety-card-bottom">
+        <a href="{% url 'safety:im_dashboard' department.id %}" class="open-dashboard-link" id="link-incident-management">
+          Open Dashboard <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Card 3: Barrier Health Management -->
+    <div class="safety-card card" style="border-top: 4px solid #10b981;" id="card-barrier-health">
+      <div class="safety-card-top">
+        <div class="safety-icon-wrapper" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">🛡️</div>
+        <span class="safety-badge">VIEW</span>
+      </div>
+      <div class="safety-card-middle">
+        <h3>Barrier Health Management</h3>
+        <p>Critical safety barrier monitoring, preventive bypass approvals, and health score assessments.</p>
+      </div>
+      <div class="safety-card-bottom">
+        <a href="#" class="open-dashboard-link" id="link-barrier-health" onclick="showSubmoduleDevelopment('Barrier Health Management')">
+          Open Dashboard <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Card 4: Process Safety Management -->
+    <div class="safety-card card" style="border-top: 4px solid #8b5cf6;" id="card-process-safety">
+      <div class="safety-card-top">
+        <div class="safety-icon-wrapper" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">⚙️</div>
+        <span class="safety-badge">VIEW</span>
+      </div>
+      <div class="safety-card-middle">
+        <h3>Process Safety Management</h3>
+        <p>Process safety compliance checklists, standard operating guidelines, and safety audits.</p>
+      </div>
+      <div class="safety-card-bottom">
+        <a href="#" class="open-dashboard-link" id="link-process-safety" onclick="showSubmoduleDevelopment('Process Safety Management')">
+          Open Dashboard <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Card 5: Hazard Risk Assessment -->
+    <div class="safety-card card" style="border-top: 4px solid #f97316;" id="card-hazard-risk">
+      <div class="safety-card-top">
+        <div class="safety-icon-wrapper" style="background: rgba(249, 115, 22, 0.1); color: #f97316;">📋</div>
+        <span class="safety-badge">VIEW</span>
+      </div>
+      <div class="safety-card-middle">
+        <h3>Hazard Risk Assessment</h3>
+        <p>Identify workplace hazards, calculate risk levels, and log preventive mitigation measures.</p>
+      </div>
+      <div class="safety-card-bottom">
+        <a href="#" class="open-dashboard-link" id="link-hazard-risk" onclick="showSubmoduleDevelopment('Hazard Risk Assessment')">
+          Open Dashboard <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Card 6: Critical Safety Measures -->
+    <div class="safety-card card" style="border-top: 4px solid #06b6d4;" id="card-critical-safety">
+      <div class="safety-card-top">
+        <div class="safety-icon-wrapper" style="background: rgba(6, 182, 212, 0.1); color: #06b6d4;">🗂️</div>
+        <span class="safety-badge">VIEW</span>
+      </div>
+      <div class="safety-card-middle">
+        <h3>Critical Safety Measures</h3>
+        <p>Manage critical plant safety controls, safety barrier compliance status, and bypass logs.</p>
+      </div>
+      <div class="safety-card-bottom">
+        <a href="#" class="open-dashboard-link" id="link-critical-safety" onclick="showSubmoduleDevelopment('Critical Safety Measures')">
+          Open Dashboard <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Card 7: Overall Safety Performance -->
+    <div class="safety-card card" style="border-top: 4px solid #2563eb;" id="card-overall-performance">
+      <div class="safety-card-top">
+        <div class="safety-icon-wrapper" style="background: rgba(37, 99, 235, 0.1); color: #2563eb;">📊</div>
+        <span class="safety-badge">VIEW</span>
+      </div>
+      <div class="safety-card-middle">
+        <h3>Overall Safety Performance</h3>
+        <p>Safety KPI metrics tracking, incident statistical logs, and plant-wide compliance status.</p>
+      </div>
+      <div class="safety-card-bottom">
+        <a href="#" class="open-dashboard-link" id="link-overall-performance" onclick="showSubmoduleDevelopment('Overall Safety Performance')">
+          Open Dashboard <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Sub-module Development Modal (Aesthetic Custom Dialog using Alpine.js state) -->
+  <div x-data="{ open: false, moduleName: '' }" 
+       @show-safety-modal.window="moduleName = $event.detail.name; open = true;"
+       x-show="open" 
+       x-cloak 
+       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 99999; display: flex; align-items: center; justify-content: center;"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0">
+       
+    <div @click.outside="open = false" 
+         style="background: #ffffff; border-radius: 16px; box-shadow: var(--shadow-lg); border: 1px solid var(--jspl-border); overflow: hidden; padding: 32px; width: 460px; max-width: 90%; text-align: center; position: relative;">
+         
+      <button @click="open = false" 
+              style="position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--jspl-muted); line-height: 1; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;"
+              onmouseover="this.style.backgroundColor='rgba(0,0,0,0.05)'"
+              onmouseout="this.style.backgroundColor='transparent'">&times;</button>
+         
+      <div style="font-size: 3.5rem; margin-bottom: 16px; display: inline-block;">🚧</div>
+      
+      <h3 style="font-size: 1.3rem; font-weight: 700; color: var(--jspl-navy); margin-top: 0; margin-bottom: 10px;" x-text="moduleName">
+        Sub-module Name
+      </h3>
+      
+      <p style="font-size: 0.9rem; color: var(--jspl-text); line-height: 1.5; margin-bottom: 24px;">
+        The operations dashboard for <strong x-text="moduleName"></strong> under <strong>{{ department.name }}</strong> is currently under active development.<br><br>
+        Access rules, SSO pathways, and database schemas have been configured. The UI elements will be available soon.
+      </p>
+      
+      <button type="button" @click="open = false" class="btn btn-primary" style="height: 38px; width: 100%; border-radius: 8px; font-weight: bold; background-color: var(--jspl-blue); border: none; color: white;">
+        Acknowledge
+      </button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function showSubmoduleDevelopment(name) {
+    window.dispatchEvent(new CustomEvent('show-safety-modal', {
+      detail: { name: name }
+    }));
+  }
+</script>
+{% endblock %}

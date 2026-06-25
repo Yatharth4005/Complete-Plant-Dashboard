@@ -111,4 +111,8 @@ def coming_soon(request, dept_id, module_key):
         'active_dept_id': department.id,
         'active_module': module_key,
     }
+    
+    if module_key.upper() == 'SAFETY':
+        return render(request, 'portal/department/safety_dashboard.html', context)
+        
     return render(request, 'portal/department/coming_soon.html', context)

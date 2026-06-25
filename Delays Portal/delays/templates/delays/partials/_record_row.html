@@ -36,12 +36,16 @@
         {% if r.equipment and r.equipment not in equipments %}
           <option value="{{ r.equipment }}" selected>{{ r.equipment }}</option>
         {% endif %}
-        {% for eq in equipments %}
-          <option value="{{ eq }}" {% if eq == r.equipment %}selected{% endif %}>{{ eq }}</option>
+        {% for eq in equipments_list %}
+          <option value="{{ eq.value }}" {% if eq.value == r.equipment %}selected{% endif %}>{{ eq.display }}</option>
         {% endfor %}
       </select>
     {% else %}
-      {{ r.equipment|default:"NIL" }}
+      {% if r.equipment_category %}
+        {{ r.equipment }} <span style="display: inline-flex; align-items: center; justify-content: center; background: rgba(244,121,32,0.08); color: var(--delays-accent); border: 1px solid rgba(244,121,32,0.2); font-size: 0.72rem; padding: 1px 5px; border-radius: 4px; font-weight: 700; margin-left: 4px; line-height: 1;">{{ r.equipment_category }}</span>
+      {% else %}
+        {{ r.equipment|default:"NIL" }}
+      {% endif %}
     {% endif %}
   </td>
   

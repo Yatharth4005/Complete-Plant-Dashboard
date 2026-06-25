@@ -1,0 +1,337 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Safety Management Portal — Jindal Steel Operations Portal{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{% static 'portal/img/jindal_logo_dark.png' %}">
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Portal Unified CSS -->
+  <link rel="stylesheet" href="{% static 'portal/css/portal.css' %}?v=3">
+  
+  <!-- HTMX & Alpine -->
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  {% block extra_css %}{% endblock %}
+  <style>
+    /* Dark Professional Sidebar Styles matching Image 2 */
+    #portal-sidebar {
+      background: #0f172a !important; /* Slate 900 for dark professional theme */
+      border-right: 1px solid #1e293b !important;
+      color: rgba(255, 255, 255, 0.8) !important;
+      scrollbar-width: thin !important;
+      scrollbar-color: rgba(255, 255, 255, 0.2) transparent !important;
+    }
+    #portal-sidebar::-webkit-scrollbar {
+      width: 5px !important;
+      background: transparent !important;
+    }
+    #portal-sidebar::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.2) !important;
+      border-radius: 10px !important;
+    }
+    #portal-sidebar::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(255, 255, 255, 0.4) !important;
+    }
+    
+    .sidebar-nav-container {
+      padding: 20px 0 !important;
+    }
+
+    #portal-sidebar .sidebar-divider {
+      color: #64748b !important;
+      font-weight: 700 !important;
+      font-size: 0.72rem !important;
+      text-transform: uppercase !important;
+      letter-spacing: 1px !important;
+      padding: 18px 20px 8px 20px !important;
+      display: block !important;
+    }
+
+    #portal-sidebar .sidebar-link,
+    #portal-sidebar .sidebar-link-btn {
+      display: flex !important;
+      align-items: center !important;
+      gap: 12px !important;
+      padding: 12px 20px !important;
+      color: #94a3b8 !important;
+      font-size: 0.9rem !important;
+      font-weight: 600 !important;
+      border-left: 3px solid transparent !important;
+      background: transparent !important;
+      width: 100% !important;
+      font-family: inherit !important;
+      cursor: pointer !important;
+      text-align: left !important;
+      transition: all 0.2s !important;
+      text-decoration: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      margin-bottom: 0 !important;
+    }
+
+    #portal-sidebar .sidebar-link:hover,
+    #portal-sidebar .sidebar-link-btn:hover {
+      background: rgba(255, 255, 255, 0.05) !important;
+      color: #ffffff !important;
+    }
+
+    #portal-sidebar .sidebar-link.active,
+    #portal-sidebar .sidebar-link-btn.active {
+      background: var(--jspl-blue) !important;
+      color: #ffffff !important;
+      border-left-color: var(--jspl-orange) !important;
+      font-weight: 700 !important;
+    }
+
+    #portal-sidebar .sidebar-icon {
+      font-size: 1.1rem !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 20px !important;
+      height: 20px !important;
+    }
+
+    /* Pendings Count Badge styling in Dark Sidebar */
+    .pending-badge-dark {
+      background: #ea580c !important; /* Vivid orange background matching Image 1/2 */
+      color: #ffffff !important;
+      font-size: 0.72rem !important;
+      font-weight: 700 !important;
+      padding: 2px 8px !important;
+      border-radius: 12px !important;
+      margin-left: auto !important;
+      display: inline-block !important;
+      line-height: 1.2 !important;
+    }
+
+    [x-cloak] {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body x-data="Object.assign(portalShell(), { activeTab: 'dashboard', profileModalOpen: false, confirmOpen: false, confirmTitle: 'Confirm Action', confirmMessage: 'Are you sure you want to proceed?', confirmCallback: null })"
+  hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+  <!-- TOPBAR -->
+  <header id="portal-topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle Menu">☰</button>
+      <a href="{% url 'portal:root' %}" class="topbar-brand-link" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
+        <img src="{% static 'portal/img/jindal_logo_dark.png' %}" alt="Jindal Steel Logo" style="height: 32px; width: auto; object-fit: contain; display: block;">
+        <span style="font-weight: 700; color: var(--jspl-navy); font-size: 1.1rem; border-left: 2px solid var(--jspl-border); padding-left: 12px; height: 20px; display: inline-flex; align-items: center;">Operations Portal</span>
+      </a>
+    </div>
+
+    <!-- Breadcrumb -->
+    <nav class="topbar-breadcrumb">
+      <a href="{% url 'portal:plant_dashboard' %}">Plant Dashboard</a>
+      {% block breadcrumb_items %}{% endblock %}
+    </nav>
+
+    <div class="topbar-right">
+      {% block module_badge %}{% endblock %}
+
+      <!-- Notifications Menu -->
+      <div class="notifications-menu" x-data="{ open: false }" @click.outside="open = false" style="position: relative; display: flex; align-items: center; margin-right: 15px;">
+        <button class="notifications-trigger" @click="open = !open" style="background: var(--jspl-gray); border: 1px solid var(--jspl-border); padding: 0; border-radius: var(--radius-md, 10px); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; height: 38px; width: 38px; color: var(--jspl-navy); transition: all 0.2s ease;">
+          <span style="font-size: 1.1rem; line-height: 1;">🔔</span>
+          {% if header_notifications_count > 0 %}
+          <span id="header-notification-badge" class="notification-badge" style="position: absolute; top: -5px; right: -5px; background: var(--status-red); color: white; font-size: 0.7rem; font-weight: 700; border-radius: 50%; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px white;">
+            {{ header_notifications_count }}
+          </span>
+          {% endif %}
+        </button>
+        <div class="notifications-dropdown" x-show="open" x-transition x-cloak style="position: absolute; right: 0; top: 45px; width: 340px; background: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius-lg, 16px); box-shadow: var(--shadow-lg); overflow: hidden; z-index: 1000; text-align: left;">
+          <div class="notifications-dropdown-header" style="padding: 14px 18px; background: var(--jspl-gray); border-bottom: 1px solid var(--jspl-border); display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--jspl-navy); font-size: 0.92rem; font-weight: 700;">Notifications</strong>
+            <span id="header-notification-count" style="font-size: 0.75rem; background: var(--jspl-light-blue); color: var(--jspl-blue); padding: 3px 8px; border-radius: 4px; font-weight: 600;">
+              {{ header_notifications_count }} Unread
+            </span>
+          </div>
+          <div class="notifications-list" id="notifications-list-container" style="max-height: 320px; overflow-y: auto;">
+            {% if header_notifications %}
+              {% for n in header_notifications %}
+              <div class="notification-item" id="notification-{{ n.id }}" style="padding: 14px 18px; border-bottom: 1px solid rgba(0, 52, 120, 0.05); display: flex; gap: 12px; align-items: flex-start; position: relative;">
+                <div class="notification-content" style="flex-grow: 1; min-width: 0;">
+                  <div class="notification-message" style="font-size: 0.82rem; color: var(--jspl-text); font-weight: 500; line-height: 1.4; word-wrap: break-word;">
+                    {% if n.link %}
+                      <a href="{{ n.link }}" style="text-decoration: none; color: inherit; hover: text-decoration: underline;">{{ n.message }}</a>
+                    {% else %}
+                      {{ n.message }}
+                    {% endif %}
+                  </div>
+                  <div class="notification-meta" style="font-size: 0.72rem; color: var(--jspl-muted); margin-top: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <span>{{ n.created_at|timesince }} ago</span>
+                  </div>
+                </div>
+                <button class="notification-mark-btn" @click.stop="markNotificationRead({{ n.id }})" title="Mark as read" style="background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--jspl-muted); padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.color='var(--status-green)'; this.style.backgroundColor='rgba(22, 163, 74, 0.1)';" onmouseout="this.style.color='var(--jspl-muted)'; this.style.backgroundColor='transparent';">
+                  ✓
+                </button>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="no-notifications-placeholder" id="no-notifications-placeholder" style="padding: 32px 24px; text-align: center; color: var(--jspl-muted); font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                <span style="font-size: 1.8rem; filter: grayscale(100%); opacity: 0.6;">🔔</span>
+                <span>All caught up! No unread notifications.</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% if request.user.is_admin %}
+      <a href="{% url 'portal:admin_departments' %}" style="margin-left: 15px; margin-right: 15px; background: rgba(0, 52, 120, 0.05); border: 1px solid var(--jspl-border); color: var(--jspl-navy); padding: 0 16px; border-radius: var(--radius-md, 10px); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; height: 38px; font-weight: 600; font-size: 0.82rem; text-decoration: none;" onmouseover="this.style.backgroundColor='var(--jspl-light-blue)'; this.style.borderColor='var(--jspl-blue)';" onmouseout="this.style.backgroundColor='rgba(0, 52, 120, 0.05)'; this.style.borderColor='var(--jspl-border)';">
+        🏢 Manage Departments
+      </a>
+      {% endif %}
+
+      <!-- User Menu -->
+      <div class="user-menu" x-data="{ open: false }" @click.outside="open = false" {% if not request.user.is_admin %}style="margin-left: 15px;"{% endif %}>
+        <button class="user-menu-trigger" @click="open = !open">
+          <span class="user-avatar" style="overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 0;">
+            {% if request.user.photo %}
+            <img src="{{ request.user.photo.url }}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+            {% else %}
+            {{ request.user.first_name|default:request.user.username|slice:":1"|upper }}
+            {% endif %}
+          </span>
+          <span class="user-name">{{ request.user.first_name|default:request.user.username }}</span>
+          <span class="user-chevron">▼</span>
+        </button>
+        <div class="user-dropdown" x-show="open" x-transition x-cloak>
+          <div class="user-dropdown-header">
+            <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+            <small>{{ request.user.email }}</small>
+          </div>
+          {% if dept_id == 0 %}
+          <a href="{% url 'portal:overall_plant_dashboard' %}">🏢 Back to Overall Dashboard</a>
+          {% else %}
+          <a href="{% url 'portal:dept_hub' dept_id %}">🏢 Back to Hub</a>
+          {% endif %}
+          <a href="{% url 'portal:logout' %}" class="logout-link">↩ Sign Out</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PORTAL SHELL -->
+  <div id="portal-shell" :class="{ 'sidebar-collapsed': !sidebarOpen }">
+
+    <!-- CUSTOM SIDEBAR (DARK THEME MATCHING IMAGE 2) -->
+    <aside id="portal-sidebar">
+      <div class="sidebar-nav-container">
+        
+        <!-- Incident Menu Section -->
+        <div class="sidebar-divider" style="margin-top: 10px;">Incident Menu</div>
+        
+        <button class="sidebar-link sidebar-link-btn" :class="{ 'active': activeTab === 'dashboard' }" @click="activeTab = 'dashboard'">
+          <span class="sidebar-icon">📊</span> Dashboard Overview
+        </button>
+        <button class="sidebar-link sidebar-link-btn" :class="{ 'active': activeTab === 'report' }" @click="activeTab = 'report'">
+          <span class="sidebar-icon">📝</span> Report Incident
+        </button>
+        <button class="sidebar-link sidebar-link-btn" :class="{ 'active': activeTab === 'reviews' }" @click="activeTab = 'reviews'">
+          <span class="sidebar-icon">🔍</span> Pending Reviews
+          {% if pending_count > 0 %}
+          <span class="pending-badge-dark">{{ pending_count }}</span>
+          {% endif %}
+        </button>
+        <button class="sidebar-link sidebar-link-btn" :class="{ 'active': activeTab === 'history' }" @click="activeTab = 'history'">
+          <span class="sidebar-icon">📁</span> Incident Logs
+        </button>
+
+        <!-- Navigation Section -->
+        <div class="sidebar-divider" style="margin-top: 25px;">Navigation</div>
+        {% if dept_id == 0 %}
+        <a href="{% url 'portal:overall_plant_dashboard' %}" class="sidebar-link">
+          <span class="sidebar-icon">🏢</span> Overall Dashboard
+        </a>
+        {% else %}
+        <a href="{% url 'portal:dept_hub' dept_id %}" class="sidebar-link">
+          <span class="sidebar-icon">🏢</span> Department Hub
+        </a>
+        {% endif %}
+
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <main id="portal-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="{% static 'portal/js/portal.js' %}"></script>
+  <script>
+    function markNotificationRead(id) {
+      const url = "{% url 'portal:mark_notification_read' 0 %}".replace('0', id);
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          const element = document.getElementById(`notification-${id}`);
+          if (element) {
+            element.style.opacity = '0';
+            element.style.maxHeight = '0px';
+            element.style.padding = '0px';
+            element.style.borderBottom = 'none';
+            setTimeout(() => {
+              element.remove();
+              
+              // Update badge count
+              const badge = document.getElementById('header-notification-badge');
+              const textBadge = document.getElementById('header-notification-count');
+              
+              let count = 0;
+              if (badge) {
+                count = parseInt(badge.innerText.trim()) - 1;
+                if (count > 0) {
+                  badge.innerText = count;
+                } else {
+                  badge.remove();
+                }
+              }
+              
+              if (textBadge) {
+                textBadge.innerText = `${count} Unread`;
+              }
+              
+              const listContainer = document.getElementById('notifications-list-container');
+              if (listContainer && listContainer.querySelectorAll('.notification-item').length === 0) {
+                listContainer.innerHTML = `
+                  <div class="no-notifications-placeholder" id="no-notifications-placeholder">
+                    <span>🔔</span>
+                    <span>All caught up! No unread notifications.</span>
+                  </div>
+                `;
+              }
+            }, 300);
+          }
+        }
+      });
+    }
+  </script>
+  {% block extra_js %}{% endblock %}
+</body>
+
+</html>

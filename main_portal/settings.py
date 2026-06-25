@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'delays',
     'fmea',
     'capa',
+    'Safety',
 ]
 
 MIDDLEWARE = [

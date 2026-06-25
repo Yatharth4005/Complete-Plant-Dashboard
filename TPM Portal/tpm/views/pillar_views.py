@@ -413,9 +413,12 @@ def save_kpi_row(request, dept_id, pillar_id):
     actual_str = request.POST.get('actual')
     remarks = request.POST.get('remarks', '').strip()
     
-    if request.user.is_admin() and 'target' in request.POST:
-        target_str = request.POST.get('target')
-        db_val.target = float(target_str) if target_str else None
+    if request.user.is_admin() and 'benchmark' in request.POST:
+        benchmark_str = request.POST.get('benchmark')
+        db_val.benchmark = float(benchmark_str) if benchmark_str else None
+
+
+
         
     # KK Pillar PRODUCTION calculation
     is_PRODUCTION_row = kpi_meta.get('is_PRODUCTION_row', False)

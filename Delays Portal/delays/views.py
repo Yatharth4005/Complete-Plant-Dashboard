@@ -388,12 +388,29 @@ def dept_overview(request, dept_id):
         table_records = all_records
         
     has_unlocked = all_records.filter(is_locked=False).exists()
+
+    # Decorate records with equipment category and build equipment select options list
+    equipment_opts = DelayDropdownOption.objects.filter(category__iexact='Equipment')
+    if department.id != 0:
+        equipment_opts = equipment_opts.filter(department=department)
+    equip_cat_map = {opt.value.strip().lower(): opt.parent_value for opt in equipment_opts if opt.parent_value}
+    
+    records_list = list(table_records[:1000])
+    for r in records_list:
+        eq_key = (r.equipment or '').strip().lower()
+        r.equipment_category = equip_cat_map.get(eq_key)
+
+    equipments_list = []
+    for eq in equipments:
+        cat = equip_cat_map.get(eq.strip().lower())
+        display = f"{eq} ({cat})" if cat else eq
+        equipments_list.append({'value': eq, 'display': display})
  
     # HTMX request for tabular logs partial
     if request.headers.get('HX-Request') and 'records-tab' in request.GET:
         # Return log table partial
         return render(request, 'delays/partials/_records_table.html', {
-            'records': table_records[:1000],
+            'records': records_list,
             'department': department,
             'can_edit': can_edit,
             'is_admin': is_admin,
@@ -401,6 +418,7 @@ def dept_overview(request, dept_id):
             'has_unlocked': has_unlocked,
             'agencies': agencies,
             'equipments': equipments,
+            'equipments_list': equipments_list,
             'sub_agencies': sub_agencies,
             'sub_equipments': sub_equipments,
         })
@@ -473,7 +491,7 @@ def dept_overview(request, dept_id):
         'pareto_cum_json': json.dumps([x['cum_percent'] for x in agency_pareto]),
         
         # Lists
-        'records': table_records[:1000], # Limit initially
+        'records': records_list, # Limit initially
         'sheets_parsed': sheets_parsed,
         'uploads': uploads,
         
@@ -491,6 +509,7 @@ def dept_overview(request, dept_id):
         'sub_agencies': sub_agencies,
         'sections': sections,
         'equipments': equipments,
+        'equipments_list': equipments_list,
         'sub_equipments': sub_equipments,
         'incharges': incharges,
         
@@ -649,8 +668,25 @@ def records_table(request, dept_id):
 
     table_agencies = sorted(list(set(agencies + list(Department.objects.all().values_list('name', flat=True)))))
 
+    # Decorate records with equipment category and build equipment select options list
+    equipment_opts = DelayDropdownOption.objects.filter(category__iexact='Equipment')
+    if department.id != 0:
+        equipment_opts = equipment_opts.filter(department=department)
+    equip_cat_map = {opt.value.strip().lower(): opt.parent_value for opt in equipment_opts if opt.parent_value}
+    
+    records_list = list(records[:1000])
+    for r in records_list:
+        eq_key = (r.equipment or '').strip().lower()
+        r.equipment_category = equip_cat_map.get(eq_key)
+
+    equipments_list = []
+    for eq in equipments:
+        cat = equip_cat_map.get(eq.strip().lower())
+        display = f"{eq} ({cat})" if cat else eq
+        equipments_list.append({'value': eq, 'display': display})
+
     return render(request, 'delays/partials/_records_table.html', {
-        'records': records[:1000], # Limit query size for performance
+        'records': records_list, # Limit query size for performance
         'department': department,
         'can_edit': can_edit,
         'is_admin': is_admin,
@@ -659,6 +695,7 @@ def records_table(request, dept_id):
         'agencies': agencies,
         'table_agencies': table_agencies,
         'equipments': equipments,
+        'equipments_list': equipments_list,
         'sub_agencies': sub_agencies,
         'sub_equipments': sub_equipments,
     })
@@ -861,6 +898,21 @@ def update_record_inline(request, dept_id, record_id):
         agencies = autocompletes['agencies']
         equipments = autocompletes['equipments']
         table_agencies = sorted(list(set(agencies + list(Department.objects.all().values_list('name', flat=True)))))
+        
+        # Decorate record with category and build equipments_list
+        equipment_opts = DelayDropdownOption.objects.filter(category__iexact='Equipment')
+        if department.id != 0:
+            equipment_opts = equipment_opts.filter(department=department)
+        equip_cat_map = {opt.value.strip().lower(): opt.parent_value for opt in equipment_opts if opt.parent_value}
+        
+        eq_key = (record.equipment or '').strip().lower()
+        record.equipment_category = equip_cat_map.get(eq_key)
+
+        equipments_list = []
+        for eq in equipments:
+            cat = equip_cat_map.get(eq.strip().lower())
+            display = f"{eq} ({cat})" if cat else eq
+            equipments_list.append({'value': eq, 'display': display})
             
         return render(request, 'delays/partials/_record_row.html', {
             'r': record,
@@ -870,6 +922,7 @@ def update_record_inline(request, dept_id, record_id):
             'agencies': agencies,
             'table_agencies': table_agencies,
             'equipments': equipments,
+            'equipments_list': equipments_list,
         })
         
     return HttpResponse('Method Not Allowed', status=405)
@@ -1097,7 +1150,10 @@ def manage_options(request, dept_id):
             option.delete()
             messages.success(request, f"Option '{val}' removed from '{cat}'.")
             
-        return redirect('delays:manage_options', dept_id=dept_id)
+        # Determine which tab category to redirect to so that Alpine.js opens the same tab
+        from django.urls import reverse
+        category_to_keep = category if action == 'add' else cat
+        return redirect(f"{reverse('delays:manage_options', args=[dept_id])}?tab={category_to_keep}")
 
     # Auto-seed DelayDropdownOption if it is completely empty for this department
     if not DelayDropdownOption.objects.filter(department=department).exists():
@@ -1161,6 +1217,7 @@ def manage_options(request, dept_id):
         'active_module': 'Delays',
         'active_section': 'department_module',
         'is_manage_options_page': True,
+        'active_tab': request.GET.get('tab', 'Agency'),
     }
     return render(request, 'delays/manage_options.html', context)
 

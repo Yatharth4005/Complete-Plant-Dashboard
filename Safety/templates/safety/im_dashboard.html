@@ -1,0 +1,940 @@
+{% extends "safety/base_safety.html" %}
+{% load static %}
+
+{% block title %}Incident Investigation Dashboard — {{ department.name }} — Jindal Steel Operations Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  {% if department.id == 0 %}
+    <span class="breadcrumb-current">Incident Management</span>
+  {% else %}
+    <a href="{% url 'portal:dept_hub' department.id %}">{{ department.name }}</a>
+    <span class="breadcrumb-sep">›</span>
+    <span class="breadcrumb-current">Incident Management</span>
+  {% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .im-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 30px;
+    margin-top: 20px;
+    align-items: start;
+  }
+  
+  /* Side navigation styling */
+  .im-sidebar {
+    background: #ffffff;
+    border-radius: var(--radius-lg, 16px);
+    border: 1px solid var(--jspl-border);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .im-sidebar-title {
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--jspl-muted);
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+  }
+  
+  .im-nav-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--jspl-text);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.25s;
+  }
+  
+  .im-nav-btn:hover {
+    background: var(--jspl-gray);
+    color: var(--jspl-blue);
+  }
+  
+  .im-nav-btn.active {
+    background: var(--jspl-light-blue);
+    color: var(--jspl-blue);
+    border-color: rgba(0, 87, 168, 0.15);
+  }
+  
+  /* Main content panel */
+  .im-content {
+    background: #ffffff;
+    border-radius: var(--radius-lg, 16px);
+    border: 1px solid var(--jspl-border);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+    min-height: 500px;
+  }
+  
+  /* KPI Cards */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .kpi-card-custom {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid var(--jspl-border);
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .kpi-card-custom::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+  }
+  
+  .kpi-card-custom.pending::before { background: var(--status-amber); }
+  .kpi-card-custom.completed::before { background: var(--status-green); }
+  .kpi-card-custom.avg-closure::before { background: var(--jspl-blue); }
+  .kpi-card-custom.over-15::before { background: var(--status-red); }
+  
+  .kpi-card-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--jspl-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    margin-bottom: 6px;
+  }
+  
+  .kpi-card-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--jspl-navy);
+    line-height: 1.2;
+  }
+  
+  /* Charts Grid */
+  .charts-grid-safety {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+    margin-bottom: 20px;
+  }
+  
+  .chart-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid var(--jspl-border);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .chart-card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--jspl-navy);
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(0, 52, 120, 0.08);
+    padding-bottom: 8px;
+  }
+  
+  .canvas-wrap {
+    position: relative;
+    height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Form styling */
+  .form-group-safety {
+    margin-bottom: 18px;
+  }
+  
+  .form-group-safety label {
+    display: block;
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: var(--jspl-navy);
+    margin-bottom: 6px;
+  }
+  
+  /* HOD modal */
+  [x-cloak] { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+  
+  <!-- Breadcrumb Header -->
+  <div class="dept-hub-header card" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-left: 5px solid #dc2626; display: flex; align-items: center; justify-content: center; gap: 20px; padding: 20px 24px; border-radius: var(--radius-lg, 16px); margin-bottom: 20px; border-top: none;">
+    <div style="font-size: 2.2rem; line-height: 1; padding: 10px; background: rgba(220, 38, 38, 0.08); border-radius: 12px;">🚨</div>
+    <div class="dept-header-info" style="flex-grow: 1;">
+      <h1 style="font-size: 1.6rem; font-weight: 700; color: var(--jspl-navy); margin: 0;">Incident Investigation Dashboard</h1>
+      <p style="color: var(--jspl-muted); font-size: 0.9rem; margin-top: 2px; margin-bottom: 0;">
+        Track injuries, safe act compliance, incident severity, and CAPA closing status for <strong>{{ department.name }}</strong>.
+      </p>
+    </div>
+    <div>
+      <a href="{% url 'portal:coming_soon' dept_id 'SAFETY' %}" class="btn btn-secondary" style="height: 38px; border-radius: 8px;">
+        ← Back to Safety Hub
+      </a>
+    </div>
+  </div>
+
+    <!-- Main Content Panel -->
+    <div class="im-content" style="margin-top: 20px;">
+      
+      <!-- Tab 1: Dashboard Overview -->
+      <div x-show="activeTab === 'dashboard'" x-transition>
+        
+        <!-- KPI Cards Row -->
+        <div class="kpi-row">
+          <div class="kpi-card-custom pending">
+            <div class="kpi-card-label">Investigations Pending</div>
+            <div class="kpi-card-value" id="kpi-pending">{{ pending_count }}</div>
+          </div>
+          <div class="kpi-card-custom completed">
+            <div class="kpi-card-label">Investigations Completed</div>
+            <div class="kpi-card-value" id="kpi-completed">{{ completed_count }}</div>
+          </div>
+          <div class="kpi-card-custom avg-closure">
+            <div class="kpi-card-label">Avg Closure Days</div>
+            <div class="kpi-card-value" id="kpi-avg-closure">{{ avg_closure_days }} <span style="font-size: 0.9rem; font-weight: normal; color: var(--jspl-muted);">Days</span></div>
+          </div>
+          <div class="kpi-card-custom over-15">
+            <div class="kpi-card-label">Open > 15 Days</div>
+            <div class="kpi-card-value" id="kpi-overdue">{{ reports_over_15_days }}</div>
+          </div>
+        </div>
+
+        <!-- Charts Grid Section -->
+        <div class="charts-grid-safety">
+          
+          <!-- Gauge Chart: Investigation Compliance -->
+          <div class="chart-card">
+            <div class="chart-card-title">Investigation Compliance %</div>
+            <div class="canvas-wrap" style="height: 200px;">
+              <canvas id="gaugeCompliance"></canvas>
+              <div style="position: absolute; bottom: 15px; font-size: 1.5rem; font-weight: bold; color: var(--jspl-navy);" id="gauge-label-compliance">{{ compliance_pct }}%</div>
+            </div>
+          </div>
+
+          <!-- Pie Chart: Severity Distribution -->
+          <div class="chart-card">
+            <div class="chart-card-title">Incident Severity Distribution</div>
+            <div class="canvas-wrap">
+              <canvas id="pieSeverity"></canvas>
+            </div>
+          </div>
+          
+          <!-- Donut: Unsafe Acts vs Conditions -->
+          <div class="chart-card">
+            <div class="chart-card-title">Unsafe Act vs Unsafe Condition</div>
+            <div class="canvas-wrap">
+              <canvas id="donutUauc"></canvas>
+            </div>
+          </div>
+          
+          <!-- Stacked Bar: CAPA Dashboard by Department -->
+          <div class="chart-card">
+            <div class="chart-card-title">CAPA Status by Department</div>
+            <div class="canvas-wrap">
+              <canvas id="barCapa"></canvas>
+            </div>
+          </div>
+
+          <!-- Multi-Line: Monthly Incident Trend -->
+          <div class="chart-card" style="grid-column: span 2;">
+            <div class="chart-card-title">Monthly Incident & Observation Trend</div>
+            <div class="canvas-wrap" style="height: 320px;">
+              <canvas id="lineTrend"></canvas>
+            </div>
+          </div>
+          
+          <!-- Pareto Chart: Near Miss Analysis -->
+          <div class="chart-card" style="grid-column: span 2;">
+            <div class="chart-card-title">Near Miss Categories (Pareto Chart)</div>
+            <div class="canvas-wrap" style="height: 320px;">
+              <canvas id="paretoNearMiss"></canvas>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+
+      <!-- Tab 2: Report Incident (POC Form) -->
+      <div x-show="activeTab === 'report'" x-transition>
+        <h2 style="color: var(--jspl-navy); border-bottom: 2px solid rgba(0, 52, 120, 0.08); padding-bottom: 10px; margin-top: 0; margin-bottom: 20px;">📝 File Incident / Observation Report</h2>
+        
+        <form action="{% url 'safety:report_incident' dept_id %}" method="POST" enctype="multipart/form-data" id="incident-report-form" style="max-width: 700px;">
+          {% csrf_token %}
+          
+          {% if dept_id == 0 %}
+          <!-- If Overall Plant Dashboard, allow choosing department -->
+          <div class="form-group-safety">
+            <label for="form-department">🏢 Target Department:</label>
+            <select name="department" id="form-department" class="input-mono" required style="height: 40px;">
+              <option value="" disabled selected>-- Select Department --</option>
+              {% for d in sidebar_departments %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group-safety">
+              <label for="form-date">📅 Date of Incident:</label>
+              <input type="date" name="date_incident" id="form-date" class="input-mono" required style="height: 40px;" value="{{ today|date:'Y-m-d' }}">
+            </div>
+            
+            <div class="form-group-safety">
+              <label for="form-unsafe-type">⚠️ Incident Type:</label>
+              <select name="unsafe_type" id="form-unsafe-type" class="input-mono" required style="height: 40px;" onchange="toggleUnsafeSeverity(this.value)">
+                <option value="NONE">Actual Incident (LTI/RWC/MTC/FA)</option>
+                <option value="UA">Unsafe Act (UA)</option>
+                <option value="UC">Unsafe Condition (UC)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group-safety">
+              <label for="form-severity">🔴 Incident Severity:</label>
+              <select name="severity" id="form-severity" class="input-mono" required style="height: 40px;">
+                <option value="FA">First Aid (FA)</option>
+                <option value="MTC">Medical Treatment Case (MTC)</option>
+                <option value="RWC">Restricted Work Case (RWC)</option>
+                <option value="LTI">Lost Time Injury (LTI)</option>
+                <option value="NM">Near Miss (NM)</option>
+              </select>
+            </div>
+            
+            <div class="form-group-safety">
+              <label for="form-category">🗂️ Safety Category:</label>
+              <select name="category" id="form-category" class="input-mono" required style="height: 40px;">
+                <option value="Material Handling">Material Handling</option>
+                <option value="Slip/Trip/Fall">Slip/Trip/Fall</option>
+                <option value="PPE Violation">PPE Violation</option>
+                <option value="Equipment Interaction">Equipment Interaction</option>
+                <option value="Fire Hazard">Fire Hazard</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group-safety">
+            <label for="form-description">📝 Incident Description / Observation Details:</label>
+            <textarea name="description" id="form-description" class="input-mono" rows="5" required placeholder="Describe what happened, equipment involved, unsafe actions observed, or hazards identified..."></textarea>
+          </div>
+          
+          <div class="form-group-safety" style="margin-bottom: 28px;">
+            <label for="form-image">📸 Upload Incident Photo / Supporting Image:</label>
+            <input type="file" name="image" id="form-image" accept="image/*" style="font-size: 0.85rem; padding: 6px; border: 1px solid var(--jspl-border); border-radius: 6px; width: 100%; box-sizing: border-box;">
+          </div>
+          
+          <div style="display: flex; gap: 15px;">
+            <button type="submit" class="btn btn-primary" style="height: 42px; font-weight: bold; padding: 0 30px;">
+              Submit Report
+            </button>
+            <button type="reset" class="btn btn-secondary" style="height: 42px; font-weight: bold;">
+              Clear Form
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tab 3: Pending Reviews (HOD / Admin Panel) -->
+      <div x-show="activeTab === 'reviews'" x-transition x-data="{ reviewModalOpen: false, activeIncident: null }">
+        <h2 style="color: var(--jspl-navy); border-bottom: 2px solid rgba(0, 52, 120, 0.08); padding-bottom: 10px; margin-top: 0; margin-bottom: 20px;">🔍 Pending Investigations & HOD Reviews</h2>
+        
+        {% if pending_reviews %}
+        <div class="table-responsive">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                {% if dept_id == 0 %}<th>Dept</th>{% endif %}
+                <th>Type</th>
+                <th>Severity</th>
+                <th>Category</th>
+                <th>Reporter</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for inc in pending_reviews %}
+              <tr id="review-row-{{ inc.id }}">
+                <td class="mono" style="white-space: nowrap;">{{ inc.date_incident|date:"d M Y" }}</td>
+                {% if dept_id == 0 %}<td><b>{{ inc.department.code }}</b></td>{% endif %}
+                <td>
+                  {% if inc.unsafe_type == 'UA' %}
+                  <span class="action-tag" style="background: rgba(245,158,11,0.15); color: #b45309;">Unsafe Act</span>
+                  {% elif inc.unsafe_type == 'UC' %}
+                  <span class="action-tag" style="background: rgba(6,182,212,0.15); color: #0f766e;">Unsafe Condition</span>
+                  {% else %}
+                  <span class="action-tag" style="background: rgba(220,38,38,0.1); color: #dc2626;">Incident</span>
+                  {% endif %}
+                </td>
+                <td><b>{{ inc.severity }}</b></td>
+                <td>{{ inc.category }}</td>
+                <td>{{ inc.reported_by.get_display_name }}</td>
+                <td>
+                  <span style="font-size: 0.75rem; font-weight: 700; background: #fef3c7; color: var(--status-amber); padding: 2px 8px; border-radius: 4px;">
+                    {{ inc.get_status_display }}
+                  </span>
+                </td>
+                <td>
+                  {% if is_admin or is_hod and user_dept_id == inc.department_id %}
+                  <button type="button" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.78rem; font-weight: bold; height: auto;" 
+                          @click="activeIncident = {
+                            id: '{{ inc.id }}',
+                            date: '{{ inc.date_incident|date:'Y-m-d' }}',
+                            dept: '{{ inc.department.name }}',
+                            type_label: '{% if inc.unsafe_type == 'UA' %}Unsafe Act{% elif inc.unsafe_type == 'UC' %}Unsafe Condition{% else %}Incident{% endif %}',
+                            severity: '{{ inc.severity }}',
+                            category: '{{ inc.category }}',
+                            reporter: '{{ inc.reported_by.get_display_name }}',
+                            description: '{{ inc.description|escapejs }}',
+                            findings: '{{ inc.investigation_findings|escapejs }}',
+                            image_url: '{% if inc.image %}{{ inc.image.url }}{% endif %}',
+                            status: '{{ inc.status }}'
+                          }; reviewModalOpen = true;" id="review-btn-{{ inc.id }}">
+                    Investigate
+                  </button>
+                  {% else %}
+                  <span style="font-size: 0.78rem; color: var(--jspl-muted);">No Permission</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 40px; color: var(--jspl-muted); background: var(--jspl-gray); border-radius: 12px; border: 1px dashed var(--jspl-border);">
+          <span style="font-size: 2.2rem; display: block; margin-bottom: 10px;">✅</span>
+          All investigations caught up! No pending reviews found.
+        </div>
+        {% endif %}
+
+        <!-- HOD Review Modal Dialog -->
+        <div x-show="reviewModalOpen" x-cloak 
+             style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px;"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0">
+             
+          <div @click.outside="reviewModalOpen = false" 
+               style="background: #ffffff; border-radius: 16px; box-shadow: var(--shadow-lg); border: 1px solid var(--jspl-border); width: 850px; max-width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+            
+            <!-- Modal Header -->
+            <div style="padding: 18px 24px; border-bottom: 1px solid var(--jspl-border); display: flex; justify-content: space-between; align-items: center; background: var(--jspl-gray);">
+              <h3 style="color: var(--jspl-navy); margin: 0; font-weight: 700;">🔍 Safety Incident Investigation</h3>
+              <button @click="reviewModalOpen = false" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--jspl-muted);">&times;</button>
+            </div>
+            
+            <!-- Modal Body (Two-columns layout: Left is Details & image, Right is investigation form) -->
+            <form :action="'/safety/department/{{ dept_id }}/review-incident/' + (activeIncident ? activeIncident.id : '0') + '/'" method="POST" style="margin: 0; display: flex; flex-direction: column; flex-grow: 1; overflow: hidden;">
+              {% csrf_token %}
+              
+              <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; padding: 24px; overflow-y: auto; flex-grow: 1;">
+                
+                <!-- Left Column: Details & Photo -->
+                <div>
+                  <h4 style="color: var(--jspl-navy); margin-top: 0; margin-bottom: 12px; border-bottom: 1.5px solid rgba(0, 52, 120, 0.05); padding-bottom: 4px;">Incident Details</h4>
+                  
+                  <table style="width: 100%; font-size: 0.82rem; border-collapse: collapse; margin-bottom: 15px;">
+                    <tr style="border-bottom: 1px solid rgba(0,52,120,0.05);"><td style="padding: 6px 0; font-weight: bold; color: var(--jspl-muted);">Date:</td><td class="mono" style="padding: 6px 0;" x-text="activeIncident ? activeIncident.date : ''"></td></tr>
+                    <tr style="border-bottom: 1px solid rgba(0,52,120,0.05);"><td style="padding: 6px 0; font-weight: bold; color: var(--jspl-muted);">Dept:</td><td style="padding: 6px 0;" x-text="activeIncident ? activeIncident.dept : ''"></td></tr>
+                    <tr style="border-bottom: 1px solid rgba(0,52,120,0.05);"><td style="padding: 6px 0; font-weight: bold; color: var(--jspl-muted);">Type:</td><td style="padding: 6px 0;" x-text="activeIncident ? activeIncident.type_label : ''"></td></tr>
+                    <tr style="border-bottom: 1px solid rgba(0,52,120,0.05);"><td style="padding: 6px 0; font-weight: bold; color: var(--jspl-muted);">Severity:</td><td style="padding: 6px 0;"><strong x-text="activeIncident ? activeIncident.severity : ''"></strong></td></tr>
+                    <tr style="border-bottom: 1px solid rgba(0,52,120,0.05);"><td style="padding: 6px 0; font-weight: bold; color: var(--jspl-muted);">Category:</td><td style="padding: 6px 0;" x-text="activeIncident ? activeIncident.category : ''"></td></tr>
+                    <tr style="border-bottom: 1px solid rgba(0,52,120,0.05);"><td style="padding: 6px 0; font-weight: bold; color: var(--jspl-muted);">Reported By:</td><td style="padding: 6px 0;" x-text="activeIncident ? activeIncident.reporter : ''"></td></tr>
+                  </table>
+                  
+                  <div style="margin-bottom: 15px;">
+                    <div style="font-weight: bold; font-size: 0.82rem; color: var(--jspl-muted); margin-bottom: 4px;">Description:</div>
+                    <div style="font-size: 0.85rem; background: var(--jspl-gray); padding: 12px; border-radius: 8px; border: 1px solid var(--jspl-border); line-height: 1.4; max-height: 120px; overflow-y: auto;" x-text="activeIncident ? activeIncident.description : ''"></div>
+                  </div>
+
+                  <!-- Uploaded Photo Display -->
+                  <div>
+                    <div style="font-weight: bold; font-size: 0.82rem; color: var(--jspl-muted); margin-bottom: 6px;">📸 Uploaded Incident Photo:</div>
+                    <div style="background: var(--jspl-gray); border-radius: 8px; border: 1px solid var(--jspl-border); height: 200px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                      <template x-if="activeIncident && activeIncident.image_url">
+                        <img :src="activeIncident.image_url" alt="Incident Attachment" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in;" onclick="window.open(this.src)">
+                      </template>
+                      <template x-if="!activeIncident || !activeIncident.image_url">
+                        <span style="color: var(--jspl-muted); font-size: 0.82rem;">No image uploaded for this report.</span>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Right Column: Investigation Fields -->
+                <div style="border-left: 1px solid var(--jspl-border); padding-left: 24px;">
+                  <h4 style="color: var(--jspl-navy); margin-top: 0; margin-bottom: 12px; border-bottom: 1.5px solid rgba(0, 52, 120, 0.05); padding-bottom: 4px;">Investigation Findings</h4>
+                  
+                  <div class="form-group-safety">
+                    <label for="modal-status">Investigation Status:</label>
+                    <select name="status" id="modal-status" class="input-mono" required style="height: 38px;" x-model="activeIncident ? activeIncident.status : 'Pending'">
+                      <option value="Pending">Pending Review</option>
+                      <option value="Investigation">Under Investigation</option>
+                      <option value="Closed">Closed</option>
+                    </select>
+                  </div>
+                  
+                  <div class="form-group-safety">
+                    <label for="modal-findings">Findings & Root Cause Analysis:</label>
+                    <textarea name="investigation_findings" id="modal-findings" class="input-mono" rows="4" required placeholder="Outline the root causes identified, machines audited, and corrections made..." x-text="activeIncident ? activeIncident.findings : ''"></textarea>
+                  </div>
+
+                  <div class="form-group-safety" x-show="activeIncident && activeIncident.status === 'Closed'">
+                    <label for="modal-closure-date">📅 Investigation Closure Date:</label>
+                    <input type="date" name="closure_date" id="modal-closure-date" class="input-mono" style="height: 38px;" :required="activeIncident && activeIncident.status === 'Closed'" value="{{ today|date:'Y-m-d' }}">
+                  </div>
+
+                  <!-- Direct connection to CAPA report -->
+                  <div class="form-group-safety" style="margin-bottom: 24px;">
+                    <label for="modal-capa">🔗 Link to Corrective Action Report (CAPA):</label>
+                    <select name="capa_report" id="modal-capa" class="input-mono" style="height: 38px;">
+                      <option value="">-- No CAPA Linked (None) --</option>
+                      {% for c in available_capas %}
+                      <option value="{{ c.id }}" {% if activeIncident and activeIncident.capa_report_id == c.id %}selected{% endif %}>
+                        [{{ c.capa_no|default:"CAPA" }}] {{ c.area_section }} — {{ c.problem_what|slice:":50" }}...
+                      </option>
+                      {% endfor %}
+                    </select>
+                    <small style="display: block; font-size: 0.72rem; color: var(--jspl-muted); margin-top: 4px;">
+                      Connecting an incident with a CAPA automatically aggregates open/closed/overdue stats in the CAPA Stacked Bar.
+                    </small>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Modal Actions -->
+              <div style="padding: 16px 24px; border-top: 1px solid var(--jspl-border); display: flex; justify-content: flex-end; gap: 12px; background: var(--jspl-gray);">
+                <button type="button" @click="reviewModalOpen = false" class="btn btn-secondary" style="height: 38px;">
+                  Cancel
+                </button>
+                <button type="submit" class="btn btn-primary" style="height: 38px; font-weight: bold; background-color: var(--jspl-blue); border: none; color: white;">
+                  Save Investigation
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Incident Log History (Searchable List) -->
+      <div x-show="activeTab === 'history'" x-transition x-data="{ search: '', severityFilter: 'ALL', typeFilter: 'ALL' }">
+        <h2 style="color: var(--jspl-navy); border-bottom: 2px solid rgba(0, 52, 120, 0.08); padding-bottom: 10px; margin-top: 0; margin-bottom: 20px;">📁 All Safety Incident & Observation Logs</h2>
+        
+        <!-- Filters Toolbar -->
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+          <div style="flex-grow: 1; min-width: 250px;">
+            <input type="text" x-model="search" placeholder="🔍 Search description, category, reporter..." class="input-mono" style="height: 38px;">
+          </div>
+          <div>
+            <select x-model="severityFilter" class="input-mono" style="height: 38px; width: 150px;">
+              <option value="ALL">All Severities</option>
+              <option value="LTI">LTI Only</option>
+              <option value="RWC">RWC Only</option>
+              <option value="MTC">MTC Only</option>
+              <option value="FA">First Aid Only</option>
+              <option value="NM">Near Miss Only</option>
+            </select>
+          </div>
+          <div>
+            <select x-model="typeFilter" class="input-mono" style="height: 38px; width: 170px;">
+              <option value="ALL">All Types</option>
+              <option value="INCIDENT">Actual Incidents</option>
+              <option value="UA">Unsafe Acts (UA)</option>
+              <option value="UC">Unsafe Conditions (UC)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- History Table -->
+        <div class="table-responsive">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                {% if dept_id == 0 %}<th>Dept</th>{% endif %}
+                <th>Type</th>
+                <th>Severity</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Linked CAPA</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for inc in all_incidents %}
+              <tr x-show="(search === '' || 
+                          '{{ inc.description|escapejs }}'.toLowerCase().includes(search.toLowerCase()) || 
+                          '{{ inc.category|escapejs }}'.toLowerCase().includes(search.toLowerCase()) || 
+                          '{{ inc.reported_by.get_display_name|escapejs }}'.toLowerCase().includes(search.toLowerCase())) &&
+                          (severityFilter === 'ALL' || severityFilter === '{{ inc.severity }}') &&
+                          (typeFilter === 'ALL' || 
+                          (typeFilter === 'UA' && '{{ inc.unsafe_type }}' === 'UA') || 
+                          (typeFilter === 'UC' && '{{ inc.unsafe_type }}' === 'UC') || 
+                          (typeFilter === 'INCIDENT' && '{{ inc.unsafe_type }}' === 'NONE'))" 
+                  id="history-row-{{ inc.id }}">
+                <td class="mono" style="white-space: nowrap;">{{ inc.date_incident|date:"d M Y" }}</td>
+                {% if dept_id == 0 %}<td><b>{{ inc.department.code }}</b></td>{% endif %}
+                <td>
+                  {% if inc.unsafe_type == 'UA' %}
+                  <span class="action-tag" style="background: rgba(245,158,11,0.1); color: #b45309;">Unsafe Act</span>
+                  {% elif inc.unsafe_type == 'UC' %}
+                  <span class="action-tag" style="background: rgba(6,182,212,0.1); color: #0f766e;">Unsafe Condition</span>
+                  {% else %}
+                  <span class="action-tag" style="background: rgba(220,38,38,0.08); color: #dc2626;">Incident</span>
+                  {% endif %}
+                </td>
+                <td><b>{{ inc.severity }}</b></td>
+                <td>{{ inc.category }}</td>
+                <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ inc.description }}">{{ inc.description }}</td>
+                <td>
+                  {% if inc.capa_report %}
+                  <span style="font-weight: 600; color: var(--jspl-blue);" title="Linked CAPA: {{ inc.capa_report.problem_what }}">
+                    🔗 {{ inc.capa_report.capa_no|default:"CAPA" }}
+                  </span>
+                  {% else %}
+                  <span style="color: var(--jspl-muted); font-size: 0.8rem;">None</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if inc.status == 'Closed' %}
+                  <span style="font-size: 0.75rem; font-weight: 700; background: #dcfce7; color: var(--status-green); padding: 2px 8px; border-radius: 4px;">Closed</span>
+                  {% elif inc.status == 'Investigation' %}
+                  <span style="font-size: 0.75rem; font-weight: 700; background: #fef3c7; color: var(--status-amber); padding: 2px 8px; border-radius: 4px;">Investigating</span>
+                  {% else %}
+                  <span style="font-size: 0.75rem; font-weight: 700; background: #fee2e2; color: var(--status-red); padding: 2px 8px; border-radius: 4px;">Pending</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    
+    <!-- Safe Injection of Chart Data -->
+    {{ chart_severity|json_script:"severity-data" }}
+    {{ chart_uauc|json_script:"uauc-data" }}
+    {{ chart_trends|json_script:"trends-data" }}
+    {{ chart_pareto|json_script:"pareto-data" }}
+    {{ chart_capa|json_script:"capa-data" }}
+  
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Dynamic form toggler when unsafe act/condition is chosen
+  function toggleUnsafeSeverity(val) {
+    const severitySelect = document.getElementById('form-severity');
+    if (val === 'UA' || val === 'UC') {
+      // Observation reports default to Near Miss or standard First Aid level
+      severitySelect.value = 'FA';
+    } else {
+      severitySelect.value = 'FA';
+    }
+  }
+
+  // Load and initialize all requested charts
+  document.addEventListener('DOMContentLoaded', () => {
+    
+    // Parse context variables injected as JSON from the DOM script elements
+    const severityVal = JSON.parse(document.getElementById('severity-data').textContent);
+    const uaucVal = JSON.parse(document.getElementById('uauc-data').textContent);
+    const trendsVal = JSON.parse(document.getElementById('trends-data').textContent);
+    const paretoVal = JSON.parse(document.getElementById('pareto-data').textContent);
+    const capaVal = JSON.parse(document.getElementById('capa-data').textContent);
+
+    // 1. Gauge Chart: Compliance Rate
+    const ctxGauge = document.getElementById('gaugeCompliance').getContext('2d');
+    const complianceRate = {{ compliance_pct }};
+    new Chart(ctxGauge, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [complianceRate, 100 - complianceRate],
+          backgroundColor: ['#10b981', '#e2e8f0'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        rotation: 270,
+        circumference: 180,
+        cutout: '80%',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false }
+        }
+      }
+    });
+
+    // 2. Incident Severity Distribution (Pie Chart)
+    const ctxPie = document.getElementById('pieSeverity').getContext('2d');
+    new Chart(ctxPie, {
+      type: 'pie',
+      data: {
+        labels: ['LTI', 'RWC', 'MTC', 'First Aid', 'Near Miss'],
+        datasets: [{
+          data: [severityVal.LTI, severityVal.RWC, severityVal.MTC, severityVal.FA, severityVal.NM],
+          backgroundColor: ['#dc2626', '#f97316', '#fbbf24', '#3b82f6', '#10b981'],
+          borderWidth: 1,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, font: { family: 'inherit', size: 11 } }
+          }
+        }
+      }
+    });
+
+    // 3. Unsafe Act vs Unsafe Condition Donut
+    const ctxDonut = document.getElementById('donutUauc').getContext('2d');
+    new Chart(ctxDonut, {
+      type: 'doughnut',
+      data: {
+        labels: ['Unsafe Acts', 'Unsafe Conditions'],
+        datasets: [{
+          data: [uaucVal.ua_count, uaucVal.uc_count],
+          backgroundColor: ['#f59e0b', '#06b6d4'],
+          borderWidth: 1,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, font: { family: 'inherit', size: 11 } }
+          }
+        }
+      }
+    });
+
+    // 4. CAPA Status by Department Stacked Bar Chart
+    const ctxBar = document.getElementById('barCapa').getContext('2d');
+    new Chart(ctxBar, {
+      type: 'bar',
+      data: {
+        labels: capaVal.labels,
+        datasets: [
+          {
+            label: 'Closed',
+            data: capaVal.closed,
+            backgroundColor: '#10b981',
+          },
+          {
+            label: 'Open',
+            data: capaVal.open,
+            backgroundColor: '#fbbf24',
+          },
+          {
+            label: 'Overdue',
+            data: capaVal.overdue,
+            backgroundColor: '#dc2626',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, grid: { color: 'rgba(0, 0, 0, 0.04)' } }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12 }
+          }
+        }
+      }
+    });
+
+    // 5. Monthly Line Chart Trends
+    const ctxLine = document.getElementById('lineTrend').getContext('2d');
+    new Chart(ctxLine, {
+      type: 'line',
+      data: {
+        labels: trendsVal.months,
+        datasets: [
+          {
+            label: 'LTI',
+            data: trendsVal.LTI,
+            borderColor: '#dc2626',
+            backgroundColor: 'rgba(220,38,38,0.05)',
+            tension: 0.3,
+            borderWidth: 2,
+          },
+          {
+            label: 'RWC',
+            data: trendsVal.RWC,
+            borderColor: '#f97316',
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            borderWidth: 2,
+          },
+          {
+            label: 'MTC',
+            data: trendsVal.MTC,
+            borderColor: '#fbbf24',
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            borderWidth: 2,
+          },
+          {
+            label: 'First Aid',
+            data: trendsVal.FA,
+            borderColor: '#3b82f6',
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            borderWidth: 2,
+          },
+          {
+            label: 'Near Miss',
+            data: trendsVal.NM,
+            borderColor: '#10b981',
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            borderWidth: 2,
+          },
+          {
+            label: 'Unsafe Act (UA)',
+            data: trendsVal.UA,
+            borderColor: '#8b5cf6',
+            borderDash: [5, 5],
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            borderWidth: 1.5,
+          },
+          {
+            label: 'Unsafe Cond (UC)',
+            data: trendsVal.UC,
+            borderColor: '#06b6d4',
+            borderDash: [5, 5],
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            borderWidth: 1.5,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: 'rgba(0, 0, 0, 0.04)' } }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, padding: 15 }
+          }
+        }
+      }
+    });
+
+    // 6. Near Miss Pareto Chart
+    const ctxPareto = document.getElementById('paretoNearMiss').getContext('2d');
+    new Chart(ctxPareto, {
+      type: 'bar',
+      data: {
+        labels: paretoVal.labels,
+        datasets: [
+          {
+            label: 'Near Miss Count',
+            data: paretoVal.counts,
+            backgroundColor: '#10b981',
+            order: 2,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Cumulative %',
+            data: paretoVal.cumulative,
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            type: 'line',
+            tension: 0.2,
+            borderWidth: 2.5,
+            order: 1,
+            yAxisID: 'yPercent'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            type: 'linear',
+            position: 'left',
+            grid: { color: 'rgba(0, 0, 0, 0.04)' },
+            title: { display: true, text: 'Count' }
+          },
+          yPercent: {
+            type: 'linear',
+            position: 'right',
+            min: 0,
+            max: 100,
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'Cumulative %' }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12 }
+          }
+        }
+      }
+    });
+    
+  });
+</script>
+{% endblock %}

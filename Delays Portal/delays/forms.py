@@ -55,10 +55,20 @@ class DelayRecordForm(forms.ModelForm):
             if not agency_list:
                 agency_list = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
 
-            # Fetch custom equipments from dropdown options
-            equip_list = sorted(list(DelayDropdownOption.objects.filter(
+            # Fetch custom equipments from dropdown options with their categories (parent_value)
+            equip_opts = DelayDropdownOption.objects.filter(
                 department=department, category__iexact='Equipment'
-            ).values_list('value', flat=True).distinct()))
+            )
+            equip_list = []
+            for opt in equip_opts:
+                display_name = f"{opt.value} ({opt.parent_value})" if opt.parent_value else opt.value
+                equip_list.append((opt.value, display_name))
+            
+            if not equip_list:
+                db_equipments = sorted(list(DelayRecord.objects.filter(department=department).exclude(equipment__isnull=True).exclude(equipment='').exclude(equipment='NIL').values_list('equipment', flat=True).distinct()))
+                equip_list = [(eq, eq) for eq in db_equipments]
+            else:
+                equip_list.sort(key=lambda x: x[0])
             
         # Internal Choices
         internal_choices = [(a, a) for a in agency_list]
