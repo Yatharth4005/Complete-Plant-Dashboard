@@ -138,6 +138,22 @@ def overall_plant_dashboard(request):
             'color_class': 'module-quality',
             'url': '/department/0/coming-soon/QUALITY/',
         },
+        {
+            'key': 'SPARE',
+            'label': 'Spare Management',
+            'description': 'Inventory tracking, critical spares management, and consumption logs',
+            'icon': 'archive',
+            'color_class': 'module-spare',
+            'url': '/department/0/coming-soon/SPARE/',
+        },
+        {
+            'key': 'DAKSHATA',
+            'label': 'Improvement Project Dakshata',
+            'description': 'Continuous improvement initiatives, Kaizen tracking, and project status',
+            'icon': 'trending-up',
+            'color_class': 'module-dakshata',
+            'url': '/department/0/coming-soon/DAKSHATA/',
+        },
     ]
 
     context = {

@@ -66,6 +66,10 @@ def sidebar_context(request):
         active_module = 'FMEA'
     elif 'capa' in parts_lower:
         active_module = 'CAPA'
+    elif 'spare' in parts_lower:
+        active_module = 'SPARE'
+    elif 'dakshata' in parts_lower:
+        active_module = 'DAKSHATA'
 
     # Get user access mapping for the current department to display sidebar indicators
     user_modules_map = {}

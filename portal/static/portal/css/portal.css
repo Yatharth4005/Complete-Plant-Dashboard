@@ -1336,6 +1336,14 @@ a {
   border-left: 4.5px solid #2563eb;
 }
 
+.dept-hub-module-btn.module-spare {
+  border-left: 4.5px solid #6366f1;
+}
+
+.dept-hub-module-btn.module-dakshata {
+  border-left: 4.5px solid #0ea5e9;
+}
+
 .dept-hub-module-btn.accessible.module-tpm:hover {
   border-color: var(--jspl-blue);
 }
@@ -1378,6 +1386,14 @@ a {
 
 .dept-hub-module-btn.accessible.module-quality:hover {
   border-color: #2563eb;
+}
+
+.dept-hub-module-btn.accessible.module-spare:hover {
+  border-color: #6366f1;
+}
+
+.dept-hub-module-btn.accessible.module-dakshata:hover {
+  border-color: #0ea5e9;
 }
 
 .dept-hub-module-btn.locked {
@@ -1720,6 +1736,14 @@ select.input-mono {
 
 .module-card.module-quality {
   border-top: 4px solid #2563eb;
+}
+
+.module-card.module-spare {
+  border-top: 4px solid #6366f1;
+}
+
+.module-card.module-dakshata {
+  border-top: 4px solid #0ea5e9;
 }
 
 .no-notifications-placeholder {

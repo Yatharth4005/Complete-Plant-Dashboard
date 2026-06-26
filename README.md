@@ -1,6 +1,6 @@
 # Jindal Steel Operations Portal - Unified Departments & Modules Hub (RGH Plant)
 
-This repository contains the **Jindal Steel Operations Portal** for the RGH Plant. It acts as a Single Sign-On (SSO) central gateway, linking **28 departments** and **8 operational modules** (TPM, CMC, ISO, Delays, OEE, Availability, FMEA, CAPA) through a secure, permission-controlled landing hub.
+This repository contains the **Jindal Steel Operations Portal** for the RGH Plant. It acts as a Single Sign-On (SSO) central gateway, linking **28 departments** and **10 operational modules** (TPM, CMC, ISO, Delays, OEE, Availability, FMEA, CAPA, Spare Management, Improvement Project Dakshata) through a secure, permission-controlled landing hub.
 
 The sub-portals and modules are fully consolidated under a unified Django project, allowing the entire ecosystem to run seamlessly on a single server instance.
 

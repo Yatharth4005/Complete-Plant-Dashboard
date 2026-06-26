@@ -155,6 +155,24 @@ class Command(BaseCommand):
                 'redirect_url_template': '/department/{dept_id}/coming-soon/QUALITY/',
                 'sort_order': 11,
             },
+            {
+                'key': 'SPARE',
+                'label': 'Spare Management',
+                'description': 'Inventory tracking, critical spares management, and consumption logs',
+                'icon': 'archive',
+                'color_class': 'module-spare',
+                'redirect_url_template': '/department/{dept_id}/coming-soon/SPARE/',
+                'sort_order': 12,
+            },
+            {
+                'key': 'DAKSHATA',
+                'label': 'Improvement Project Dakshata',
+                'description': 'Continuous improvement initiatives, Kaizen tracking, and project status',
+                'icon': 'trending-up',
+                'color_class': 'module-dakshata',
+                'redirect_url_template': '/department/{dept_id}/coming-soon/DAKSHATA/',
+                'sort_order': 13,
+            },
         ]
         
         for m in MODULES:
