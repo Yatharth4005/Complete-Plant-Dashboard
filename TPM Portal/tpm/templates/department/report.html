@@ -37,117 +37,199 @@
     </div>
 
     <!-- Printable Area Wrapper -->
+    <!-- Printable Area Wrapper -->
     <div id="printable-report">
       
       <!-- Report Letterhead Header -->
-      <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double var(--jspl-navy); padding-bottom: 15px;">
-        <img src="{% static 'images/logo.png' %}" alt="Jindal Steel Operations Portal Logo" style="max-height: 60px; width: auto; margin-bottom: 10px;">
-        <h3 style="color: var(--jspl-blue); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px;">
+      <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px double var(--jspl-navy); padding-bottom: 15px; position: relative;">
+        <img src="{% static 'images/logo.png' %}" alt="Jindal Steel Operations Portal Logo" style="max-height: 60px; width: auto; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto;">
+        <h3 style="color: var(--jspl-blue); font-size: 1.15rem; text-transform: uppercase; letter-spacing: 1.2px; margin: 8px 0 4px 0; font-weight: 700;">
           Monthly TPM Performance Report — {{ dept.name }} ({{ dept.code }})
         </h3>
         <span style="font-size: 0.95rem; font-weight: 600; color: var(--jspl-muted);">Report Period: <b>{{ month_label }}</b></span>
       </div>
-            <!-- Overview Cards -->
-      <div class="card-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 30px;">
-        {% for p_data in report_data %}
-          {% if p_data.code == 'KK' or p_data.code == 'JH' or p_data.code == 'PM' or p_data.code == 'SHE' %}
-            <div class="card" style="box-shadow: none; border-color: var(--jspl-border); border-width: 1.5px;">
-              <div class="card-title">{{ p_data.name }} Score</div>
-              <div class="card-value">{{ p_data.achievement }}%</div>
-              <div class="card-subtext">
-                Status: 
-                {% if p_data.submitted %}
-                  <span style="color: var(--status-green); font-weight: bold;">Locked</span>
-                {% else %}
-                  <span style="color: var(--status-red); font-weight: bold;">Pending</span>
-                {% endif %}
-              </div>
-            </div>
-          {% endif %}
-        {% endfor %}
-      </div>
 
-      <!-- Action Items Section (Critical issues list: achievement < 80%) -->
-      <div style="margin-bottom: 35px; background-color: #FEF2F2; border: 1.5px solid #FCA5A5; padding: 20px; border-radius: var(--radius);">
-        <h3 style="color: var(--status-red); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-          ⚠️ Action Required KPI List (Achievement &lt; 80%)
+      <!-- 1. COMPARISON & CHARTS BLOCK -->
+      <div class="card" style="box-shadow: none; border-color: var(--jspl-border); border-width: 1.5px; margin-bottom: 30px; page-break-inside: avoid;">
+        <h3 style="color: var(--jspl-navy); margin-bottom: 15px; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 700; border-bottom: 1.5px solid rgba(0, 52, 120, 0.08); padding-bottom: 8px;">
+          📈 {% if filter_type == 'range' %}Comparative TPM Performance Trends{% else %}TPM Performance Overview & KPI Status{% endif %}
         </h3>
-        <table class="kpi-table" style="font-size: 0.85rem; background-color: transparent;">
-          <thead>
-            <tr style="background-color: var(--status-red);">
-              <th style="color: white; width: 60px;">Pillar</th>
-              <th style="color: white; width: 60px;">Sl No</th>
-              <th style="color: white;">KPI Name</th>
-              <th style="color: white; text-align: right; width: 90px;">Target</th>
-              <th style="color: white; text-align: right; width: 90px;">Actual</th>
-              <th style="color: white; text-align: right; width: 90px;">Achievement</th>
-              <th style="color: white;">Remarks / Mitigation Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p_data in report_data %}
-              {% for k in p_data.kpis %}
-                {% if k.achievement is not None and k.achievement < 80.0 %}
-                  <tr>
-                    <td><b>{{ p_data.code }}</b></td>
-                    <td class="mono">{{ k.sl_no }}</td>
-                    <td>{{ k.name }} ({{ k.uom }})</td>
-                    <td class="mono" style="text-align: right;">{{ k.target }}</td>
-                    <td class="mono" style="text-align: right;">{{ k.actual }}</td>
-                    <td class="mono" style="text-align: right; color: var(--status-red); font-weight: bold;">{{ k.achievement|floatformat:1 }}%</td>
-                    <td style="color: var(--status-red); font-weight: 500;">{{ k.remarks|default:"No explanation provided" }}</td>
-                  </tr>
-                {% endif %}
-              {% endfor %}
-            {% endfor %}
-          </tbody>
-        </table>
+        {% if filter_type == 'range' %}
+          <div style="height: 320px; position: relative;">
+            <canvas id="tpmReportChart"></canvas>
+          </div>
+        {% else %}
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: stretch;">
+            <div style="flex: 2; min-width: 300px; height: 320px; position: relative;">
+              <canvas id="tpmReportChart"></canvas>
+            </div>
+            <div style="flex: 1; min-width: 240px; height: 320px; position: relative; border-left: 1px solid var(--jspl-border); padding-left: 20px;">
+              <canvas id="tpmStatusPieChart"></canvas>
+            </div>
+          </div>
+        {% endif %}
       </div>
 
-      <!-- Detailed Pillar breakdown tables -->
-      {% for p_data in report_data %}
-        <div style="margin-bottom: 35px; page-break-inside: avoid;">
-          <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--jspl-blue); padding-bottom: 6px; margin-bottom: 12px;">
-            <h3 style="color: var(--jspl-navy);">📁 {{ p_data.name }} ({{ p_data.code }})</h3>
-            <span style="font-size: 0.9rem; font-weight: bold; color: var(--jspl-blue);">Pillar Score: {{ p_data.achievement }}%</span>
-          </div>
-          
-          <table class="kpi-table" style="font-size: 0.85rem;">
+      {% if filter_type == 'range' %}
+      <!-- Comparison Table -->
+      <div style="margin-bottom: 35px; page-break-inside: avoid;">
+        <h3 style="color: var(--jspl-navy); margin-bottom: 12px; border-bottom: 2px solid var(--jspl-blue); padding-bottom: 6px; font-size: 1.1rem; font-weight: 700;">
+          📊 Monthly Pillar Score Comparison Summary
+        </h3>
+        <div class="table-responsive">
+          <table class="kpi-table" style="font-size: 0.85rem; width: 100%; border-collapse: collapse; border: 1px solid var(--jspl-border);">
             <thead>
-              <tr style="background-color: var(--jspl-blue);">
-                <th style="width: 50px; text-align: center;">Sl</th>
-                <th>KPI Description</th>
-                <th style="width: 60px; text-align: center;">UOM</th>
-                <th style="width: 80px; text-align: right;">Benchmark</th>
-                <th style="width: 80px; text-align: right;">Target</th>
-                <th style="width: 80px; text-align: right;">Actual</th>
-                <th style="width: 100px; text-align: center;">Achievement</th>
-                <th>Remarks</th>
+              <tr style="background-color: var(--jspl-navy); text-align: left;">
+                <th style="color: white; padding: 10px; font-weight: bold;">Pillar</th>
+                {% for lbl in comparison_data.labels %}
+                  <th style="color: white; text-align: center; padding: 10px; font-weight: bold; width: 90px;">{{ lbl }}</th>
+                {% endfor %}
               </tr>
             </thead>
             <tbody>
-              {% for k in p_data.kpis %}
-                <tr class="{% if k.achievement is not None and k.achievement < 80.0 %}row-danger{% endif %}">
-                  <td class="mono" style="text-align: center;">{{ k.sl_no }}</td>
-                  <td>{{ k.name }}</td>
-                  <td style="text-align: center;"><span class="badge badge-muted">{{ k.uom }}</span></td>
-                  <td class="mono" style="text-align: right;">{{ k.benchmark|default:"—" }}</td>
-                  <td class="mono" style="text-align: right;">{{ k.target|default:"—" }}</td>
-                  <td class="mono" style="text-align: right; font-weight: 600;">{{ k.actual|default:"—" }}</td>
-                  <td style="text-align: center;">
-                    {% if k.achievement is not None %}
-                      <span class="badge {% if k.achievement >= 90 %}badge-green{% elif k.achievement >= 75 %}badge-amber{% else %}badge-red{% endif %}">
-                        {{ k.achievement|floatformat:1 }}%
-                      </span>
-                    {% else %}
-                      <span class="badge badge-muted">—</span>
-                    {% endif %}
-                  </td>
-                  <td style="font-size: 0.8rem; color: var(--jspl-muted);">{{ k.remarks }}</td>
-                </tr>
+              <!-- Overall Row -->
+              <tr style="background-color: var(--jspl-light-blue); font-weight: bold; border-bottom: 1.5px solid var(--jspl-border);">
+                <td style="padding: 10px;">Overall TPM Performance Score</td>
+                {% for val in comparison_data.overall %}
+                  <td style="text-align: center; color: var(--jspl-blue); padding: 10px;">{{ val }}%</td>
+                {% endfor %}
+              </tr>
+              <!-- Pillar Rows -->
+              {% for row in comparison_data.pillar_rows %}
+              <tr style="border-bottom: 1px solid rgba(0, 52, 120, 0.05);">
+                <td style="padding: 8px 10px;"><b>{{ row.code }}</b> — {{ row.name }}</td>
+                {% for score in row.scores %}
+                  <td style="text-align: center; padding: 8px 10px;">{{ score }}%</td>
+                {% endfor %}
+              </tr>
               {% endfor %}
             </tbody>
           </table>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- 2. DETAILED MONTHLY REPORTS -->
+      {% for month_report in monthly_reports %}
+        <div style="{% if not forloop.first %}page-break-before: always; margin-top: 40px;{% endif %}">
+          
+          <!-- Month Header in Range Mode -->
+          {% if filter_type == 'range' %}
+          <div style="text-align: center; margin-bottom: 25px; border-bottom: 2px solid var(--jspl-orange); padding-bottom: 10px;">
+            <h2 style="color: var(--jspl-navy); font-size: 1.4rem; text-transform: uppercase; margin: 0; font-weight: 700; letter-spacing: 0.5px;">
+              📅 Monthly Performance Report — {{ month_report.label }}
+            </h2>
+          </div>
+          {% endif %}
+
+          <!-- Overview Cards for the Month -->
+          <div class="card-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 30px; gap: 20px;">
+            {% for p_data in month_report.report_data %}
+              {% if p_data.code == 'KK' or p_data.code == 'JH' or p_data.code == 'PM' or p_data.code == 'SHE' %}
+                <div class="card" style="box-shadow: none; border-color: var(--jspl-border); border-width: 1.5px; padding: 16px; position: relative; border-left: 4px solid var(--jspl-blue);">
+                  <div class="card-title" style="font-size: 0.78rem; font-weight: bold; color: var(--jspl-muted); text-transform: uppercase; letter-spacing: 0.2px; margin-bottom: 6px;">{{ p_data.name }} Score</div>
+                  <div class="card-value" style="font-size: 1.6rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">{{ p_data.achievement }}%</div>
+                  <div style="font-size: 0.78rem; color: var(--jspl-muted);">
+                    Status: 
+                    {% if p_data.submitted %}
+                      <span style="color: var(--status-green); font-weight: bold;">Locked</span>
+                    {% else %}
+                      <span style="color: var(--status-red); font-weight: bold;">Pending</span>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          <!-- Action Items Section (Critical issues list: achievement < 80%) -->
+          <div style="margin-bottom: 35px; background-color: #FEF2F2; border: 1.5px solid #FCA5A5; padding: 20px; border-radius: var(--radius); page-break-inside: avoid;">
+            <h3 style="color: var(--status-red); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 700;">
+              ⚠️ Action Required KPI List (Achievement &lt; 80%)
+            </h3>
+            <div class="table-responsive">
+              <table class="kpi-table" style="font-size: 0.85rem; background-color: transparent; width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="background-color: var(--status-red); text-align: left;">
+                    <th style="color: white; width: 60px; padding: 8px; font-weight: bold;">Pillar</th>
+                    <th style="color: white; width: 60px; padding: 8px; font-weight: bold;">Sl No</th>
+                    <th style="color: white; padding: 8px; font-weight: bold;">KPI Name</th>
+                    <th style="color: white; text-align: right; width: 90px; padding: 8px; font-weight: bold;">Target</th>
+                    <th style="color: white; text-align: right; width: 90px; padding: 8px; font-weight: bold;">Actual</th>
+                    <th style="color: white; text-align: right; width: 110px; padding: 8px; font-weight: bold;">Achievement</th>
+                    <th style="color: white; padding: 8px; font-weight: bold;">Remarks / Mitigation Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p_data in month_report.report_data %}
+                    {% for k in p_data.kpis %}
+                      {% if k.achievement is not None and k.achievement < 80.0 %}
+                        <tr style="border-bottom: 1px solid #FCA5A5;">
+                          <td style="padding: 8px; vertical-align: middle;"><b>{{ p_data.code }}</b></td>
+                          <td class="mono" style="padding: 8px; vertical-align: middle;">{{ k.sl_no }}</td>
+                          <td style="padding: 8px; vertical-align: middle;">{{ k.name }} ({{ k.uom }})</td>
+                          <td class="mono" style="text-align: right; padding: 8px; vertical-align: middle;">{{ k.target|floatformat:1 }}</td>
+                          <td class="mono" style="text-align: right; padding: 8px; vertical-align: middle;">{{ k.actual|floatformat:1 }}</td>
+                          <td class="mono" style="text-align: right; color: var(--status-red); font-weight: bold; padding: 8px; vertical-align: middle;">{{ k.achievement|floatformat:1 }}%</td>
+                          <td style="color: var(--status-red); font-weight: 500; padding: 8px; vertical-align: middle;">{{ k.remarks|default:"No explanation provided" }}</td>
+                        </tr>
+                      {% endif %}
+                    {% endfor %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Detailed Pillar breakdown tables -->
+          {% for p_data in month_report.report_data %}
+            <div style="margin-bottom: 35px; page-break-inside: avoid;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--jspl-blue); padding-bottom: 6px; margin-bottom: 12px;">
+                <h3 style="color: var(--jspl-navy); font-size: 1.05rem; font-weight: 700; margin: 0;">📁 {{ p_data.name }} ({{ p_data.code }})</h3>
+                <span style="font-size: 0.9rem; font-weight: bold; color: var(--jspl-blue);">Pillar Score: {{ p_data.achievement }}%</span>
+              </div>
+              
+              <div class="table-responsive">
+                <table class="kpi-table" style="font-size: 0.85rem; width: 100%; border-collapse: collapse; border: 1px solid var(--jspl-border);">
+                  <thead>
+                    <tr style="background-color: var(--jspl-blue); text-align: left;">
+                      <th style="width: 50px; text-align: center; color: white; padding: 8px; font-weight: bold;">Sl</th>
+                      <th style="color: white; padding: 8px; font-weight: bold;">KPI Description</th>
+                      <th style="width: 60px; text-align: center; color: white; padding: 8px; font-weight: bold;">UOM</th>
+                      <th style="width: 80px; text-align: right; color: white; padding: 8px; font-weight: bold;">Benchmark</th>
+                      <th style="width: 80px; text-align: right; color: white; padding: 8px; font-weight: bold;">Target</th>
+                      <th style="width: 80px; text-align: right; color: white; padding: 8px; font-weight: bold;">Actual</th>
+                      <th style="width: 100px; text-align: center; color: white; padding: 8px; font-weight: bold;">Achievement</th>
+                      <th style="color: white; padding: 8px; font-weight: bold;">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for k in p_data.kpis %}
+                      <tr class="{% if k.achievement is not None and k.achievement < 80.0 %}row-danger{% endif %}" style="border-bottom: 1px solid rgba(0, 52, 120, 0.05);">
+                        <td class="mono" style="text-align: center; padding: 8px; vertical-align: middle;">{{ k.sl_no }}</td>
+                        <td style="padding: 8px; vertical-align: middle;">{{ k.name }}</td>
+                        <td style="text-align: center; padding: 8px; vertical-align: middle;"><span class="badge badge-muted">{{ k.uom }}</span></td>
+                        <td class="mono" style="text-align: right; padding: 8px; vertical-align: middle;">{{ k.benchmark|default:"—" }}</td>
+                        <td class="mono" style="text-align: right; padding: 8px; vertical-align: middle;">{{ k.target|default:"—" }}</td>
+                        <td class="mono" style="text-align: right; font-weight: 600; padding: 8px; vertical-align: middle;">{{ k.actual|default:"—" }}</td>
+                        <td style="text-align: center; padding: 8px; vertical-align: middle;">
+                          {% if k.achievement is not None %}
+                            <span class="badge {% if k.achievement >= 90 %}badge-green{% elif k.achievement >= 75 %}badge-amber{% else %}badge-red{% endif %}" style="font-weight: 700; padding: 3px 8px; border-radius: 4px; font-size: 0.78rem;">
+                              {{ k.achievement|floatformat:1 }}%
+                            </span>
+                          {% else %}
+                            <span class="badge badge-muted" style="padding: 3px 8px; border-radius: 4px; font-size: 0.78rem;">—</span>
+                          {% endif %}
+                        </td>
+                        <td style="font-size: 0.8rem; color: var(--jspl-muted); padding: 8px; vertical-align: middle;">{{ k.remarks }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% endfor %}
+
         </div>
       {% endfor %}
       
@@ -155,11 +237,11 @@
       <div style="margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; page-break-inside: avoid;">
         <div style="border-top: 1.5px solid var(--jspl-muted); padding-top: 8px; text-align: center; font-size: 0.9rem;">
           <b>Department TPM Coordinator</b><br>
-          <span style="font-size: 0.8rem; color: var(--jspl-muted);">Sign / Date</span>
+          <span style="font-size: 0.8rem; color: var(--jspl-muted); margin-top: 4px; display: block;">Sign / Date</span>
         </div>
         <div style="border-top: 1.5px solid var(--jspl-muted); padding-top: 8px; text-align: center; font-size: 0.9rem;">
           <b>Plant TPM Administrator / Head</b><br>
-          <span style="font-size: 0.8rem; color: var(--jspl-muted);">Sign / Date</span>
+          <span style="font-size: 0.8rem; color: var(--jspl-muted); margin-top: 4px; display: block;">Sign / Date</span>
         </div>
       </div>
 
@@ -171,7 +253,155 @@
     @media print {
       .no-print { display: none !important; }
       body { background-color: white !important; }
+      #shell { display: block !important; margin: 0 !important; padding: 0 !important; }
+      #sidebar { display: none !important; }
+      #content { margin-left: 0 !important; padding: 0 !important; }
+      #topbar { display: none !important; }
       #printable-report { margin: 0 !important; padding: 0 !important; }
     }
   </style>
+{% endblock %}
+
+{% block extra_js %}
+{{ comparison_data|json_script:"comparison-data-json" }}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const compData = JSON.parse(document.getElementById('comparison-data-json').textContent);
+    const ctx = document.getElementById('tpmReportChart').getContext('2d');
+    
+    {% if filter_type == 'range' %}
+      // Line trend chart for Date Range
+      const datasets = [
+        {
+          label: 'Overall TPM Score',
+          data: compData.overall,
+          borderColor: '#F47920', // JSPL Orange
+          backgroundColor: 'rgba(244, 121, 32, 0.1)',
+          borderWidth: 3,
+          tension: 0.25,
+          fill: true
+        }
+      ];
+      
+      const colorsList = ['#003478', '#0057A8', '#16a34a', '#d97706', '#dc2626', '#8b5cf6', '#06b6d4', '#4b5563'];
+      let colorIdx = 0;
+      
+      for (const [code, scores] of Object.entries(compData.pillars)) {
+        // Show key pillars by default (KK, JH, PM, SHE)
+        const isHidden = !(code === 'KK' || code === 'JH' || code === 'PM' || code === 'SHE');
+        datasets.push({
+          label: `${code} — ${compData.pillar_names[code]}`,
+          data: scores,
+          borderColor: colorsList[colorIdx % colorsList.length],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          tension: 0.2,
+          hidden: isHidden
+        });
+        colorIdx++;
+      }
+      
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: compData.labels,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 0,
+              max: 100,
+              title: { display: true, text: 'Score (%)' }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 12, padding: 12 }
+            }
+          }
+        }
+      });
+    {% else %}
+      // Bar chart for Single Month
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: compData.labels,
+          datasets: [{
+            label: 'Pillar Scores (%)',
+            data: compData.scores,
+            backgroundColor: [
+              '#003478', // KK
+              '#0057A8', // JH
+              '#F47920', // PM
+              '#16a34a', // QM
+              '#d97706', // ET
+              '#dc2626', // DM
+              '#8b5cf6', // SHE
+              '#06b6d4'  // OTPM
+            ],
+            borderWidth: 0,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 0,
+              max: 100,
+              title: { display: true, text: 'Achievement (%)' }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+
+      // Pie chart for KPI Statuses
+      const pieCtx = document.getElementById('tpmStatusPieChart').getContext('2d');
+      new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+          labels: [
+            `On Track (>=90%): ${compData.on_track}`,
+            `At Risk (75-89%): ${compData.at_risk}`,
+            `Behind (<75%): ${compData.behind}`
+          ],
+          datasets: [{
+            data: [compData.on_track, compData.at_risk, compData.behind],
+            backgroundColor: ['#16A34A', '#D97706', '#DC2626'],
+            borderWidth: 1,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                padding: 10,
+                font: { size: 10 }
+              }
+            },
+            title: {
+              display: true,
+              text: 'KPI Status Distribution',
+              font: { size: 12, weight: 'bold' }
+            }
+          }
+        }
+      });
+    {% endif %}
+  });
+</script>
 {% endblock %}

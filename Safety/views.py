@@ -360,6 +360,127 @@ def im_dashboard(request, dept_id):
             'overdue': capa_overdue,
         }
     }
+    
+    # 3. Dynamic Safety Insights and Action Plan Generation
+    action_items = []
+    summary_sentences = []
+    
+    # Status sentence
+    if compliance_pct >= 90:
+        summary_sentences.append(f"The safety investigation compliance is on-track at {compliance_pct}%, reflecting timely resolution of safety logs.")
+    elif compliance_pct >= 75:
+        summary_sentences.append(f"Safety compliance is moderate at {compliance_pct}%. An investigation backlog exists, with {pending_count} cases currently open.")
+    else:
+        summary_sentences.append(f"Safety investigation compliance is low at {compliance_pct}%. Immediate focus is needed to review and close the {pending_count} pending cases.")
+        
+    # Cycle time sentence
+    if avg_closure_days > 15:
+        summary_sentences.append(f"Average investigation closure time is elevated at {avg_closure_days} days, exceeding the target of 15 days.")
+        action_items.append({
+            'title': 'Speed Up Investigation Closure',
+            'detail': f'Conduct a weekly safety review meeting to address cases exceeding 15 days (currently {reports_over_15_days} cases).',
+            'priority': 'CRITICAL',
+            'icon': '⏱️',
+            'tag': 'Process'
+        })
+    elif avg_closure_days > 0:
+        summary_sentences.append(f"Investigations are closed in {avg_closure_days} days on average.")
+        
+    # Unsafe Acts vs Conditions
+    total_obs = ua_count + uc_count
+    if total_obs > 0:
+        ua_share = (ua_count / total_obs) * 100
+        summary_sentences.append(f"Observations indicate that {ua_share:.1f}% are related to behavior (Unsafe Acts) and {100 - ua_share:.1f}% to physical hazards (Unsafe Conditions).")
+        
+        if ua_share > 60:
+            action_items.append({
+                'title': 'Conduct behavior-based safety (BBS) audits',
+                'detail': 'Behavioral safety (Unsafe Acts) dominates observations. Implement daily toolbox talks focusing on PPE enforcement and safe hand placement.',
+                'priority': 'HIGH',
+                'icon': '🧠',
+                'tag': 'Behavioral'
+            })
+        elif ua_share < 40:
+            action_items.append({
+                'title': 'Implement housekeeping and physical hazard sweeps',
+                'detail': 'Physical hazards (Unsafe Conditions) are highly prevalent. Schedule an immediate workspace sweep to clean oil leaks, clear pedestrian paths, and check machine guarding.',
+                'priority': 'HIGH',
+                'icon': '⚙️',
+                'tag': 'Engineering'
+            })
+        else:
+            action_items.append({
+                'title': 'Maintain balanced safety audits',
+                'detail': 'Perform regular safety walks targeting both machinery guards (unsafe conditions) and standard operating procedures (unsafe acts).',
+                'priority': 'MEDIUM',
+                'icon': '🛡️',
+                'tag': 'General'
+            })
+            
+    # Near miss analysis
+    if pareto_counts and sum(pareto_counts) > 0:
+        top_nm_category = pareto_labels[0]
+        top_nm_count = pareto_counts[0]
+        nm_percentage = round((top_nm_count / sum(pareto_counts)) * 100)
+        summary_sentences.append(f"Near miss analysis highlights '{top_nm_category}' as the leading risk category, accounting for {nm_percentage}% of near misses.")
+        
+        if top_nm_category == 'Material Handling':
+            action_items.append({
+                'title': 'Enhance Material Handling Safety',
+                'detail': 'Audit forklift routes, ensure forklift operators adhere to speed limits, and reinforce proper manual lifting techniques to prevent strain injuries.',
+                'priority': 'CRITICAL',
+                'icon': '📦',
+                'tag': 'Material Handling'
+            })
+        elif top_nm_category == 'PPE Violation':
+            action_items.append({
+                'title': 'Enforce PPE Compliance Zones',
+                'detail': 'Mandate and verify cut-resistant glove usage for all setup technicians and enforce eye protection in high-risk zones.',
+                'priority': 'HIGH',
+                'icon': '🥽',
+                'tag': 'PPE'
+            })
+        elif top_nm_category == 'Slip/Trip/Fall':
+            action_items.append({
+                'title': 'Prevent Slips, Trips & Falls',
+                'detail': 'Remedy surface irregularities, ensure anti-slip tape is present on stairs, and clear cords or material clutter from walking pathways.',
+                'priority': 'HIGH',
+                'icon': '🚶‍♂️',
+                'tag': 'Housekeeping'
+            })
+        elif top_nm_category == 'Equipment Interaction':
+            action_items.append({
+                'title': 'Review Lockout-Tagout (LOTO) & Guarding',
+                'detail': 'Inspect machine guards for conveyor belts and ensure strict LOTO procedures are followed during repair or clearing conveyor jams.',
+                'priority': 'CRITICAL',
+                'icon': '🔒',
+                'tag': 'Equipment Safety'
+            })
+        elif top_nm_category == 'Fire Hazard':
+            action_items.append({
+                'title': 'Verify Electrical & Fire Safety Compliance',
+                'detail': 'Ensure clear access to electrical control panels, audit hot work permits, and inspect nearby fire extinguishers.',
+                'priority': 'HIGH',
+                'icon': '🔥',
+                'tag': 'Fire Safety'
+            })
+            
+    # Add a fallback action item if none generated
+    if not action_items:
+        action_items.append({
+            'title': 'Perform Routine Safety Inspections',
+            'detail': 'Continue regular safety observations to build baseline data for incident and near miss trends.',
+            'priority': 'MEDIUM',
+            'icon': '📋',
+            'tag': 'Routine'
+        })
+        
+    executive_summary = " ".join(summary_sentences)
+    context['safety_insights'] = {
+        'executive_summary': executive_summary,
+        'action_items': action_items
+    }
+
     return render(request, 'safety/im_dashboard.html', context)
 
 
@@ -436,4 +557,20 @@ def review_incident(request, dept_id, incident_id):
         incident.reviewed_by = request.user
         incident.save()
         
+    return redirect('safety:im_dashboard', dept_id=dept_id)
+
+
+@login_required
+def delete_incident(request, dept_id, incident_id):
+    incident = get_object_or_404(Incident, id=incident_id)
+    
+    # Permission check: Admin, or the HOD of the department, or the user who reported it
+    is_admin = request.user.is_admin()
+    is_hod = (request.user.designation == 'HOD' and request.user.department_id == incident.department_id)
+    is_reporter = (incident.reported_by == request.user)
+    
+    if not (is_admin or is_hod or is_reporter):
+        return HttpResponseForbidden("You do not have permissions to delete this incident.")
+        
+    incident.delete()
     return redirect('safety:im_dashboard', dept_id=dept_id)

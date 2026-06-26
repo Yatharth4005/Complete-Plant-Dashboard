@@ -178,6 +178,219 @@
   
   /* HOD modal */
   [x-cloak] { display: none !important; }
+
+  /* Safety Insights & Action Plan Section */
+  .insights-section {
+    margin-top: 30px;
+    border-top: 1px solid var(--jspl-border);
+    padding-top: 30px;
+  }
+  
+  .insights-title-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  
+  .insights-title-container h2 {
+    font-size: 1.3rem;
+    font-weight: 750;
+    color: var(--jspl-navy);
+    margin: 0;
+  }
+  
+  .insights-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 25px;
+  }
+  
+  @media (max-width: 992px) {
+    .insights-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .insights-summary-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 12px;
+    border: 1px solid var(--jspl-border);
+    border-left: 5px solid var(--jspl-blue);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  .insights-summary-header {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--jspl-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+  
+  .insights-summary-text {
+    font-size: 0.92rem;
+    color: var(--jspl-text);
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+  
+  .insights-summary-badge {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: var(--jspl-light-blue);
+    color: var(--jspl-blue);
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+  
+  .action-plan-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid var(--jspl-border);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .action-plan-header {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--jspl-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+  }
+  
+  .action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .action-item-card {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 52, 120, 0.06);
+    background: #fafafb;
+    transition: all 0.2s ease;
+  }
+  
+  .action-item-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+    border-color: var(--jspl-border);
+    background: #ffffff;
+  }
+  
+  .action-item-icon {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--jspl-light-blue);
+    flex-shrink: 0;
+  }
+  
+  .action-item-content {
+    flex-grow: 1;
+    min-width: 0;
+  }
+  
+  .action-item-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .action-item-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--jspl-navy);
+  }
+  
+  .action-item-badges {
+    display: flex;
+    gap: 8px;
+  }
+  
+  .badge-priority {
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  
+  .badge-priority.critical {
+    background: #fee2e2;
+    color: var(--status-red);
+  }
+  
+  .badge-priority.high {
+    background: #ffedd5;
+    color: var(--jspl-orange);
+  }
+  
+  .badge-priority.medium {
+    background: #fef3c7;
+    color: var(--status-amber);
+  }
+  
+  .badge-tag {
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: rgba(0, 87, 168, 0.06);
+    color: var(--jspl-blue);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  
+  .action-item-detail {
+    font-size: 0.85rem;
+    color: var(--jspl-muted);
+    line-height: 1.4;
+  }
+
+  /* Expand Details Row Button */
+  .log-expand-btn {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
+    color: var(--jspl-blue) !important;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease !important;
+    padding: 0 !important;
+  }
+  
+  .log-expand-btn:hover {
+    background-color: var(--jspl-light-blue) !important;
+    color: var(--jspl-navy) !important;
+  }
 </style>
 {% endblock %}
 
@@ -279,6 +492,58 @@
           </div>
           
         </div>
+
+        <!-- Executive Safety Insights & Action Plan -->
+        <div class="insights-section">
+          <div class="insights-title-container">
+            <span style="font-size: 1.6rem;">💡</span>
+            <h2>Safety Insights & Action Plan</h2>
+          </div>
+          
+          <div class="insights-grid">
+            
+            <!-- Left: Executive Summary -->
+            <div class="insights-summary-card">
+              <div>
+                <div class="insights-summary-header">Executive Summary Narrative</div>
+                <p class="insights-summary-text">
+                  {{ safety_insights.executive_summary }}
+                </p>
+              </div>
+              <div class="insights-summary-badge">
+                <span>🛡️</span> Data-driven safety assessment
+              </div>
+            </div>
+            
+            <!-- Right: Action Plan / Recommendations -->
+            <div class="action-plan-card">
+              <div class="action-plan-header">Recommended Actions & Improvements</div>
+              <div class="action-list">
+                {% for item in safety_insights.action_items %}
+                <div class="action-item-card">
+                  <div class="action-item-icon">
+                    {{ item.icon }}
+                  </div>
+                  <div class="action-item-content">
+                    <div class="action-item-meta">
+                      <span class="action-item-title">{{ item.title }}</span>
+                      <div class="action-item-badges">
+                        <span class="badge-priority {{ item.priority|lower }}">{{ item.priority }}</span>
+                        <span class="badge-tag">{{ item.tag }}</span>
+                      </div>
+                    </div>
+                    <div class="action-item-detail">
+                      {{ item.detail }}
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            
+          </div>
+        </div>
+
       </div>
 
       <!-- Tab 2: Report Incident (POC Form) -->
@@ -584,6 +849,7 @@
           <table class="dashboard-table">
             <thead>
               <tr>
+                <th style="width: 40px; text-align: center;"></th>
                 <th>Date</th>
                 {% if dept_id == 0 %}<th>Dept</th>{% endif %}
                 <th>Type</th>
@@ -594,21 +860,29 @@
                 <th>Status</th>
               </tr>
             </thead>
-            <tbody>
-              {% for inc in all_incidents %}
-              <tr x-show="(search === '' || 
-                          '{{ inc.description|escapejs }}'.toLowerCase().includes(search.toLowerCase()) || 
-                          '{{ inc.category|escapejs }}'.toLowerCase().includes(search.toLowerCase()) || 
-                          '{{ inc.reported_by.get_display_name|escapejs }}'.toLowerCase().includes(search.toLowerCase())) &&
-                          (severityFilter === 'ALL' || severityFilter === '{{ inc.severity }}') &&
-                          (typeFilter === 'ALL' || 
-                          (typeFilter === 'UA' && '{{ inc.unsafe_type }}' === 'UA') || 
-                          (typeFilter === 'UC' && '{{ inc.unsafe_type }}' === 'UC') || 
-                          (typeFilter === 'INCIDENT' && '{{ inc.unsafe_type }}' === 'NONE'))" 
-                  id="history-row-{{ inc.id }}">
-                <td class="mono" style="white-space: nowrap;">{{ inc.date_incident|date:"d M Y" }}</td>
-                {% if dept_id == 0 %}<td><b>{{ inc.department.code }}</b></td>{% endif %}
-                <td>
+            {% for inc in all_incidents %}
+            <!-- Each row set manages its own expansion state in its own tbody -->
+            <tbody x-data="{ expanded: false }"
+                   x-show="(search === '' || 
+                           '{{ inc.description|escapejs }}'.toLowerCase().includes(search.toLowerCase()) || 
+                           '{{ inc.category|escapejs }}'.toLowerCase().includes(search.toLowerCase()) || 
+                           '{{ inc.reported_by.get_display_name|escapejs }}'.toLowerCase().includes(search.toLowerCase())) &&
+                           (severityFilter === 'ALL' || severityFilter === '{{ inc.severity }}') &&
+                           (typeFilter === 'ALL' || 
+                           (typeFilter === 'UA' && '{{ inc.unsafe_type }}' === 'UA') || 
+                           (typeFilter === 'UC' && '{{ inc.unsafe_type }}' === 'UC') || 
+                           (typeFilter === 'INCIDENT' && '{{ inc.unsafe_type }}' === 'NONE'))">
+              <tr id="history-row-{{ inc.id }}">
+                <td style="text-align: center; vertical-align: middle; padding: 8px;">
+                  <button type="button" @click="expanded = !expanded" class="log-expand-btn" aria-label="Toggle Details">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;" :style="expanded ? 'transform: rotate(90deg);' : ''">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </button>
+                </td>
+                <td class="mono" style="white-space: nowrap; vertical-align: middle;">{{ inc.date_incident|date:"d M Y" }}</td>
+                {% if dept_id == 0 %}<td style="vertical-align: middle;"><b>{{ inc.department.code }}</b></td>{% endif %}
+                <td style="vertical-align: middle;">
                   {% if inc.unsafe_type == 'UA' %}
                   <span class="action-tag" style="background: rgba(245,158,11,0.1); color: #b45309;">Unsafe Act</span>
                   {% elif inc.unsafe_type == 'UC' %}
@@ -617,10 +891,10 @@
                   <span class="action-tag" style="background: rgba(220,38,38,0.08); color: #dc2626;">Incident</span>
                   {% endif %}
                 </td>
-                <td><b>{{ inc.severity }}</b></td>
-                <td>{{ inc.category }}</td>
-                <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ inc.description }}">{{ inc.description }}</td>
-                <td>
+                <td style="vertical-align: middle;"><b>{{ inc.severity }}</b></td>
+                <td style="vertical-align: middle;">{{ inc.category }}</td>
+                <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;" title="{{ inc.description }}">{{ inc.description }}</td>
+                <td style="vertical-align: middle;">
                   {% if inc.capa_report %}
                   <span style="font-weight: 600; color: var(--jspl-blue);" title="Linked CAPA: {{ inc.capa_report.problem_what }}">
                     🔗 {{ inc.capa_report.capa_no|default:"CAPA" }}
@@ -629,7 +903,7 @@
                   <span style="color: var(--jspl-muted); font-size: 0.8rem;">None</span>
                   {% endif %}
                 </td>
-                <td>
+                <td style="vertical-align: middle;">
                   {% if inc.status == 'Closed' %}
                   <span style="font-size: 0.75rem; font-weight: 700; background: #dcfce7; color: var(--status-green); padding: 2px 8px; border-radius: 4px;">Closed</span>
                   {% elif inc.status == 'Investigation' %}
@@ -639,8 +913,65 @@
                   {% endif %}
                 </td>
               </tr>
-              {% endfor %}
+              
+              <!-- Expandable detail row for each log entry -->
+              <tr x-show="expanded" x-cloak style="background-color: #f8fafc;">
+                <td colspan="{% if dept_id == 0 %}9{% else %}8{% endif %}" style="padding: 16px 24px; border-top: none; border-bottom: 1px solid var(--jspl-border);">
+                  <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; align-items: start;">
+                    <!-- Left: Details & Findings -->
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                      <div>
+                        <div style="font-weight: 700; font-size: 0.82rem; color: var(--jspl-navy); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                          <span>📝</span> Description Summary
+                        </div>
+                        <div style="font-size: 0.85rem; background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid var(--jspl-border); line-height: 1.5; color: var(--jspl-text);">
+                          {{ inc.description }}
+                        </div>
+                      </div>
+                      {% if inc.investigation_findings %}
+                      <div>
+                        <div style="font-weight: 700; font-size: 0.82rem; color: var(--jspl-navy); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                          <span>🔍</span> Investigation & Root Cause Findings
+                        </div>
+                        <div style="font-size: 0.85rem; background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid var(--jspl-border); line-height: 1.5; color: var(--jspl-text);">
+                          {{ inc.investigation_findings }}
+                        </div>
+                      </div>
+                      {% endif %}
+                      <div style="font-size: 0.76rem; color: var(--jspl-muted);">
+                        Reported by: <strong>{{ inc.reported_by.get_display_name }}</strong> on {{ inc.created_at|date:"d M Y, H:i" }}
+                      </div>
+                      {% if is_admin or is_hod and user_dept_id == inc.department_id or inc.reported_by == request.user %}
+                      <div style="margin-top: 10px; border-top: 1px solid rgba(0, 52, 120, 0.05); padding-top: 10px; display: flex; justify-content: flex-end;">
+                        <a href="{% url 'safety:delete_incident' dept_id inc.id %}" 
+                           class="btn btn-secondary" 
+                           style="color: var(--status-red); border-color: rgba(220, 38, 38, 0.2); background: rgba(220, 38, 38, 0.02); font-weight: 600; font-size: 0.82rem; height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px;" 
+                           onclick="return confirm('Are you sure you want to delete this incident log? This action cannot be undone.');">
+                          🗑️ Delete Log
+                        </a>
+                      </div>
+                      {% endif %}
+                    </div>
+                    <!-- Right: Photo Attachment -->
+                    <div>
+                      <div style="font-weight: 700; font-size: 0.82rem; color: var(--jspl-navy); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <span>📷</span> Captured Image
+                      </div>
+                      <div style="background: #ffffff; border-radius: 8px; border: 1px solid var(--jspl-border); height: 180px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                        {% if inc.image %}
+                          <img src="{{ inc.image.url }}" alt="Incident Attachment" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in;" onclick="window.open(this.src)">
+                        {% else %}
+                          <span style="color: var(--jspl-muted); font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                            <span style="font-size: 1.2rem;">📷</span> No Image Attached
+                          </span>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
             </tbody>
+            {% endfor %}
           </table>
         </div>
       </div>

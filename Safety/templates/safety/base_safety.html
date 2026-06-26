@@ -123,7 +123,8 @@
   </style>
 </head>
 
-<body x-data="Object.assign(portalShell(), { activeTab: 'dashboard', profileModalOpen: false, confirmOpen: false, confirmTitle: 'Confirm Action', confirmMessage: 'Are you sure you want to proceed?', confirmCallback: null })"
+<body x-data="Object.assign(portalShell(), { activeTab: localStorage.getItem('safety_active_tab') || 'dashboard', profileModalOpen: false, confirmOpen: false, confirmTitle: 'Confirm Action', confirmMessage: 'Are you sure you want to proceed?', confirmCallback: null })"
+  x-init="$watch('activeTab', val => localStorage.setItem('safety_active_tab', val))"
   hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
   <!-- TOPBAR -->
