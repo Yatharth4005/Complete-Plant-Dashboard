@@ -527,6 +527,11 @@ def parse_rail_mill_sheet(rows, sheet_name, department, upload):
     return records_created
 
 
+def normalize_header(s):
+    if not s:
+        return ""
+    return re.sub(r'[^a-z0-9]', '', str(s).lower())
+
 def parse_generic_sheet(rows, sheet_name, department, upload):
     """
     Heuristic fallback parser to handle arbitrary delay sheets.
@@ -535,64 +540,116 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
     header_row_idx = None
     col_mapping = {}
     
+    exact_mappings = {
+        'date': 'date',
+        'day': 'date',
+        'month': 'month',
+        'agency': 'agency',
+        'responsibility': 'agency',
+        'downtime': 'duration',
+        'down_time': 'duration',
+        'duration': 'duration',
+        'delay': 'duration',
+        'mins': 'duration',
+        'minutes': 'duration',
+        'hours': 'duration',
+        'hrs': 'duration',
+        'cause': 'description',
+        'description': 'description',
+        'reason': 'description',
+        'desc': 'description',
+        'delays': 'description',
+        'problem': 'description',
+        'equipment': 'equipment',
+        'equip': 'equipment',
+        'asset': 'equipment',
+        'machine': 'equipment',
+        'subequipment': 'sub_equipment',
+        'subequip': 'sub_equipment',
+        'subagency': 'sub_agency',
+        'subdept': 'sub_agency',
+        'area': 'sub_agency',
+        'why': 'why',
+        'capa': 'why',
+        'rootcause': 'why',
+        'incharge': 'incharge',
+        'operator': 'incharge',
+        'staff': 'incharge',
+        'time': 'time',
+        'timeslot': 'time',
+        'period': 'time',
+        'slot': 'time',
+        'from': 'start_time',
+        'start': 'start_time',
+        'starttime': 'start_time',
+        'to': 'end_time',
+        'end': 'end_time',
+        'endtime': 'end_time',
+        'agencycatg': 'agency_type',
+        'agencycategory': 'agency_type',
+        'agencytype': 'agency_type',
+    }
+
     for r in range(min(len(rows), 20)):
         row = rows[r]
         if not row:
             continue
             
-        matches = 0
         temp_mapping = {}
+        mapped_indices = set()
+        
+        # Pass 1: Exact normalized matches
         for c, val in enumerate(row):
             if val is None or val == '':
                 continue
+            norm_val = normalize_header(val)
+            if norm_val in exact_mappings:
+                field = exact_mappings[norm_val]
+                if field not in temp_mapping:
+                    temp_mapping[field] = c
+                    mapped_indices.add(c)
+                    
+        # Pass 2: Substring matching for unmapped columns
+        for c, val in enumerate(row):
+            if c in mapped_indices or val is None or val == '':
+                continue
             val_str = str(val).lower().strip()
             
-            if any(kw in val_str for kw in ['sub-equip', 'subequip', 'sub equip']):
+            # Helper to check if field not mapped yet
+            if 'sub_equipment' not in temp_mapping and any(kw in val_str for kw in ['sub-equip', 'subequip', 'sub equip']):
                 temp_mapping['sub_equipment'] = c
-                matches += 1
-            elif any(kw in val_str for kw in ['sub-agency', 'subagency', 'sub agency', 'area', 'sub-dept', 'subdept']):
+            elif 'sub_agency' not in temp_mapping and any(kw in val_str for kw in ['sub-agency', 'subagency', 'sub agency', 'area', 'sub-dept', 'subdept']):
                 temp_mapping['sub_agency'] = c
-                matches += 1
-            elif any(kw in val_str for kw in ['equipment', 'equip', 'asset', 'machine']):
+            elif 'equipment' not in temp_mapping and any(kw in val_str for kw in ['equipment', 'equip', 'asset', 'machine']) and 'sub' not in val_str:
                 temp_mapping['equipment'] = c
-                matches += 1
-            elif any(kw in val_str for kw in ['agency', 'responsibility']):
+            elif 'agency' not in temp_mapping and any(kw in val_str for kw in ['agency', 'responsibility']) and 'sub' not in val_str and 'catg' not in val_str and 'category' not in val_str:
                 temp_mapping['agency'] = c
-                matches += 1
-            elif any(kw in val_str for kw in ['date', 'day']):
+            elif 'date' not in temp_mapping and any(kw in val_str for kw in ['date', 'day']):
                 temp_mapping['date'] = c
-                matches += 1
-            elif any(kw in val_str for kw in ['month']):
+            elif 'month' not in temp_mapping and 'month' in val_str:
                 temp_mapping['month'] = c
-                matches += 1
-            elif any(kw in val_str for kw in ['time', 'range', 'period', 'slot', 'from-to', 'start-end', 'hrs(time)']):
-                temp_mapping['time'] = c
-                matches += 1
-            elif val_str == 'from' or val_str.startswith('from ') or 'start' in val_str:
-                temp_mapping['start_time'] = c
-                matches += 1
-            elif val_str == 'to' or val_str.startswith('to ') or 'end' in val_str:
-                temp_mapping['end_time'] = c
-                matches += 1
-            elif any(kw in val_str for kw in ['duration', 'min', 'downtime', 'total', 'hours', 'hrs', 'dur']):
+            elif 'duration' not in temp_mapping and any(kw in val_str for kw in ['duration', 'min', 'downtime', 'total', 'hours', 'hrs', 'dur']):
                 temp_mapping['duration'] = c
                 if 'hour' in val_str or 'hr' in val_str:
                     temp_mapping['duration_type'] = 'hours'
                 elif 'min' in val_str:
                     temp_mapping['duration_type'] = 'minutes'
-                matches += 1
-            elif any(kw in val_str for kw in ['description', 'reason', 'cause', 'delays', 'desc', 'problem', 'delay']):
+            elif 'description' not in temp_mapping and any(kw in val_str for kw in ['description', 'reason', 'cause', 'delays', 'desc', 'problem', 'delay']):
                 temp_mapping['description'] = c
-                matches += 1
-            elif any(kw in val_str for kw in ['why', 'capa', 'root']):
+            elif 'why' not in temp_mapping and any(kw in val_str for kw in ['why', 'capa', 'root']):
                 temp_mapping['why'] = c
-                matches += 1
-            elif any(kw in val_str for kw in ['incharge', 'operator', 'shift', 'staff']):
+            elif 'incharge' not in temp_mapping and any(kw in val_str for kw in ['incharge', 'operator', 'shift', 'staff']):
                 temp_mapping['incharge'] = c
-                matches += 1
+            elif 'time' not in temp_mapping and any(kw in val_str for kw in ['time', 'range', 'period', 'slot', 'from-to', 'start-end', 'hrs(time)']) and 'down' not in val_str:
+                temp_mapping['time'] = c
+            elif 'start_time' not in temp_mapping and (val_str == 'from' or val_str.startswith('from ') or 'start' in val_str) and 'end' not in val_str:
+                temp_mapping['start_time'] = c
+            elif 'end_time' not in temp_mapping and (val_str == 'to' or val_str.startswith('to ') or 'end' in val_str) and 'start' not in val_str:
+                temp_mapping['end_time'] = c
                 
-        if matches >= 3:
-            # We found a header row!
+        # We need at least 3 matched fields or 3 core fields to consider it a valid header row
+        matches = len([f for f in ['date', 'description', 'duration', 'agency'] if f in temp_mapping])
+        if matches >= 3 or len(temp_mapping) >= 3:
             header_row_idx = r
             col_mapping = temp_mapping
             break
@@ -650,6 +707,7 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
         time_idx = col_mapping.get('time', None)
         start_idx = col_mapping.get('start_time', None)
         end_idx = col_mapping.get('end_time', None)
+        agency_type_idx = col_mapping.get('agency_type', None)
         
         if dur_idx is None:
             # Skip if we can't find duration column
@@ -782,6 +840,26 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             desc, agency, sub_agency, equipment, sub_equipment
         )
         
+        # Clean agency type
+        agency_type_val = row[agency_type_idx] if agency_type_idx is not None and agency_type_idx < len(row) else None
+        agency_type_clean = 'Internal'
+        if agency_type_val:
+            agency_type_str = str(agency_type_val).strip().upper()
+            if 'EXTERNAL' in agency_type_str:
+                agency_type_clean = 'External'
+            elif 'INTERNAL' in agency_type_str:
+                agency_type_clean = 'Internal'
+            else:
+                if Department.objects.filter(name__iexact=agency).exists():
+                    agency_type_clean = 'External'
+                else:
+                    agency_type_clean = 'Internal'
+        else:
+            if Department.objects.filter(name__iexact=agency).exists():
+                agency_type_clean = 'External'
+            else:
+                agency_type_clean = 'Internal'
+
         # Save record
         DelayRecord.objects.create(
             upload=upload,
@@ -800,6 +878,7 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             shift_incharge=incharge.strip() if incharge else None,
             description=desc,
             why=why.strip() if why else None,
+            agency_type=agency_type_clean,
             is_locked=False,
         )
         records_created += 1
