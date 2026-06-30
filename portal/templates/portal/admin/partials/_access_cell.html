@@ -1,12 +1,11 @@
 <div class="matrix-select-wrapper">
-  <select class="matrix-select {% if access == 'EDIT' %}select-edit{% elif access == 'VIEW' %}select-view{% else %}select-none{% endif %}"
+  <select class="matrix-select {% if access == 'EDIT' %}select-edit{% else %}select-view{% endif %}"
           name="access_level"
           hx-post="{% url 'portal:admin_access' %}"
           hx-target="#cell-{{ u.id }}-{{ d.id }}-{{ m.key }}"
           hx-swap="innerHTML"
           hx-vals='{"user_id": "{{ u.id }}", "dept_id": "{{ d.id }}", "module_key": "{{ m.key }}"}'>
-    <option value="NONE" {% if not access %}selected{% endif %}>🔒 Locked</option>
-    <option value="VIEW" {% if access == 'VIEW' %}selected{% endif %}>👁️ View Only</option>
+    <option value="VIEW" {% if not access or access == 'VIEW' %}selected{% endif %}>👁️ View Only</option>
     <option value="EDIT" {% if access == 'EDIT' %}selected{% endif %}>✏️ View + Edit</option>
   </select>
   <span class="matrix-save-indicator">✓</span>

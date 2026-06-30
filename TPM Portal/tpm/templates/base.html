@@ -16,7 +16,7 @@
     rel="stylesheet">
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="{% static 'css/tpm.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'css/tpm.css' %}?v=8">
 
   <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
@@ -65,15 +65,19 @@
   </style>
 </head>
 
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body x-data="{ sidebarOpen: window.innerWidth > 768, isMobile: window.innerWidth <= 768 }"
+      x-init="window.addEventListener('resize', () => { isMobile = window.innerWidth <= 768; if (!isMobile) { sidebarOpen = true; document.body.classList.remove('sidebar-mobile-open'); } else { sidebarOpen = false; } }); $watch('sidebarOpen', value => { if (isMobile) { if (value) { document.body.classList.add('sidebar-mobile-open'); } else { document.body.classList.remove('sidebar-mobile-open'); } } })"
+      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
   <!-- TOPBAR -->
   <header id="topbar">
-    <div class="topbar-brand">
+    <div class="topbar-brand" style="display: flex; align-items: center; gap: 16px;">
+      <button class="sidebar-toggle" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle Menu">☰</button>
       <div class="topbar-title">
-        <a href="{% url 'portal:plant_dashboard' %}" style="text-decoration: none; display: flex; align-items: center;">
+        <a href="{% url 'portal:plant_dashboard' %}" style="text-decoration: none; display: flex; align-items: center; gap: 12px;">
           <img src="{% static 'images/logo.png' %}" alt="Jindal Steel Operations Portal Logo"
             style="height: 45px !important; width: auto; object-fit: contain;">
+          <span style="font-weight: 700; color: var(--jspl-navy); font-size: 1.1rem; border-left: 2px solid var(--jspl-border); padding-left: 12px; height: 20px; display: inline-flex; align-items: center;">Operations Portal</span>
         </a>
       </div>
     </div>
@@ -152,73 +156,66 @@
   </header>
 
   <!-- MAIN BODY -->
-  <div id="shell">
+  <div id="shell" :class="{ 'sidebar-collapsed': !sidebarOpen }">
     <!-- SIDEBAR -->
-    <aside id="sidebar" data-active-dept="{{ dept.id }}">
-      <div class="sidebar-logo">TPM Analytics Portal</div>
+    <aside id="sidebar" data-active-dept="{{ active_dept_id|default:0 }}">
+      
+      <div class="sidebar-nav-container" style="padding: 0 0 20px 0;">
+        {% if request.user.is_admin %}
+        <div class="sidebar-divider">Administration</div>
+        <a href="{% url 'portal:overall_plant_dashboard' %}"
+          class="sidebar-link {% if active_section == 'overall_dashboard' %}active{% endif %}">
+          <span class="sidebar-icon">📊</span> Overall Plant Dashboard
+        </a>
+        {% endif %}
 
-      <a href="{% url 'portal:plant_dashboard' %}" class="sidebar-nav-btn"
-        style="background-color: rgba(244,121,32,0.1); color: var(--jspl-orange) !important; font-weight: bold; border-left: 3px solid var(--jspl-orange);">🏭
-        Main Plant Portal</a>
+        <a href="{% url 'portal:plant_dashboard' %}"
+          class="sidebar-link {% if active_section == 'dashboard' %}active{% endif %}">
+          <span class="sidebar-icon">🏭</span> Plant Overview
+        </a>
 
-      <!-- Governance Accordion -->
-      <div x-data="{ open: {% if active_section == 'governance' %}true{% else %}false{% endif %} }">
-        <button @click="open = !open" class="dept-accordion-btn">
-          <span>⚖️ Governance</span>
-          <span x-text="open ? '▲' : '▼'"></span>
-        </button>
-        <div x-show="open" x-transition class="dept-links">
-          <a href="{% url 'tpm_governance_structure' %}" class="{% if active_tab == 'structure' %}active{% endif %}">
-            📐 Structure
-          </a>
-          <a href="{% url 'tpm_governance_users' %}" class="{% if active_tab == 'users' %}active{% endif %}">
-            👥 Users Info
-          </a>
-        </div>
-      </div>
+        <div class="sidebar-divider">Departments</div>
 
-      <a href="{% url 'tpm_dashboard' %}" class="sidebar-nav-btn">📊 TPM Plant Overview</a>
+        <div class="sidebar-accordion">
+          {% for item in sidebar_departments_data %}
+          {% with d=item.dept accessible_modules=item.accessible_modules %}
+          <div class="sidebar-dept-group" x-data="{ open: {{ d.id }} == {{ active_dept_id|default:0 }} }">
+            <button class="sidebar-dept-btn {% if active_dept_id == d.id %}active{% endif %}"
+              @click="open = !open">
+              <span class="dept-code">{{ d.code }}</span>
+              <span class="dept-name">{{ d.name }}</span>
+              <span class="sidebar-chevron" :class="{ 'rotated': open }">›</span>
+            </button>
 
-
-      {% if request.user.is_admin %}
-      <a href="{% url 'admin_users' %}" class="sidebar-nav-btn">👤 User Management</a>
-      {% endif %}
-
-      <div
-        style="margin-top: 15px; padding: 0 20px; font-size: 0.75rem; color: var(--jspl-orange); font-weight: bold; text-transform: uppercase;">
-        Departments
-      </div>
-
-      <!-- Department accordion -->
-      <div x-data="sidebarState()">
-        {% for d in sidebar_departments %}
-        <div x-data="{ open: {{ d.id }} == {{ dept.id|default:0 }} }">
-          <button @click="open = !open" class="dept-accordion-btn">
-            <span>🏢 {{ d.name }}</span>
-            <span x-text="open ? '▲' : '▼'"></span>
-          </button>
-          <div x-show="open" x-transition class="dept-links">
-            <a href="{% url 'dept_overview' d.id %}"
-              class="{% if request.resolver_match.url_name == 'dept_overview' and dept.id == d.id %}active{% endif %}">
-              📊 Dashboard
-            </a>
-            {% for p in pillars %}
-            <a href="{% url 'pillar_page' d.id p.id %}"
-              class="{% if pillar_id == p.id and dept.id == d.id %}active{% endif %}">
-              📁 {{ p.label }}
-            </a>
-            {% endfor %}
-            <a href="{% url 'ws_kpi_page' d.id %}"
-              class="{% if request.resolver_match.url_name == 'ws_kpi_page' and dept.id == d.id %}active{% endif %}">
-              🔧 Workstation KPI
-            </a>
-            <a href="{% url 'report_page' d.id %}"
-              class="{% if request.resolver_match.url_name == 'report_page' and dept.id == d.id %}active{% endif %}">
-              📜 Report Generator
-            </a>
+            <!-- Show sub-modules links, controlled purely by Alpine.js x-show="open" -->
+            <div class="sidebar-dept-modules" x-show="open" x-transition x-cloak>
+              {% for m in sidebar_modules %}
+              <a href="{% url 'portal:enter_module' d.id m.key %}"
+                class="sidebar-module-link {% if active_module == m.key and active_dept_id == d.id %}active{% endif %} {% if m.key not in accessible_modules %}locked{% endif %}">
+                {% if m.key in accessible_modules %}
+                {% include "portal/partials/_module_icon.html" with key=m.key %} {% if m.key == 'SPARE' %}Spare Management{% elif m.key == 'CAPA' %}CAPA Reports{% else %}{{ m.key }}{% endif %}
+                {% else %}
+                🔒 {% if m.key == 'SPARE' %}Spare Management{% elif m.key == 'CAPA' %}CAPA Reports{% else %}{{ m.key }}{% endif %}
+                {% endif %}
+              </a>
+              {% endfor %}
+            </div>
           </div>
+          {% endwith %}
+          {% endfor %}
         </div>
-        {% endfor %}
+
+        {% if request.user.is_admin %}
+        <div class="sidebar-divider">Access &amp; Users</div>
+        <a href="{% url 'portal:admin_access' %}"
+          class="sidebar-link {% if active_section == 'admin' %}active{% endif %}">
+          <span class="sidebar-icon">🔑</span> Access Control
+        </a>
+        <a href="{% url 'portal:user_informations' %}"
+          class="sidebar-link {% if active_section == 'user_info' %}active{% endif %}">
+          <span class="sidebar-icon">👤</span> User Informations
+        </a>
+        {% endif %}
       </div>
     </aside>
 
@@ -305,6 +302,45 @@
         console.error("Error communicating with server:", err);
       });
     }
+
+    // Preserve sidebar scroll position across page reloads
+    document.addEventListener("DOMContentLoaded", function() {
+      const sidebar = document.getElementById("portal-sidebar") || document.getElementById("sidebar");
+      if (sidebar) {
+        const scrollPos = sessionStorage.getItem("sidebar-scroll");
+        if (scrollPos) {
+          const targetScroll = parseInt(scrollPos, 10);
+          sidebar.scrollTop = targetScroll;
+          
+          // Poll to restore scroll position as Alpine initializes and transitions finish
+          let attempts = 0;
+          const interval = setInterval(function() {
+            sidebar.scrollTop = targetScroll;
+            attempts++;
+            if (attempts > 15) { // Try for 750ms
+              clearInterval(interval);
+            }
+          }, 50);
+        }
+        const saveScroll = function() {
+          sessionStorage.setItem("sidebar-scroll", sidebar.scrollTop);
+        };
+        sidebar.addEventListener("scroll", saveScroll);
+        sidebar.querySelectorAll("a, button").forEach(function(el) {
+          el.addEventListener("click", saveScroll);
+        });
+      }
+    });
+
+    document.addEventListener("alpine:initialized", function() {
+      const sidebar = document.getElementById("portal-sidebar") || document.getElementById("sidebar");
+      if (sidebar) {
+        const scrollPos = sessionStorage.getItem("sidebar-scroll");
+        if (scrollPos) {
+          sidebar.scrollTop = parseInt(scrollPos, 10);
+        }
+      }
+    });
   </script>
 </body>
 

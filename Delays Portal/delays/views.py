@@ -11,7 +11,7 @@ from datetime import date
 from tpm.models import Department
 from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification
 from delays.forms import DelayRecordForm
-from delays.utils.parser import parse_excel_file
+from delays.utils.parser import parse_excel_file, normalize_agency_name
 from portal.utils.access import user_can_access_module, user_can_edit_module
 
 def get_department_autocompletes(department, records):
@@ -20,7 +20,8 @@ def get_department_autocompletes(department, records):
     else:
         custom_options = DelayDropdownOption.objects.filter(department=department)
     
-    agencies_set = set(custom_options.filter(category__iexact='Agency').values_list('value', flat=True).distinct())
+    raw_agencies = custom_options.filter(category__iexact='Agency').values_list('value', flat=True).distinct()
+    agencies_set = set(normalize_agency_name(a) for a in raw_agencies if a)
     if not agencies_set:
         agencies_set.update(['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation'])
     agencies = sorted(list(agencies_set))
@@ -738,6 +739,7 @@ def new_record(request, dept_id):
         'form': form,
         'department': department,
         'is_edit': False,
+        'can_edit': True,
         'agencies': agencies,
         'sub_agencies': sub_agencies,
         'sections': sections,
@@ -796,6 +798,7 @@ def edit_record(request, dept_id, record_id):
         'department': department,
         'record': record,
         'is_edit': True,
+        'can_edit': True,
         'is_admin': request.user.is_admin(),
         'agencies': agencies,
         'sub_agencies': sub_agencies,
@@ -878,8 +881,8 @@ def update_record_inline(request, dept_id, record_id):
             except ValueError:
                 pass
         if agency_val:
-            record.agency = agency_val
-            if Department.objects.filter(name=agency_val).exists():
+            record.agency = normalize_agency_name(agency_val)
+            if Department.objects.filter(name=record.agency).exists():
                 record.agency_type = 'External'
             else:
                 record.agency_type = 'Internal'
@@ -1117,8 +1120,8 @@ def manage_options(request, dept_id):
     Allows adding and removing custom options (Agency, Sub-Agency, Equipment, Sub-Equipment) per department.
     """
     department = get_object_or_404(Department, id=dept_id)
-    if not request.user.is_admin():
-        messages.error(request, "Only administrators can manage dropdown options.")
+    if not user_can_edit_module(request.user, department, 'Delays'):
+        messages.error(request, "You do not have permission to manage dropdown options.")
         return redirect('delays:dept_overview', dept_id=dept_id)
 
     if request.method == 'POST':
@@ -1129,16 +1132,17 @@ def manage_options(request, dept_id):
             parent_value = request.POST.get('parent_value', '').strip() or None
             
             if category and value:
+                value_clean = normalize_agency_name(value) if category.lower() == 'agency' else value
                 option, created = DelayDropdownOption.objects.get_or_create(
                     department=department,
                     category=category,
-                    value=value,
+                    value=value_clean,
                     parent_value=parent_value
                 )
                 if created:
-                    messages.success(request, f"Option '{value}' added to '{category}' successfully.")
+                    messages.success(request, f"Option '{value_clean}' added to '{category}' successfully.")
                 else:
-                    messages.info(request, f"Option '{value}' already exists in '{category}'.")
+                    messages.info(request, f"Option '{value_clean}' already exists in '{category}'.")
             else:
                 messages.error(request, "Category and value are required.")
                 
@@ -1170,10 +1174,11 @@ def manage_options(request, dept_id):
         
         db_agencies = records.values_list('agency', flat=True).distinct().exclude(agency='')
         for val in db_agencies:
+            val_clean = normalize_agency_name(val)
             DelayDropdownOption.objects.get_or_create(
                 department=department,
                 category='Agency',
-                value=val
+                value=val_clean
             )
             
         db_sub_agencies = records.values_list('sub_agency', flat=True).distinct().exclude(sub_agency='')
@@ -1217,6 +1222,7 @@ def manage_options(request, dept_id):
         'active_module': 'Delays',
         'active_section': 'department_module',
         'is_manage_options_page': True,
+        'can_edit': True,
         'active_tab': request.GET.get('tab', 'Agency'),
     }
     return render(request, 'delays/manage_options.html', context)

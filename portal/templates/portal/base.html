@@ -356,9 +356,9 @@
               <a href="{% url 'portal:enter_module' d.id m.key %}"
                 class="sidebar-module-link {% if active_module == m.key %}active{% endif %} {% if m.key not in user_modules_map %}locked{% endif %}">
                 {% if m.key in user_modules_map %}
-                {% include "portal/partials/_module_icon.html" with key=m.key %} {{ m.key }}
+                {% include "portal/partials/_module_icon.html" with key=m.key %} {% if m.key == 'SPARE' %}Spare Management{% elif m.key == 'CAPA' %}CAPA Reports{% else %}{{ m.key }}{% endif %}
                 {% else %}
-                🔒 {{ m.key }}
+                🔒 {% if m.key == 'SPARE' %}Spare Management{% elif m.key == 'CAPA' %}CAPA Reports{% else %}{{ m.key }}{% endif %}
                 {% endif %}
               </a>
               {% endfor %}
@@ -651,6 +651,45 @@
         console.error("Error marking notification as read:", error);
       });
     }
+
+    // Preserve sidebar scroll position across page reloads
+    document.addEventListener("DOMContentLoaded", function() {
+      const sidebar = document.getElementById("portal-sidebar") || document.getElementById("sidebar");
+      if (sidebar) {
+        const scrollPos = sessionStorage.getItem("sidebar-scroll");
+        if (scrollPos) {
+          const targetScroll = parseInt(scrollPos, 10);
+          sidebar.scrollTop = targetScroll;
+          
+          // Poll to restore scroll position as Alpine initializes and transitions finish
+          let attempts = 0;
+          const interval = setInterval(function() {
+            sidebar.scrollTop = targetScroll;
+            attempts++;
+            if (attempts > 15) { // Try for 750ms
+              clearInterval(interval);
+            }
+          }, 50);
+        }
+        const saveScroll = function() {
+          sessionStorage.setItem("sidebar-scroll", sidebar.scrollTop);
+        };
+        sidebar.addEventListener("scroll", saveScroll);
+        sidebar.querySelectorAll("a, button").forEach(function(el) {
+          el.addEventListener("click", saveScroll);
+        });
+      }
+    });
+
+    document.addEventListener("alpine:initialized", function() {
+      const sidebar = document.getElementById("portal-sidebar") || document.getElementById("sidebar");
+      if (sidebar) {
+        const scrollPos = sessionStorage.getItem("sidebar-scroll");
+        if (scrollPos) {
+          sidebar.scrollTop = parseInt(scrollPos, 10);
+        }
+      }
+    });
   </script>
   {% block extra_js %}{% endblock %}
 </body>

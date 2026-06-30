@@ -49,6 +49,14 @@ def get_pillar_display(pillar_id):
 
 def get_kpi_rows(dept, pillar_id, month, year):
     """Fetch defined KPIs for the pillar and merge with existing database entries"""
+    # Auto clean up any accidental header imports from database
+    bad_customs = CustomKPIDefinition.objects.filter(
+        sl_no__in=['S. NO.', 'S.NO.', 'S.No.', 'S. NO', 'S.NO', 's.no.', 's.no', 'SNO', 'Sno', 'sno', 'SL. NO.', 'SL.NO.', 'SL. NO', 'SL.NO', 'SLNO']
+    )
+    for bc in bad_customs:
+        KPIValue.objects.filter(pillar_entry__department=bc.department, pillar_entry__pillar=bc.pillar, sl_no=bc.sl_no).delete()
+        bc.delete()
+
     definitions = list(KPI_DEFINITIONS.get(pillar_id, []))
     custom_defs = CustomKPIDefinition.objects.filter(department=dept, pillar=pillar_id).order_by('id')
     for cd in custom_defs:
@@ -127,6 +135,14 @@ def get_kpi_rows(dept, pillar_id, month, year):
     return kpi_rows, entry
 
 def get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year):
+    # Auto clean up any accidental header imports from database
+    bad_customs = CustomKPIDefinition.objects.filter(
+        sl_no__in=['S. NO.', 'S.NO.', 'S.No.', 'S. NO', 'S.NO', 's.no.', 's.no', 'SNO', 'Sno', 'sno', 'SL. NO.', 'SL.NO.', 'SL. NO', 'SL.NO', 'SLNO']
+    )
+    for bc in bad_customs:
+        KPIValue.objects.filter(pillar_entry__department=bc.department, pillar_entry__pillar=bc.pillar, sl_no=bc.sl_no).delete()
+        bc.delete()
+
     definitions = list(KPI_DEFINITIONS.get(pillar_id, []))
     custom_defs = CustomKPIDefinition.objects.filter(department=dept, pillar=pillar_id).order_by('id')
     for cd in custom_defs:
@@ -575,22 +591,39 @@ def add_custom_kpi(request, dept_id, pillar_id):
     if not name:
         return HttpResponse("KPI Name is required", status=400)
         
-    # Auto-generate sl_no: count existing custom KPIs for this dept and pillar
-    count = CustomKPIDefinition.objects.filter(department=dept, pillar=pillar_id).count()
-    sl_no = f"C{count + 1}"
+    apply_all = request.POST.get('apply_all_depts') == 'true'
     
     benchmark = float(benchmark_str) if benchmark_str else None
     target = float(target_str) if target_str else None
     
-    CustomKPIDefinition.objects.create(
-        department=dept,
-        pillar=pillar_id,
-        sl_no=sl_no,
-        name=name,
-        uom=uom,
-        benchmark=benchmark,
-        target=target
-    )
+    if apply_all:
+        active_depts = Department.objects.filter(is_active=True)
+        for d in active_depts:
+            if not CustomKPIDefinition.objects.filter(department=d, pillar=pillar_id, name=name).exists():
+                count = CustomKPIDefinition.objects.filter(department=d, pillar=pillar_id).count()
+                sl_no = f"C{count + 1}"
+                CustomKPIDefinition.objects.create(
+                    department=d,
+                    pillar=pillar_id,
+                    sl_no=sl_no,
+                    name=name,
+                    uom=uom,
+                    benchmark=benchmark,
+                    target=target
+                )
+    else:
+        if not CustomKPIDefinition.objects.filter(department=dept, pillar=pillar_id, name=name).exists():
+            count = CustomKPIDefinition.objects.filter(department=dept, pillar=pillar_id).count()
+            sl_no = f"C{count + 1}"
+            CustomKPIDefinition.objects.create(
+                department=dept,
+                pillar=pillar_id,
+                sl_no=sl_no,
+                name=name,
+                uom=uom,
+                benchmark=benchmark,
+                target=target
+            )
     
     # Refresh table
     month = int(request.GET.get('month', datetime.date.today().month))
@@ -612,7 +645,8 @@ def add_custom_kpi(request, dept_id, pillar_id):
         'can_edit': can_edit,
     }
     
-    toast_html = render_toast(f'Custom field "{name}" added successfully')
+    msg = f'Custom field "{name}" added to all departments' if apply_all else f'Custom field "{name}" added successfully'
+    toast_html = render_toast(msg)
     response = render(request, 'partials/_kpi_table.html', context)
     response.content = response.content + toast_html.encode('utf-8')
     return response

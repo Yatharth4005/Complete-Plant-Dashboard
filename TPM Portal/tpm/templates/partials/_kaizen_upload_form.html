@@ -1,0 +1,63 @@
+<div class="card" style="padding: 24px; max-width: 600px; margin: 20px auto; border-radius: 12px; border: 1px solid var(--jspl-border); background: white;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--jspl-border); padding-bottom: 12px;">
+    <h3 style="color: var(--jspl-navy); margin: 0; font-size: 1.25rem;">📤 Upload Kaizen Document</h3>
+    <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;"
+            hx-get="{% url 'kaizen_list_partial' dept.id pillar_id %}"
+            hx-target="#tab-content"
+            hx-swap="innerHTML">
+      Back to List
+    </button>
+  </div>
+
+  <form hx-post="{% url 'kaizen_save_upload' dept.id pillar_id %}" 
+        hx-encoding="multipart/form-data"
+        hx-target="#tab-content"
+        style="display: flex; flex-direction: column; gap: 16px;">
+    {% csrf_token %}
+    
+    <div>
+      <label style="display: block; font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy); font-size: 0.85rem;">Kaizen Theme / Title *</label>
+      <input type="text" name="theme" class="input-mono" placeholder="Enter Kaizen Theme/Title..." required style="width: 100%; height: 38px; box-sizing: border-box;">
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div>
+        <label style="display: block; font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy); font-size: 0.85rem;">Area / Equipment</label>
+        <input type="text" name="area_equipment" class="input-mono" placeholder="e.g. tapping area" style="width: 100%; height: 38px; box-sizing: border-box;">
+      </div>
+      <div>
+        <label style="display: block; font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy); font-size: 0.85rem;">Circle Name</label>
+        <input type="text" name="circle_name" class="input-mono" placeholder="Circle name..." style="width: 100%; height: 38px; box-sizing: border-box;">
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div>
+        <label style="display: block; font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy); font-size: 0.85rem;">Team Leader</label>
+        <input type="text" name="team_leader" class="input-mono" placeholder="Leader name..." style="width: 100%; height: 38px; box-sizing: border-box;">
+      </div>
+      <div>
+        <label style="display: block; font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy); font-size: 0.85rem;">Completion Date (Optional)</label>
+        <input type="date" name="finish_date" class="input-mono" style="width: 100%; height: 38px; box-sizing: border-box;">
+      </div>
+    </div>
+
+    <div>
+      <label style="display: block; font-weight: bold; margin-bottom: 6px; color: var(--jspl-navy); font-size: 0.85rem;">Kaizen File (PDF or Excel) *</label>
+      <input type="file" name="kaizen_file" accept=".pdf,.xls,.xlsx" required style="font-size: 0.9rem; padding: 6px 0;">
+      <small style="display: block; color: var(--jspl-muted); margin-top: 4px;">Supports PDF and Excel file formats (.pdf, .xls, .xlsx)</small>
+    </div>
+
+    <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 10px; border-top: 1px solid var(--jspl-border); padding-top: 16px;">
+      <button type="button" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;"
+              hx-get="{% url 'kaizen_list_partial' dept.id pillar_id %}"
+              hx-target="#tab-content"
+              hx-swap="innerHTML">
+        Cancel
+      </button>
+      <button type="submit" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; border: none; font-weight: bold; cursor: pointer;">
+        Upload & Save
+      </button>
+    </div>
+  </form>
+</div>

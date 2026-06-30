@@ -64,17 +64,24 @@
           {% if pillar_id == 'KK' %}
             <td colspan="4"></td>
           {% endif %}
-          <td colspan="{% if pillar_id == 'KK' %}3{% else %}4{% endif %}" style="text-align: center; vertical-align: middle;">
-            <div style="display: flex; gap: 8px; justify-content: center;">
-              <button type="button" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem;"
-                      hx-post="{% url 'add_custom_kpi' dept.id pillar_id %}?month={{ month }}&year={{ year }}"
-                      hx-include="closest tr"
-                      hx-target="#kpi-table-container">
-                Save
-              </button>
-              <button type="button" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;" @click="showAddForm = false">
-                Cancel
-              </button>
+          <td colspan="{% if pillar_id == 'KK' %}3{% else %}4{% endif %}" style="text-align: left; vertical-align: middle; padding: 8px 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;">
+              <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; color: var(--jspl-navy); cursor: pointer; user-select: none; margin: 0;">
+                <input type="checkbox" name="apply_all_depts" value="true" style="width: 15px; height: 15px; accent-color: var(--jspl-orange); cursor: pointer; margin: 0;">
+                Apply to all departments
+              </label>
+              
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" class="btn btn-primary" style="padding: 5px 12px; font-size: 0.8rem; font-weight: bold; background-color: var(--jspl-orange); border: none;"
+                        hx-post="{% url 'add_custom_kpi' dept.id pillar_id %}?month={{ month }}&year={{ year }}"
+                        hx-include="closest tr"
+                        hx-target="#kpi-table-container">
+                  Save
+                </button>
+                <button type="button" class="btn btn-secondary" style="padding: 5px 12px; font-size: 0.8rem; font-weight: bold;" @click="showAddForm = false">
+                  Cancel
+                </button>
+              </div>
             </div>
           </td>
         </tr>

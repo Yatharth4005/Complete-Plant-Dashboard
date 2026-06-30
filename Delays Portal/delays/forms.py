@@ -1,6 +1,7 @@
 from django import forms
 from tpm.models import Department
 from delays.models import DelayRecord, DelayDropdownOption
+from delays.utils.parser import normalize_agency_name
 
 class DelayRecordForm(forms.ModelForm):
     agency_type = forms.ChoiceField(
@@ -9,7 +10,10 @@ class DelayRecordForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'input-mono', 'id': 'id_agency_type'})
     )
     agency = forms.ChoiceField(choices=[], required=True, widget=forms.Select(attrs={'class': 'input-mono', 'id': 'id_agency'}))
+    sub_agency = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
     equipment = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
+    sub_equipment = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
+    shift_incharge = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
     why = forms.ChoiceField(choices=[('CAPA', 'CAPA'), ('NO', 'NO')], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'input-mono', 'rows': 3, 'placeholder': 'Detailed description of the delay/breakdown'}))
     duration_mins = forms.FloatField(
@@ -26,17 +30,13 @@ class DelayRecordForm(forms.ModelForm):
         model = DelayRecord
         fields = [
             'date', 'start_time', 'end_time', 'duration_mins',
-            'agency_type', 'agency', 'sub_agency', 'section', 'equipment', 'sub_equipment',
+            'agency_type', 'agency', 'sub_agency', 'equipment', 'sub_equipment',
             'shift_incharge', 'description', 'why'
         ]
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'input-mono'}),
             'start_time': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'e.g. 22:15', 'id': 'id_start_time'}),
             'end_time': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'e.g. 22:25', 'id': 'id_end_time'}),
-            'sub_agency': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'Sub-agency', 'list': 'sub_agencies_list'}),
-            'section': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'Rolled section', 'list': 'sections_list'}),
-            'sub_equipment': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'Sub-equipment', 'list': 'sub_equipments_list'}),
-            'shift_incharge': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'Shift Incharge', 'list': 'incharges_list'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -46,12 +46,16 @@ class DelayRecordForm(forms.ModelForm):
         # Default choices if nothing in DB
         agency_list = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
         equip_list = []
+        sub_agency_list = []
+        sub_equip_list = []
+        incharge_list = []
         
         if department:
-            # Fetch custom agencies from dropdown options
-            agency_list = sorted(list(DelayDropdownOption.objects.filter(
+            # Fetch custom agencies from dropdown options and normalize them to deduplicate
+            raw_agencies = DelayDropdownOption.objects.filter(
                 department=department, category__iexact='Agency'
-            ).values_list('value', flat=True).distinct()))
+            ).values_list('value', flat=True).distinct()
+            agency_list = sorted(list(set(normalize_agency_name(a) for a in raw_agencies if a)))
             if not agency_list:
                 agency_list = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
 
@@ -69,6 +73,24 @@ class DelayRecordForm(forms.ModelForm):
                 equip_list = [(eq, eq) for eq in db_equipments]
             else:
                 equip_list.sort(key=lambda x: x[0])
+                
+            # Fetch sub-agencies from dropdown options + unique past values
+            sub_agencies_set = set(DelayDropdownOption.objects.filter(
+                department=department, category__iexact='Sub-Agency'
+            ).values_list('value', flat=True).distinct())
+            sub_agencies_set.update(DelayRecord.objects.filter(department=department).exclude(sub_agency__isnull=True).exclude(sub_agency='').values_list('sub_agency', flat=True).distinct())
+            sub_agency_list = sorted([x for x in sub_agencies_set if x])
+
+            # Fetch sub-equipments from dropdown options + unique past values
+            sub_equip_set = set(DelayDropdownOption.objects.filter(
+                department=department, category__iexact='Sub-Equipment'
+            ).values_list('value', flat=True).distinct())
+            sub_equip_set.update(DelayRecord.objects.filter(department=department).exclude(sub_equipment__isnull=True).exclude(sub_equipment='').values_list('sub_equipment', flat=True).distinct())
+            sub_equip_list = sorted([x for x in sub_equip_set if x])
+
+            # Fetch shift incharges from unique past values
+            incharge_set = set(DelayRecord.objects.filter(department=department).exclude(shift_incharge__isnull=True).exclude(shift_incharge='').values_list('shift_incharge', flat=True).distinct())
+            incharge_list = sorted([x for x in incharge_set if x])
             
         # Internal Choices
         internal_choices = [(a, a) for a in agency_list]
@@ -81,15 +103,24 @@ class DelayRecordForm(forms.ModelForm):
         
         # Combine choices so Django validation passes when any is chosen
         self.fields['agency'].choices = [('', 'Select Agency')] + internal_choices + external_choices
-        self.fields['equipment'].choices = [('', 'Select Equipment')] + [(e, e) for e in equip_list]
+        self.fields['equipment'].choices = [('', 'Select Equipment')] + equip_list
+        self.fields['sub_agency'].choices = [('', 'Select Sub Agency')] + [(sa, sa) for sa in sub_agency_list]
+        self.fields['sub_equipment'].choices = [('', 'Select Sub Equipment')] + [(se, se) for se in sub_equip_list]
+        self.fields['shift_incharge'].choices = [('', 'Select Shift Incharge')] + [(inc, inc) for inc in incharge_list]
         
         # If editing an existing instance, preserve values and set initial agency_type
         if self.instance and self.instance.pk:
             self.initial['agency_type'] = self.instance.agency_type or 'Internal'
             if self.instance.agency and (self.instance.agency, self.instance.agency) not in self.fields['agency'].choices:
                 self.fields['agency'].choices.append((self.instance.agency, self.instance.agency))
-            if self.instance.equipment and (self.instance.equipment, self.instance.equipment) not in self.fields['equipment'].choices:
+            if self.instance.equipment and not any(c[0] == self.instance.equipment for c in self.fields['equipment'].choices):
                 self.fields['equipment'].choices.append((self.instance.equipment, self.instance.equipment))
+            if self.instance.sub_agency and (self.instance.sub_agency, self.instance.sub_agency) not in self.fields['sub_agency'].choices:
+                self.fields['sub_agency'].choices.append((self.instance.sub_agency, self.instance.sub_agency))
+            if self.instance.sub_equipment and (self.instance.sub_equipment, self.instance.sub_equipment) not in self.fields['sub_equipment'].choices:
+                self.fields['sub_equipment'].choices.append((self.instance.sub_equipment, self.instance.sub_equipment))
+            if self.instance.shift_incharge and (self.instance.shift_incharge, self.instance.shift_incharge) not in self.fields['shift_incharge'].choices:
+                self.fields['shift_incharge'].choices.append((self.instance.shift_incharge, self.instance.shift_incharge))
                 
     def clean(self):
         cleaned_data = super().clean()
@@ -117,6 +148,8 @@ class DelayRecordForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+        if instance.agency:
+            instance.agency = normalize_agency_name(instance.agency)
         if not instance.description:
             eq_name = instance.equipment or "Unknown Equipment"
             instance.description = f"Manual delay entry for {eq_name} ({instance.agency})"

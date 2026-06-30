@@ -7,11 +7,25 @@ from portal.utils.access import get_user_module_access_map
 @login_required
 def plant_dashboard(request):
     """
-    Landing dashboard listing all 28 departments as cards.
-    Each card displays its subparts/modules (TPM, CMC, etc.) with lock/unlock status.
+    Landing dashboard listing departments as cards.
+    Non-admin users only see departments they are permitted to view.
     """
-    departments = Department.objects.filter(is_active=True).order_by('name')
-    active_modules = Module.objects.filter(is_active=True).exclude(key__in=['FMEA', 'CAPA']).order_by('sort_order')
+    if request.user.is_admin():
+        departments = Department.objects.filter(is_active=True).order_by('name')
+    else:
+        # Resolve user's primary department + any cross-dept access depts
+        dept_ids = set()
+        if request.user.department_id:
+            dept_ids.add(request.user.department_id)
+        
+        # Check permissions for other departments
+        permitted_accesses = UserModuleAccess.objects.filter(user=request.user)
+        for access in permitted_accesses:
+            dept_ids.add(access.department_id)
+            
+        departments = Department.objects.filter(id__in=dept_ids, is_active=True).order_by('name')
+
+    active_modules = Module.objects.filter(is_active=True).order_by('sort_order')
     
     departments_data = []
     for dept in departments:
@@ -57,6 +71,14 @@ def overall_plant_dashboard(request):
             'icon': 'gear',
             'color_class': 'module-tpm',
             'url': '/tpm/dashboard/',
+        },
+        {
+            'key': 'Governance',
+            'label': 'Governance Structure',
+            'description': 'Organizational governance structure, roles, and department users information',
+            'icon': 'award',
+            'color_class': 'module-governance',
+            'url': '/tpm/governance/structure/',
         },
         {
             'key': 'CMC',

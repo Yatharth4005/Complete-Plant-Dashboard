@@ -100,6 +100,10 @@ urlpatterns = [
     # Kaizen Sheets
     path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/',
          kaizen_views.kaizen_list_partial, name='kaizen_list_partial'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/upload/',
+         kaizen_views.kaizen_upload_partial, name='kaizen_upload_partial'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/save-upload/',
+         kaizen_views.kaizen_save_upload, name='kaizen_save_upload'),
     path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/new/',
          kaizen_views.kaizen_edit_partial, name='kaizen_new_partial'),
     path('department/<int:dept_id>/pillar/<str:pillar_id>/kaizen/<int:kaizen_id>/edit/',

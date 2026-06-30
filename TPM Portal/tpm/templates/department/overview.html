@@ -14,7 +14,7 @@
 <!-- Title & Period Header Card -->
 <div class="delays-header-bar" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: linear-gradient(135deg, var(--jspl-navy, #003478) 0%, var(--jspl-blue, #0057A8) 100%); padding: 24px; border-radius: 16px; color: #FFFFFF; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);">
   <div>
-    <h2 style="margin: 0 0 6px 0; color: #FFFFFF; font-weight: 700; font-size: 1.6rem; letter-spacing: -0.5px;">📊 {{ dept.name }} Overview Dashboard</h2>
+    <h2 style="margin: 0 0 6px 0; color: #FFFFFF; font-weight: 700; font-size: 1.6rem; letter-spacing: -0.5px;">📊 {{ dept.name }} TPM Overview Dashboard</h2>
     <span style="font-size: 0.9rem; opacity: 0.85;">Period: <b>{{ period_label }}</b></span>
   </div>
   {% if request.user.is_admin %}
@@ -101,6 +101,18 @@
       <div style="font-size: 0.75rem; color: var(--jspl-muted);">Achievement Score</div>
     </div>
     {% endfor %}
+    
+    <!-- Report Generator Card -->
+    <div class="card" onclick="window.location.href='{% url 'report_page' dept.id %}?{{ query_params }}'"
+      style="cursor: pointer; display: flex; flex-direction: column; justify-content: space-between;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span style="font-size: 1.5rem;">📜</span>
+        <span class="badge badge-muted">Tool</span>
+      </div>
+      <h4 style="font-size: 0.95rem; margin-bottom: 5px; color: var(--jspl-navy);">Report Generator</h4>
+      <div style="font-size: 1.6rem; font-weight: 700; color: var(--jspl-orange); margin-bottom: 2px;">Export</div>
+      <div style="font-size: 0.75rem; color: var(--jspl-muted);">Compile and print reports</div>
+    </div>
   </div>
 
   <!-- Charts Row -->

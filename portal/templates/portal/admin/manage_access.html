@@ -178,7 +178,24 @@
                   ↳
                 </td>
                 <td class="matrix-dept-cell text-bold" style="vertical-align: middle;">
-                  {{ row.dept.name }} ({{ row.dept.code }})
+                  <div>{{ row.dept.name }} ({{ row.dept.code }})</div>
+                  <div style="margin-top: 4px; font-weight: normal; font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
+                    {% if u_data.user.department_id == row.dept.id %}
+                      <span style="color: var(--jspl-blue); font-weight: 600;">🏢 Primary Dept</span>
+                    {% else %}
+                      <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--jspl-navy);">
+                        <input type="checkbox" 
+                               name="enabled"
+                               hx-post="{% url 'portal:toggle_department_access' %}"
+                               hx-vals='{"user_id": "{{ u_data.user.id }}", "dept_id": "{{ row.dept.id }}", "stripe": "{% if forloop.counter|divisibleby:2 %}true{% else %}false{% endif %}"}'
+                               hx-target="closest tr"
+                               hx-swap="outerHTML"
+                               {% if row.has_access %}checked{% endif %}
+                               style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--jspl-orange);">
+                        Access Enabled
+                      </label>
+                    {% endif %}
+                  </div>
                 </td>
                 
                 {% for col in row.modules %}
@@ -188,7 +205,11 @@
                     {% if u_data.user.is_plant_admin %}
                       <span class="text-success text-bold">Full Access</span>
                     {% else %}
-                      {% include "portal/admin/partials/_access_cell.html" with u=u_data.user d=row.dept m=col.module access=col.access %}
+                      {% if row.has_access or u_data.user.department_id == row.dept.id %}
+                        {% include "portal/admin/partials/_access_cell.html" with u=u_data.user d=row.dept m=col.module access=col.access %}
+                      {% else %}
+                        <span style="color: var(--jspl-muted); font-size: 0.82rem;">🔒 Disabled</span>
+                      {% endif %}
                     {% endif %}
                     
                   </td>
@@ -280,6 +301,17 @@
           <option value="Engineer">Engineer</option>
           <option value="Operator">Operator</option>
         </select>
+      </div>
+
+      <!-- Plant-wide Access Checkbox -->
+      <div style="margin-bottom: 20px;">
+        <label style="display: inline-flex; align-items: center; font-size: 0.85rem; font-weight: bold; color: var(--jspl-navy); cursor: pointer;">
+          <input type="checkbox" name="grant_all_access" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer; accent-color: var(--jspl-orange);">
+          Grant Full Access to all Departments and Modules
+        </label>
+        <small style="color: var(--jspl-muted); font-size: 0.75rem; display: block; margin-left: 26px; margin-top: 4px;">
+          If checked, this user will receive EDIT permissions for all modules across all departments.
+        </small>
       </div>
 
       <!-- Form Actions -->

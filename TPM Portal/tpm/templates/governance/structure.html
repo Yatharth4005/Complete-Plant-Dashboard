@@ -21,16 +21,25 @@
       <!-- Toggle Roles & Responsibilities Tab/Button -->
       <button class="btn" 
               :class="showRoles ? 'btn-secondary' : 'btn-primary'" 
-              @click="showRoles = !showRoles; if (showRoles) editMode = false;" 
+              @click="showRoles = !showRoles; if (showRoles) { editMode = false; showList = false; }" 
               style="font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: none; padding: 0 16px; cursor: pointer; color: white !important; transition: all 0.2s;"
               :style="showRoles ? 'background-color: var(--jspl-muted) !important;' : 'background-color: var(--jspl-navy) !important;'">
         <span x-text="showRoles ? '👁️ Hide Roles' : '💡 Roles & Responsibilities'"></span>
       </button>
 
+      <!-- Toggle Structure List Tab/Button -->
+      <button class="btn" 
+              :class="showList ? 'btn-secondary' : 'btn-primary'" 
+              @click="showList = !showList; if (showList) { editMode = false; showRoles = false; }" 
+              style="font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: none; padding: 0 16px; cursor: pointer; color: white !important; transition: all 0.2s;"
+              :style="showList ? 'background-color: var(--jspl-muted) !important;' : 'background-color: var(--jspl-navy) !important;'">
+        <span x-text="showList ? '👁️ Hide List' : '👥 Structure List'"></span>
+      </button>
+
       {% if request.user.is_admin %}
       <button class="btn" 
               :class="editMode ? 'btn-secondary' : 'btn-primary'" 
-              @click="editMode = !editMode; if (editMode) showRoles = false;" 
+              @click="editMode = !editMode; if (editMode) { showRoles = false; showList = false; }" 
               style="font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: none; padding: 0 16px; cursor: pointer; color: white !important; transition: all 0.2s;"
               :style="editMode ? 'background-color: var(--jspl-muted) !important;' : 'background-color: var(--jspl-navy) !important;'">
         <span x-text="editMode ? '💾 Exit Edit Mode' : '🛠️ Edit Hierarchy'"></span>
@@ -39,7 +48,128 @@
     </div>
   </div>
 
-  <div class="structure-layout-grid" :class="{ 'editing': editMode, 'showing-roles': showRoles }">
+  <!-- TABLE LIST VIEW CONTAINER -->
+  <div x-show="showList" x-transition x-cloak class="card" style="padding: 30px; background: #FFFFFF; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-sm); margin-bottom: 30px; border-radius: 12px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--jspl-border); padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+      <h3 style="color: var(--jspl-navy); font-weight: 700; margin: 0; font-size: 1.25rem;">
+        👥 TPM Governance Members List
+      </h3>
+      {% if request.user.is_admin %}
+      <button @click="showAddMemberModal = true" class="btn" style="background-color: var(--jspl-orange) !important; color: white !important; border: none; font-weight: 700; font-size: 0.85rem; height: 38px; padding: 0 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;">
+        ➕ Add Member
+      </button>
+      {% endif %}
+    </div>
+
+    {% if request.user.is_admin %}
+    <!-- ADD MEMBER MODAL -->
+    <div x-show="showAddMemberModal" x-transition x-cloak style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+      <div @click.away="showAddMemberModal = false" class="card" style="background: #ffffff; padding: 30px; border-radius: 12px; border: 1px solid var(--jspl-border); box-shadow: var(--shadow-lg); width: 100%; max-width: 450px; position: relative; margin: 20px;">
+        <h3 style="color: var(--jspl-navy); font-weight: 700; margin-top: 0; margin-bottom: 20px; font-size: 1.25rem;">
+          ➕ Add Governance Member
+        </h3>
+        
+        <form @submit.prevent="submitAddMember">
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--jspl-navy); margin-bottom: 6px;">Select Person</label>
+            <select x-model="addUserId" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--jspl-border); font-size: 0.9rem; outline: none; background: #FFF;">
+              <option value="">-- Select Person --</option>
+              {% for u in all_users %}
+                <option value="{{ u.id }}">{{ u.get_display_name }} ({{ u.department.code|default:"No Dept" }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div style="margin-bottom: 24px;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--jspl-navy); margin-bottom: 6px;">Structure Tier / Role</label>
+            <select x-model="addRoleKey" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--jspl-border); font-size: 0.9rem; outline: none; background: #FFF;">
+              <option value="">-- Select Structure Tier --</option>
+              <option value="sponsor">Project Sponsor</option>
+              <option value="chairman">Steering Committee Chairman</option>
+              <option value="vice_chairman">Steering Committee Vice Chairman</option>
+              <option value="committee_member">Steering Committee Member</option>
+              <option value="coordinator_pillar">TPM Coordinator (Pillar)</option>
+              <option value="coordinator_cell">TPM Coordinator (Workstation/Cell)</option>
+              <option value="hod">HOD / Area Owner</option>
+            </select>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" @click="showAddMemberModal = false" class="btn" style="background-color: var(--jspl-gray) !important; color: var(--jspl-navy) !important; border: 1px solid var(--jspl-border); font-weight: 600; font-size: 0.85rem; height: 38px; padding: 0 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+              Cancel
+            </button>
+            <button type="submit" class="btn" style="background-color: var(--jspl-orange) !important; color: white !important; border: none; font-weight: 700; font-size: 0.85rem; height: 38px; padding: 0 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+              Add Member
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- TABLE -->
+    <div style="overflow-x: auto;">
+      <table class="table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--jspl-border); color: var(--jspl-navy); font-weight: 700; background-color: var(--jspl-gray);">
+            <th style="padding: 12px 15px; width: 60px;">S.No.</th>
+            <th style="padding: 12px 15px;">Name</th>
+            <th style="padding: 12px 15px;">Role</th>
+            <th style="padding: 12px 15px;">Department</th>
+            <th style="padding: 12px 15px;">Structure tier</th>
+            <th style="padding: 12px 15px;">Mail ID</th>
+            {% if request.user.is_admin %}
+            <th style="padding: 12px 15px; width: 100px;">Actions</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in all_assignments %}
+          <tr style="border-bottom: 1px solid rgba(0,0,0,0.05); transition: background-color 0.2s;">
+            <td style="padding: 12px 15px; font-weight: 600; color: var(--jspl-muted);">{{ forloop.counter }}</td>
+            <td style="padding: 12px 15px; font-weight: 600; color: var(--jspl-navy);">{{ a.user.get_display_name }}</td>
+            <td style="padding: 12px 15px; color: #4b5563;">{{ a.user.designation|default:"-" }}</td>
+            <td style="padding: 12px 15px;">
+              {% if a.user.department %}
+              <span class="dept-badge" style="background: var(--jspl-gray); color: var(--jspl-navy); padding: 4px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; border: 1px solid var(--jspl-border);">
+                {{ a.user.department.name }}
+              </span>
+              {% else %}
+              <span style="color: var(--jspl-muted);">-</span>
+              {% endif %}
+            </td>
+            <td style="padding: 12px 15px;">
+              <span style="display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700;
+                {% if a.role_key == 'sponsor' %} background-color: #EFF6FF; color: #1E40AF;
+                {% elif a.role_key == 'chairman' or a.role_key == 'vice_chairman' or a.role_key == 'committee_member' %} background-color: #ECFDF5; color: #065F46;
+                {% elif 'coordinator' in a.role_key %} background-color: #FDF2F8; color: #9D174D;
+                {% else %} background-color: #FFFBEB; color: #92400E;
+                {% endif %}">
+                {{ a.get_role_key_display }}
+              </span>
+            </td>
+            <td style="padding: 12px 15px; font-family: monospace; font-size: 0.82rem; color: #4b5563;">{{ a.user.email }}</td>
+            {% if request.user.is_admin %}
+            <td style="padding: 12px 15px;">
+              <button @click="unassign({{ a.user.id }}, '{{ a.role_key }}')" class="btn btn-sm" style="background-color: #ef4444 !important; border: none; color: white !important; font-size: 0.78rem; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+                🗑️ Delete
+              </button>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="{% if request.user.is_admin %}7{% else %}6{% endif %}" style="text-align: center; padding: 30px; color: var(--jspl-muted);">
+              No members found in the structure.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="structure-layout-grid" :class="{ 'editing': editMode, 'showing-roles': showRoles }" x-show="!showList">
     
     <!-- FLOWCHART COLUMN -->
     <div class="flowchart-column" style="min-width: 0; width: 100%;">
@@ -1363,6 +1493,14 @@
         });
       },
 
+      showList: false,
+      showAddMemberModal: false,
+      addUserId: '',
+      addRoleKey: '',
+      submitAddMember() {
+        if (!this.addUserId || !this.addRoleKey) return;
+        this.assignUser(this.addUserId, this.addRoleKey);
+      },
       editMode: false,
       showRoles: false,
       searchQuery: '',

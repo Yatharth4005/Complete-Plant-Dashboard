@@ -88,14 +88,19 @@ def manage_access(request):
         dept_rows = []
         for dept in departments:
             module_cols = []
+            has_access = False
             for module in modules:
+                access_level = matrix[user.id][dept.id][module.key]
+                if access_level is not None:
+                    has_access = True
                 module_cols.append({
                     'module': module,
-                    'access': matrix[user.id][dept.id][module.key],
+                    'access': access_level,
                 })
             dept_rows.append({
                 'dept': dept,
                 'modules': module_cols,
+                'has_access': has_access,
             })
         users_data.append({
             'user': user,
@@ -257,6 +262,20 @@ def admin_create_user(request):
                 
                 existing_user.save()
                 
+                # Grant plant-wide access if checked
+                grant_all_access = request.POST.get('grant_all_access') == 'on'
+                if grant_all_access:
+                    depts = Department.objects.filter(is_active=True)
+                    mods = Module.objects.filter(is_active=True)
+                    for d in depts:
+                        for m in mods:
+                            UserModuleAccess.objects.update_or_create(
+                                user=existing_user,
+                                department=d,
+                                module=m,
+                                defaults={'access_level': 'EDIT', 'granted_by': request.user}
+                            )
+                
                 # Resolve AccessRequest if it exists
                 request_id = request.POST.get('request_id')
                 if request_id:
@@ -294,6 +313,20 @@ def admin_create_user(request):
             user.set_password(password)
             
         user.save()
+        
+        # Grant plant-wide access if checked
+        grant_all_access = request.POST.get('grant_all_access') == 'on'
+        if grant_all_access:
+            depts = Department.objects.filter(is_active=True)
+            mods = Module.objects.filter(is_active=True)
+            for d in depts:
+                for m in mods:
+                    UserModuleAccess.objects.update_or_create(
+                        user=user,
+                        department=d,
+                        module=m,
+                        defaults={'access_level': 'EDIT', 'granted_by': request.user}
+                    )
         
         # Resolve AccessRequest if it exists
         request_id = request.POST.get('request_id')
@@ -491,3 +524,66 @@ def admin_departments(request):
         'active_section': 'admin_departments',
     }
     return render(request, 'portal/admin/manage_departments.html', context)
+
+
+@login_required
+@admin_required
+@require_http_methods(['POST'])
+def toggle_department_access(request):
+    """
+    HTMX endpoint to toggle access to a department for a user.
+    If the user has access, revokes it by deleting all their module access records for that department.
+    If the user does not have access, grants it by creating VIEW access records for all active modules.
+    """
+    from django.shortcuts import get_object_or_404
+    
+    user_id = request.POST.get('user_id')
+    dept_id = request.POST.get('dept_id')
+    stripe_str = request.POST.get('stripe', 'false')
+    stripe = (stripe_str == 'true')
+    
+    user = get_object_or_404(User, id=user_id)
+    dept = get_object_or_404(Department, id=dept_id)
+    
+    # Check if they have access currently
+    has_access = UserModuleAccess.objects.filter(user=user, department=dept).exists()
+    
+    if has_access:
+        # Revoke access: delete all module access records for this user and department
+        UserModuleAccess.objects.filter(user=user, department=dept).delete()
+        has_access = False
+    else:
+        # Grant access: create a VIEW access record for all active modules
+        active_modules = Module.objects.filter(is_active=True)
+        for m in active_modules:
+            UserModuleAccess.objects.update_or_create(
+                user=user,
+                department=dept,
+                module=m,
+                defaults={'access_level': 'VIEW', 'granted_by': request.user}
+            )
+        has_access = True
+        
+    # Build list of active modules and their access states for template rendering
+    active_modules = Module.objects.filter(is_active=True).order_by('sort_order')
+    access_map = {m.key: None for m in active_modules}
+    if has_access:
+        records = UserModuleAccess.objects.filter(user=user, department=dept, module__is_active=True)
+        for r in records:
+            access_map[r.module.key] = r.access_level
+            
+    modules_data = []
+    for m in active_modules:
+        modules_data.append({
+            'module': m,
+            'access': access_map.get(m.key)
+        })
+        
+    context = {
+        'u': user,
+        'dept': dept,
+        'has_access': has_access,
+        'modules_data': modules_data,
+        'stripe': stripe,
+    }
+    return render(request, 'portal/admin/partials/_dept_row.html', context)

@@ -217,6 +217,9 @@ class KaizenSheet(models.Model):
     # list of dicts: [{"sl_no": "1", "area_equip": "BF-1", "target_date": "2026-07-01", "responsibility": "John", "status": "Pending"}]
     horizontal_deployment = models.JSONField(default=list, blank=True)
     
+    # Custom file attachment for uploaded PDF/Excel Kaizens
+    uploaded_file = models.FileField(upload_to='kaizen_files/', blank=True, null=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)

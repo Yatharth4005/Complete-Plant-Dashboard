@@ -13,13 +13,28 @@ def get_user_module_access_map(user, department) -> dict:
         active_modules = Module.objects.filter(is_active=True)
         return {m.key: 'EDIT' for m in active_modules}
         
+    # Check department access (primary department or any module access records exist)
+    has_dept_access = (user.department_id == department.id) or UserModuleAccess.objects.filter(
+        user=user,
+        department=department
+    ).exists()
+    
+    if not has_dept_access:
+        return {}
+        
+    # Access is permitted - default all active modules to VIEW
+    active_modules = Module.objects.filter(is_active=True)
     records = UserModuleAccess.objects.filter(
         user=user,
         department=department,
         module__is_active=True
     ).select_related('module')
     
-    return {r.module.key: r.access_level for r in records}
+    access_map = {m.key: 'VIEW' for m in active_modules}
+    for r in records:
+        access_map[r.module.key] = r.access_level
+        
+    return access_map
 
 def user_can_access_module(user, department, module_key) -> bool:
     access_map = get_user_module_access_map(user, department)

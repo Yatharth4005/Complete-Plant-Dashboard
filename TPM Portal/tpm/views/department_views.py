@@ -275,7 +275,8 @@ def parse_tpm_filename(filename):
             year = 2000 + int(year_match.group(1))
             
     # 3. Match Department Code
-    name_clean = re.sub(r'[^A-Z0-9]', '', name_part)
+    name_no_tpm = re.sub(r'TPM', '', name_part, flags=re.IGNORECASE)
+    name_clean = re.sub(r'[^A-Z0-9]', '', name_no_tpm.upper())
     all_depts = Department.objects.all()
     sorted_depts = sorted(all_depts, key=lambda d: len(d.code), reverse=True)
     
@@ -309,6 +310,13 @@ def import_sheet_data(ws, dept, pillar_id, month, year):
     
     for r in range(2, ws.max_row + 1):
         sl_no_val = ws.cell(row=r, column=1).value
+        
+        # Skip header rows
+        if sl_no_val is not None:
+            sl_no_clean = str(sl_no_val).strip().upper().replace(' ', '').replace('.', '')
+            if sl_no_clean in ('SNO', 'SLNO', 'SERIALNO', 'SERIALNUMBER'):
+                continue
+                
         particulars_val = ws.cell(row=r, column=3).value
         value_val = ws.cell(row=r, column=value_col_idx+1).value
         kpi_name_raw = ws.cell(row=r, column=2).value

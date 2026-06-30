@@ -95,14 +95,7 @@
           {% endif %}
         </div>
         
-        <div class="form-field-group internal-only-field">
-          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Rolled Section</label>
-          {{ form.section }}
-          {% if form.section.errors %}
-            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.section.errors }}</div>
-          {% endif %}
-        </div>
-        
+
         <div class="form-field-group internal-only-field">
           <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Equipment</label>
           {{ form.equipment }}
@@ -172,30 +165,6 @@
   </form>
 </div>
 
-<!-- Autocomplete Datalists -->
-<datalist id="sub_agencies_list">
-  {% for sa in sub_agencies %}
-    <option value="{{ sa }}">
-  {% endfor %}
-</datalist>
-
-<datalist id="sections_list">
-  {% for sec in sections %}
-    <option value="{{ sec }}">
-  {% endfor %}
-</datalist>
-
-<datalist id="sub_equipments_list">
-  {% for se in sub_equipments %}
-    <option value="{{ se }}">
-  {% endfor %}
-</datalist>
-
-<datalist id="incharges_list">
-  {% for inc in incharges %}
-    <option value="{{ inc }}">
-  {% endfor %}
-</datalist>
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {

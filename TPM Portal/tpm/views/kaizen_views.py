@@ -87,6 +87,52 @@ def kaizen_list_partial(request, dept_id, pillar_id):
 
 @login_required
 @dept_access_required
+def kaizen_upload_partial(request, dept_id, pillar_id):
+    dept = get_object_or_404(Department, id=dept_id)
+    context = {
+        'dept': dept,
+        'pillar_id': pillar_id,
+    }
+    return render(request, 'partials/_kaizen_upload_form.html', context)
+
+@login_required
+@dept_access_required
+@require_POST
+def kaizen_save_upload(request, dept_id, pillar_id):
+    dept = get_object_or_404(Department, id=dept_id)
+    
+    theme = request.POST.get('theme', '').strip()
+    area_equipment = request.POST.get('area_equipment', '').strip()
+    circle_name = request.POST.get('circle_name', '').strip()
+    team_leader = request.POST.get('team_leader', '').strip()
+    finish_date = request.POST.get('finish_date', '').strip()
+    
+    kaizen_file = request.FILES.get('kaizen_file')
+    if not kaizen_file:
+        return HttpResponse("No file was uploaded.", status=400)
+        
+    # Create new KaizenSheet instance
+    kaizen = KaizenSheet(
+        department=dept,
+        pillar=pillar_id,
+        kaizen_no=generate_random_kaizen_no(),
+        theme=theme,
+        area_equipment=area_equipment,
+        circle_name=circle_name,
+        team_leader=team_leader,
+        finish_date=format_date_to_db(finish_date),
+        uploaded_file=kaizen_file,
+        created_by=request.user
+    )
+    kaizen.save()
+    
+    # Sync Jishu Hozen Kaizen Completed Count KPI actuals
+    update_kaizen_kpis_for_sheet(kaizen)
+    
+    return kaizen_list_partial(request, dept.id, pillar_id)
+
+@login_required
+@dept_access_required
 def kaizen_edit_partial(request, dept_id, pillar_id, kaizen_id=None):
     dept = get_object_or_404(Department, id=dept_id)
     kaizen = None

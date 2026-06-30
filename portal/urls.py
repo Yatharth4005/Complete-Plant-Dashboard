@@ -19,6 +19,7 @@ urlpatterns = [
 
     # Admin access management
     path('portal-admin/access/', admin_views.manage_access, name='admin_access'),
+    path('portal-admin/access/toggle-dept/', admin_views.toggle_department_access, name='toggle_department_access'),
     path('portal-admin/toggle-admin/', admin_views.toggle_admin, name='toggle_admin'),
     path('portal-admin/users/', admin_views.user_informations, name='user_informations'),
     path('portal-admin/users/create/', admin_views.admin_create_user, name='admin_create_user'),

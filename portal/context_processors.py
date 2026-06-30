@@ -48,6 +48,14 @@ def sidebar_context(request):
         except ValueError:
             pass
             
+    if not active_dept_id:
+        dept_param = request.GET.get('department_id')
+        if dept_param:
+            try:
+                active_dept_id = int(dept_param)
+            except ValueError:
+                pass
+            
     # Detect module namespace in path
     parts_lower = [p.lower() for p in parts]
     if 'tpm' in parts_lower:
@@ -70,6 +78,8 @@ def sidebar_context(request):
         active_module = 'SPARE'
     elif 'dakshata' in parts_lower:
         active_module = 'DAKSHATA'
+    elif 'hod-kpi' in parts_lower:
+        active_module = 'HOD_KPI'
 
     # Get user access mapping for the current department to display sidebar indicators
     user_modules_map = {}
@@ -80,6 +90,26 @@ def sidebar_context(request):
             user_modules_map = get_user_module_access_map(request.user, curr_dept)
         except Department.DoesNotExist:
             pass
+
+    sidebar_modules = Module.objects.filter(is_active=True).order_by('sort_order')
+
+    # Build access lists per department for offline (non-active) expanding
+    sidebar_departments_data = []
+    if request.user.is_admin():
+        admin_modules = [m.key for m in sidebar_modules]
+        for d in depts:
+            sidebar_departments_data.append({
+                'dept': d,
+                'accessible_modules': admin_modules
+            })
+    else:
+        for d in depts:
+            records = UserModuleAccess.objects.filter(user=request.user, department=d, module__is_active=True).select_related('module')
+            accessible_modules = [r.module.key for r in records]
+            sidebar_departments_data.append({
+                'dept': d,
+                'accessible_modules': accessible_modules
+            })
 
     pillars = [
         {'id': 'KK', 'label': 'KK (Kobetsu Kaizen)'},
@@ -94,7 +124,8 @@ def sidebar_context(request):
 
     return {
         'sidebar_departments': depts,
-        'sidebar_modules': Module.objects.exclude(key__in=['FMEA', 'CAPA']).order_by('sort_order'),
+        'sidebar_departments_data': sidebar_departments_data,
+        'sidebar_modules': sidebar_modules,
         'active_dept_id': active_dept_id,
         'active_module': active_module,
         'user_modules_map': user_modules_map,

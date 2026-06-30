@@ -81,6 +81,7 @@ def tpm_governance_structure(request):
         'active_section': 'governance',
         'active_tab': 'structure',
         'assignments': assignments_by_role,
+        'all_assignments': assignments,
         'all_users': all_users,
         'role_descriptions': role_descriptions,
     }

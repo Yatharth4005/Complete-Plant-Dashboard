@@ -1,0 +1,42 @@
+<tr class="user-dept-row-{{ u.id }} dept-row-item {% if stripe %}stripe-row{% endif %}" style="display: table-row; border-bottom: 1px solid var(--jspl-border);">
+  <td class="matrix-user-cell-spacer" style="border-right: 1px solid var(--jspl-border); width: 40px; background: #fcfcfc; text-align: center; color: var(--jspl-muted); font-size: 14px; font-weight: bold; vertical-align: middle;">
+    ↳
+  </td>
+  <td class="matrix-dept-cell text-bold" style="vertical-align: middle;">
+    <div>{{ dept.name }} ({{ dept.code }})</div>
+    <div style="margin-top: 4px; font-weight: normal; font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
+      {% if u.department_id == dept.id %}
+        <span style="color: var(--jspl-blue); font-weight: 600;">🏢 Primary Dept</span>
+      {% else %}
+        <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--jspl-navy);">
+          <input type="checkbox" 
+                 name="enabled"
+                 hx-post="{% url 'portal:toggle_department_access' %}"
+                 hx-vals='{"user_id": "{{ u.id }}", "dept_id": "{{ dept.id }}", "stripe": "{% if stripe %}true{% else %}false{% endif %}"}'
+                 hx-target="closest tr"
+                 hx-swap="outerHTML"
+                 {% if has_access %}checked{% endif %}
+                 style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--jspl-orange);">
+          Access Enabled
+        </label>
+      {% endif %}
+    </div>
+  </td>
+  
+  {% for col in modules_data %}
+    <td class="matrix-cell text-center" 
+        id="cell-{{ u.id }}-{{ dept.id }}-{{ col.module.key }}" style="vertical-align: middle;">
+      
+      {% if u.is_plant_admin %}
+        <span class="text-success text-bold">Full Access</span>
+      {% else %}
+        {% if has_access or u.department_id == dept.id %}
+          {% include "portal/admin/partials/_access_cell.html" with u=u d=dept m=col.module access=col.access %}
+        {% else %}
+          <span style="color: var(--jspl-muted); font-size: 0.82rem;">🔒 Disabled</span>
+        {% endif %}
+      {% endif %}
+      
+    </td>
+  {% endfor %}
+</tr>

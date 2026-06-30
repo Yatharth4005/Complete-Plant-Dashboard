@@ -1,0 +1,626 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}HOD KPI Review - {{ department.name }}{% endblock %}
+
+{% block breadcrumb_items %}
+<span class="breadcrumb-sep">/</span>
+<a href="{% url 'portal:dept_hub' department.id %}">{{ department.name }}</a>
+<span class="breadcrumb-sep">/</span>
+<span class="breadcrumb-current">HOD KPI Review</span>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'hod_kpi/css/hod_kpi.css' %}?v=1">
+<style>
+    /* Styling overrides or layout tweaks */
+    .dashboard-container {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+    }
+    .panel-header-title {
+        color: var(--jspl-navy);
+        font-weight: 700;
+        font-size: 1.15rem;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .metrics-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+    .metrics-table th {
+        text-align: left;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        color: var(--jspl-muted);
+        padding: 10px 14px;
+        border-bottom: 2px solid var(--jspl-border);
+    }
+    .metrics-table td {
+        padding: 12px 14px;
+        font-size: 0.88rem;
+        border-bottom: 1px solid rgba(0, 52, 120, 0.05);
+    }
+    .metrics-table tr:hover {
+        background: rgba(0, 52, 120, 0.01);
+    }
+    .alert-lti-banner {
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        border: 1px solid rgba(220, 38, 38, 0.2);
+        color: var(--status-red);
+        padding: 16px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow-sm);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container dashboard-container">
+    
+    <!-- Title and Toolbar Header -->
+    <div class="dashboard-header-row" style="margin-bottom: 10px;">
+        <div>
+            <h1 class="portal-page-title">📊 HOD KPI Review Module</h1>
+            <p class="portal-page-subtitle">{{ department.name }} Operations & Performance Ledger</p>
+        </div>
+    </div>
+
+    <!-- Selectable Period Toolbar Card -->
+    <div class="glass-card" style="padding: 16px 24px; margin-bottom: 20px;">
+        <form method="GET" action="{% url 'hod_kpi:dashboard' %}" style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+            <input type="hidden" name="department_id" value="{{ department.id }}">
+            
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.1rem;">📅</span>
+                <strong style="color: var(--jspl-navy); font-size: 0.85rem; text-transform: uppercase;">Reporting Period:</strong>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label for="id_month" style="font-size: 0.78rem; font-weight: bold; color: var(--jspl-muted);">Month</label>
+                <select name="month" id="id_month" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid var(--jspl-border); border-radius: var(--radius-sm); outline: none; background: var(--jspl-gray); font-family: inherit; font-size: 0.85rem; cursor: pointer;">
+                    <option value="1" {% if month == 1 %}selected{% endif %}>January</option>
+                    <option value="2" {% if month == 2 %}selected{% endif %}>February</option>
+                    <option value="3" {% if month == 3 %}selected{% endif %}>March</option>
+                    <option value="4" {% if month == 4 %}selected{% endif %}>April</option>
+                    <option value="5" {% if month == 5 %}selected{% endif %}>May</option>
+                    <option value="6" {% if month == 6 %}selected{% endif %}>June</option>
+                    <option value="7" {% if month == 7 %}selected{% endif %}>July</option>
+                    <option value="8" {% if month == 8 %}selected{% endif %}>August</option>
+                    <option value="9" {% if month == 9 %}selected{% endif %}>September</option>
+                    <option value="10" {% if month == 10 %}selected{% endif %}>October</option>
+                    <option value="11" {% if month == 11 %}selected{% endif %}>November</option>
+                    <option value="12" {% if month == 12 %}selected{% endif %}>December</option>
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label for="id_year" style="font-size: 0.78rem; font-weight: bold; color: var(--jspl-muted);">Year</label>
+                <select name="year" id="id_year" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid var(--jspl-border); border-radius: var(--radius-sm); outline: none; background: var(--jspl-gray); font-family: inherit; font-size: 0.85rem; cursor: pointer;">
+                    <option value="2024" {% if year == 2024 %}selected{% endif %}>2024</option>
+                    <option value="2025" {% if year == 2025 %}selected{% endif %}>2025</option>
+                    <option value="2026" {% if year == 2026 %}selected{% endif %}>2026</option>
+                    <option value="2027" {% if year == 2027 %}selected{% endif %}>2027</option>
+                </select>
+            </div>
+        </form>
+    </div>
+
+    <!-- 1. Excel Upload Form Card -->
+    {% if not upload %}
+    <div class="glass-card" style="text-align: center; padding: 48px 30px;">
+        <span style="font-size: 3rem; display: block; margin-bottom: 15px;">📥</span>
+        <h2 style="color: var(--jspl-navy); margin-bottom: 8px;">No KPI Data Uploaded for {{ month_name }} {{ year }}</h2>
+        <p style="color: var(--jspl-muted); max-width: 500px; margin: 0 auto 24px auto; font-size: 0.88rem;">
+            To begin, upload the monthly department executive summary report (e.g. <code>Executive Summary Report- Plate Mil 25062026.xlsx</code>). The system will automatically parse and model all operations, quality, safety, and cost variables.
+        </p>
+        <form action="{% url 'hod_kpi:upload_excel' %}" method="POST" enctype="multipart/form-data" style="max-width: 400px; margin: 0 auto;">
+            {% csrf_token %}
+            <input type="hidden" name="month" value="{{ month }}">
+            <input type="hidden" name="year" value="{{ year }}">
+            <input type="hidden" name="department_id" value="{{ department.id }}">
+            <div style="display: flex; gap: 10px; flex-direction: column; align-items: center;">
+                <input type="file" name="excel_file" accept=".xlsx,.xls" required class="input-mono" style="padding: 10px; border: 1px dashed var(--jspl-border); border-radius: var(--radius-md); width: 100%;">
+                <button type="submit" class="btn btn-primary" style="height: 42px; width: 100%; margin-top: 10px; font-weight: bold; background-color: var(--jspl-blue); color: #fff; border: none; border-radius: var(--radius-md); cursor: pointer;">
+                    Parse & Populate Dashboard
+                </button>
+            </div>
+        </form>
+    </div>
+    {% else %}
+    <!-- If Uploaded, display file re-upload widget in small upper right row -->
+    <div class="glass-card" style="padding: 16px 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div style="font-size: 0.85rem; color: var(--jspl-text);">
+                📁 Current File: <a href="{{ upload.file.url }}" class="mono" style="font-weight: 600;">{{ upload_filename }}</a> 
+                <span style="color: var(--jspl-muted); margin-left: 10px;">(Uploaded {{ upload.uploaded_at|date:"d-M-y H:i" }} by {{ upload.uploaded_by.get_display_name }})</span>
+            </div>
+            {% if submission.status == 'DRAFT' %}
+            <form action="{% url 'hod_kpi:upload_excel' %}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
+                {% csrf_token %}
+                <input type="hidden" name="month" value="{{ month }}">
+                <input type="hidden" name="year" value="{{ year }}">
+                <input type="hidden" name="department_id" value="{{ department.id }}">
+                <input type="file" name="excel_file" accept=".xlsx,.xls" required style="font-size: 0.75rem;">
+                <button type="submit" class="btn" style="padding: 6px 12px; font-size: 0.75rem; background: rgba(0, 52, 120, 0.05); border: 1px solid var(--jspl-border); color: var(--jspl-navy); cursor: pointer; border-radius: 6px; font-weight: bold;">
+                    Re-upload
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 2. Overall KPI Summary Cards -->
+    <div class="kpi-grid">
+        <div class="glass-card kpi-card border-success" style="border-left-width: 6px;">
+            <div class="kpi-title">Compliance Summary</div>
+            <div class="kpi-value highlight-blue">{{ compliance_pct }}%</div>
+            <div class="kpi-subtext">Overall target achievement index</div>
+        </div>
+        <div class="glass-card kpi-card" style="border-left: 6px solid var(--status-green);">
+            <div class="kpi-title">Green KPIs</div>
+            <div class="kpi-value highlight-green">{{ green_count }}</div>
+            <div class="kpi-subtext">On track / meeting targets</div>
+        </div>
+        <div class="glass-card kpi-card" style="border-left: 6px solid var(--status-amber);">
+            <div class="kpi-title">Yellow KPIs</div>
+            <div class="kpi-value text-bold" style="color: var(--status-amber);">{{ yellow_count }}</div>
+            <div class="kpi-subtext">Within marginal variance limits</div>
+        </div>
+        <div class="glass-card kpi-card border-danger" style="border-left-width: 6px;">
+            <div class="kpi-title">Red KPIs</div>
+            <div class="kpi-value text-danger">{{ red_count }}</div>
+            <div class="kpi-subtext">Requiring immediate deviation inputs</div>
+        </div>
+    </div>
+
+    <!-- LTI Danger Banner -->
+    {% if lti_actual > 0 %}
+    <div class="alert-lti-banner">
+        <span>⚠️ CRITICAL SAFETY NOTICE: Lost Time Injury (LTI) of {{ lti_actual }} occurred in the reporting cycle. Immediate safety standdown and review triggered.</span>
+    </div>
+    {% endif %}
+
+    <!-- 3. Domain Details (Tabs & Layout Panels) -->
+    <div style="display: grid; grid-template-columns: 1fr; gap: 30px;">
+        
+        <!-- 3.1 Production Detail Panel (WTD/MTD/YTD Tabs) -->
+        <div class="glass-card">
+            <div class="panel-header-title">🏭 Production Metrics Summary</div>
+            
+            <!-- Tab Toolbar -->
+            <div class="tab-toolbar">
+                <button class="tab-btn active" data-tab="mtd">Month to Date (MTD)</button>
+                <button class="tab-btn" data-tab="ytd">Year to Date (YTD)</button>
+                <button class="tab-btn" data-tab="wtd">Week to Date (WTD)</button>
+            </div>
+
+            <!-- MTD Table Content -->
+            <div id="production-mtd" class="tab-content" style="display: block;">
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Metric Name</th>
+                            <th>UOM</th>
+                            <th>Target</th>
+                            <th>Actual</th>
+                            <th>Achievement %</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in production_mtd %}
+                        <tr>
+                            <td class="text-bold">{{ r.kpi_name }}</td>
+                            <td class="mono">{{ r.uom }}</td>
+                            <td class="mono">{% if r.target %}{{ r.target|floatformat:1 }}{% else %}-{% endif %}</td>
+                            <td class="mono">{{ r.actual|floatformat:1 }}</td>
+                            <td class="mono text-bold">{{ r.achievement_pct|floatformat:1 }}%</td>
+                            <td>
+                                <span class="kpi-score-badge kpi-badge-{{ r.status|lower }}">{{ r.status }}</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted">No MTD Production data found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- YTD Table Content -->
+            <div id="production-ytd" class="tab-content" style="display: none;">
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Metric Name</th>
+                            <th>UOM</th>
+                            <th>Target</th>
+                            <th>Actual</th>
+                            <th>Achievement %</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in production_ytd %}
+                        <tr>
+                            <td class="text-bold">{{ r.kpi_name }}</td>
+                            <td class="mono">{{ r.uom }}</td>
+                            <td class="mono">{% if r.target %}{{ r.target|floatformat:1 }}{% else %}-{% endif %}</td>
+                            <td class="mono">{{ r.actual|floatformat:1 }}</td>
+                            <td class="mono text-bold">{% if r.achievement_pct %}{{ r.achievement_pct|floatformat:1 }}%{% else %}-{% endif %}</td>
+                            <td>
+                                <span class="kpi-score-badge kpi-badge-{{ r.status|lower }}">{{ r.status }}</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted">No YTD Production data found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- WTD Table Content -->
+            <div id="production-wtd" class="tab-content" style="display: none;">
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Metric Name</th>
+                            <th>UOM</th>
+                            <th>Target</th>
+                            <th>Actual</th>
+                            <th>Achievement %</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in production_wtd %}
+                        <tr>
+                            <td class="text-bold">{{ r.kpi_name }}</td>
+                            <td class="mono">{{ r.uom }}</td>
+                            <td class="mono">{% if r.target %}{{ r.target|floatformat:1 }}{% else %}-{% endif %}</td>
+                            <td class="mono">{{ r.actual|floatformat:1 }}</td>
+                            <td class="mono text-bold">{{ r.achievement_pct|floatformat:1 }}%</td>
+                            <td>
+                                <span class="kpi-score-badge kpi-badge-{{ r.status|lower }}">{{ r.status }}</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted">No WTD Production data found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3.2 Quality & OEE Split Panel -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px;">
+            <!-- Quality Panel -->
+            <div class="glass-card">
+                <div class="panel-header-title">🛡️ Quality KPIs</div>
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Target</th>
+                            <th>Actual</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in quality_records %}
+                        <tr>
+                            <td class="text-bold">{{ r.kpi_name }}</td>
+                            <td class="mono">{% if r.target %}{{ r.target|floatformat:2 }}{{ r.uom }}{% else %}-{% endif %}</td>
+                            <td class="mono">{{ r.actual|floatformat:2 }}{{ r.uom }}</td>
+                            <td>
+                                <span class="kpi-score-badge kpi-badge-{{ r.status|lower }}">{{ r.status }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- OEE Panel -->
+            <div class="glass-card">
+                <div class="panel-header-title">⚡ OEE & Equipment Utilization</div>
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Equipment KPI</th>
+                            <th>Target</th>
+                            <th>Actual</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in oee_records %}
+                        <tr>
+                            <td class="text-bold">{{ r.kpi_name }}</td>
+                            <td class="mono">{% if r.target %}{{ r.target|floatformat:1 }}{{ r.uom }}{% else %}-{% endif %}</td>
+                            <td class="mono">{{ r.actual|floatformat:1 }}{{ r.uom }}</td>
+                            <td>
+                                <span class="kpi-score-badge kpi-badge-{{ r.status|lower }}">{{ r.status }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3.3 Safety & Cost Split Panel -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px;">
+            <!-- Safety Panel -->
+            <div class="glass-card">
+                <div class="panel-header-title">🦺 Safety / HSE Scorecard</div>
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Safety Metric</th>
+                            <th>Target</th>
+                            <th>Actual</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in safety_records %}
+                        <tr>
+                            <td class="text-bold">{{ r.kpi_name }}</td>
+                            <td class="mono">{% if r.target is not None %}{{ r.target|floatformat:0 }}{% else %}-{% endif %}</td>
+                            <td class="mono">{% if r.actual is not None %}{{ r.actual|floatformat:0 }}{% else %}-{% endif %}</td>
+                            <td>
+                                <span class="kpi-score-badge kpi-badge-{{ r.status|lower }}">{{ r.status }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Cost Panel -->
+            <div class="glass-card">
+                <div class="panel-header-title">💰 Cost & Consumption Indicators</div>
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Specific Consumption</th>
+                            <th>Forecast</th>
+                            <th>Actual</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in cost_records %}
+                        <tr>
+                            <td class="text-bold">{{ r.kpi_name }}</td>
+                            <td class="mono">{% if r.target %}{{ r.target|floatformat:2 }} <span style="font-size:0.75rem;">{{ r.uom }}</span>{% else %}-{% endif %}</td>
+                            <td class="mono">{{ r.actual|floatformat:2 }} <span style="font-size:0.75rem;">{{ r.uom }}</span></td>
+                            <td>
+                                <span class="kpi-score-badge kpi-badge-{{ r.status|lower }}">{{ r.status }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 4. Structured Deviation Forms (Below-Target KPIs) -->
+    <div class="glass-card">
+        <div class="panel-header-title">⚠️ Below-Target KPI Deviation Inputs</div>
+        <p style="font-size: 0.82rem; color: var(--jspl-muted); margin-bottom: 15px;">
+            The HOD must submit formal deviation reason, root cause, and CAPA logs for any KPI flagged Yellow or Red. Fields will auto-save on loss of cursor focus.
+        </p>
+
+        {% for r in below_target_records %}
+        <div style="margin-bottom: 24px; border-bottom: 1px solid rgba(0, 52, 120, 0.08); padding-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div class="text-bold" style="font-size: 1rem; color: var(--jspl-navy);">
+                    {{ r.get_domain_display }}: <span style="color: var(--status-red);">{{ r.kpi_name }}</span> ({{ r.view_type }})
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="mono" style="font-size: 0.88rem;">Target: {{ r.target|floatformat:1 }} | Actual: {{ r.actual|floatformat:1 }}</span>
+                    <span class="kpi-score-badge kpi-badge-{{ r.status|lower }}">{{ r.status }}</span>
+                </div>
+            </div>
+            
+            <div class="feedback-container">
+                <div class="feedback-grid">
+                    <div class="feedback-field">
+                        <label>Reason for Deviation</label>
+                        <textarea class="kpi-feedback-input" data-record-id="{{ r.id }}" data-field="reason_deviation" rows="2" {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>{{ r.reason_deviation|default:"" }}</textarea>
+                    </div>
+                    <div class="feedback-field">
+                        <label>Root Cause</label>
+                        <textarea class="kpi-feedback-input" data-record-id="{{ r.id }}" data-field="root_cause" rows="2" {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>{{ r.root_cause|default:"" }}</textarea>
+                    </div>
+                    <div class="feedback-field">
+                        <label>Corrective & Preventive Action</label>
+                        <textarea class="kpi-feedback-input" data-record-id="{{ r.id }}" data-field="corrective_action" rows="2" {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>{{ r.corrective_action|default:"" }}</textarea>
+                    </div>
+                </div>
+                <div class="feedback-grid" style="margin-top: 14px;">
+                    <div class="feedback-field">
+                        <label>Responsible Owner</label>
+                        <input type="text" class="kpi-feedback-input" data-record-id="{{ r.id }}" data-field="responsible_owner" value="{{ r.responsible_owner|default:"" }}" {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>
+                    </div>
+                    <div class="feedback-field">
+                        <label>Target Completion Date</label>
+                        <input type="date" class="kpi-feedback-input" data-record-id="{{ r.id }}" data-field="completion_date" value="{% if r.completion_date %}{{ r.completion_date|date:'Y-m-d' }}{% endif %}" {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>
+                    </div>
+                    <div class="feedback-field">
+                        <label>Remarks</label>
+                        <input type="text" class="kpi-feedback-input" data-record-id="{{ r.id }}" data-field="remarks" value="{{ r.remarks|default:"" }}" {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div style="padding: 20px; text-align: center; color: var(--status-green); font-weight: bold; background: rgba(22,163,74,0.06); border-radius: var(--radius-md);">
+            ✅ Excellent! No below-target KPIs recorded for this cycle. No deviation forms required.
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 5. Delay Analysis Panel -->
+    <div class="glass-card">
+        <div class="panel-header-title">🛑 Delay & Downtime Analysis</div>
+        <p style="font-size: 0.82rem; color: var(--jspl-muted); margin-bottom: 20px;">
+            The detailed downtime causes extracted from the Excel. Please provide explanations for any major delays below.
+        </p>
+
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Delay Reason</th>
+                    <th style="width: 15%;">Responsibility</th>
+                    <th style="width: 15%;">Duration (mins)</th>
+                    <th style="width: 15%;">Contribution %</th>
+                    <th style="width: 15%;">HOD Explanation / Action Plan</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in delay_records %}
+                <tr>
+                    <td class="text-bold">{{ d.reason }}</td>
+                    <td class="mono">{{ d.department_cause }}</td>
+                    <td class="mono">{{ d.duration_mins|floatformat:0 }}</td>
+                    <td class="mono">
+                        {{ d.contribution_pct|floatformat:1 }}%
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill fill-warning" style="width: {{ d.contribution_pct }}%"></div>
+                        </div>
+                    </td>
+                    <td>
+                        <input type="text" class="delay-explanation-input" data-delay-id="{{ d.id }}" value="{{ d.explanation }}" placeholder="Enter explain..." style="width:100%; border: 1px solid var(--jspl-border); border-radius: 4px; padding: 6px;" {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted">No delays recorded.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 6. AI Insights Panel -->
+    <div class="glass-card">
+        <div class="ai-insights-header">
+            <div class="panel-header-title" style="margin-bottom:0;">🤖 AI-Powered Operations Insights</div>
+            <button id="generate-ai-btn" data-submission-id="{{ submission.id }}" class="btn" style="background-color: var(--jspl-orange); color: white; font-weight: bold; border: none; padding: 8px 16px; border-radius: var(--radius-md); cursor: pointer;" {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>
+                {% if submission.ai_summary %}Refresh AI Insights{% else %}Generate AI Insights{% endif %}
+            </button>
+        </div>
+
+        <!-- Skeleton Loader -->
+        <div id="ai-insights-skeleton" class="skeleton-loader" style="display: none;">
+            <div class="skeleton-line h-title"></div>
+            <div class="skeleton-line h-paragraph"></div>
+            <div class="skeleton-line h-paragraph" style="width: 90%;"></div>
+            <div class="skeleton-line h-paragraph" style="width: 75%;"></div>
+        </div>
+
+        <!-- Insights Container -->
+        <div id="ai-insights-content">
+            <div id="ai-summary-text" style="font-size: 0.9rem; line-height: 1.6; color: var(--jspl-text); margin-bottom: 20px;">
+                {{ submission.ai_summary|default:"No insights generated yet. Click 'Generate AI Insights' to compute performance metrics summary." }}
+            </div>
+            
+            <div style="font-weight: 700; color: var(--jspl-navy); font-size: 0.85rem; text-transform: uppercase; margin-bottom: 10px;">
+                Recommended Actions:
+            </div>
+            
+            <div id="ai-recommendations-list">
+                {% if submission.ai_recommendations %}
+                    {% for rec in ai_recommendations_list %}
+                    <div class="ai-recommendation-item">
+                        <span class="ai-icon-bullet">💡</span>
+                        <span style="font-size: 0.85rem; color: var(--jspl-text);">{{ rec }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="font-size: 0.82rem; color: var(--jspl-muted);">No recommendations computed.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. HOD Monthly Narrative inputs -->
+    <div class="glass-card">
+        <div class="panel-header-title">✍️ HOD Monthly Summary & Review Comments</div>
+        <p style="font-size: 0.82rem; color: var(--jspl-muted); margin-bottom: 20px;">
+            Provide monthly qualitative feedback. Inputs will auto-save on blur.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="feedback-field">
+                <label>Key Achievements</label>
+                <textarea class="monthly-input" data-submission-id="{{ submission.id }}" data-field="achievements" rows="3" placeholder="List top operational achievements..." {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>{{ submission.achievements }}</textarea>
+            </div>
+            <div class="feedback-field">
+                <label>Core Risks / Pain Points</label>
+                <textarea class="monthly-input" data-submission-id="{{ submission.id }}" data-field="risks" rows="3" placeholder="List core risks, process breakdowns..." {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>{{ submission.risks }}</textarea>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="feedback-field">
+                    <label>Support Required from Management</label>
+                    <textarea class="monthly-input" data-submission-id="{{ submission.id }}" data-field="support_required" rows="3" placeholder="Enter support requested..." {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>{{ submission.support_required }}</textarea>
+                </div>
+                <div class="feedback-field">
+                    <label>Resources Requested</label>
+                    <textarea class="monthly-input" data-submission-id="{{ submission.id }}" data-field="resources_required" rows="3" placeholder="List personnel, budget or material resources..." {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>{{ submission.resources_required }}</textarea>
+                </div>
+            </div>
+            <div class="feedback-field">
+                <label>Special Observations / Custom Notes</label>
+                <textarea class="monthly-input" data-submission-id="{{ submission.id }}" data-field="special_observations" rows="2" placeholder="Enter other remarks..." {% if submission.status == 'SUBMITTED' %}disabled{% endif %}>{{ submission.special_observations }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. Bottom Sticky Actions Bar -->
+    <div class="toolbar-sticky">
+        <div>
+            Status: 
+            <span class="{% if submission.status == 'DRAFT' %}draft-pill{% else %}submitted-pill{% endif %}">
+                {{ submission.get_status_display }}
+            </span>
+        </div>
+        
+        <div>
+            {% if submission.status == 'DRAFT' %}
+            <form action="{% url 'hod_kpi:submit_review' %}" method="POST" onsubmit="return confirm('Are you sure you want to finalize and SUBMIT this monthly KPI Review? This action will freeze all input fields and notify management.');" style="display: inline;">
+                {% csrf_token %}
+                <input type="hidden" name="submission_id" value="{{ submission.id }}">
+                <button type="submit" class="btn" style="background-color: var(--status-green); color: white; font-weight: bold; border: none; padding: 10px 24px; border-radius: var(--radius-md); cursor: pointer; font-size: 0.9rem;">
+                    Submit Completed Review
+                </button>
+            </form>
+            {% else %}
+            <div style="font-weight: 600; color: var(--status-green); font-size: 0.9rem;">
+                ✓ Submitted to Management on {{ submission.submitted_at|date:"d-M-y H:i" }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'hod_kpi/js/hod_kpi.js' %}?v=1"></script>
+{% endblock %}

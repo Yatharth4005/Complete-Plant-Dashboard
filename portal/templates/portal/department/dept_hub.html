@@ -31,7 +31,7 @@
             <span class="module-large-icon">
               {% include "portal/partials/_module_icon.html" with key=item.module.key %}
             </span>
-            <span class="access-badge {{ item.access_level|lower }}">VIEW</span>
+            <span class="access-badge {{ item.access_level|lower }}">{% if item.access_level == 'EDIT' %}View + Edit{% else %}View Only{% endif %}</span>
           </div>
           <div class="module-card-middle">
             <h3>{{ item.module.label }}</h3>

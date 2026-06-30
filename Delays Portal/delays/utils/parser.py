@@ -247,6 +247,27 @@ def parse_duration_to_mins(duration_val, col_type=None):
         return 0.0
 
 
+def normalize_agency_name(name):
+    if not name:
+        return name
+    name_str = str(name).strip()
+    name_upper = name_str.upper().rstrip('.')
+    
+    mapping = {
+        'MECH': 'Mechanical',
+        'MECHANICAL': 'Mechanical',
+        'ELEC': 'Electrical',
+        'ELECTRICAL': 'Electrical',
+        'OPER': 'Operations',
+        'OPERATIONS': 'Operations',
+        'INSTR': 'Instrumentation',
+        'INSTRUMENTATION': 'Instrumentation',
+        'REF': 'REF',
+    }
+    
+    return mapping.get(name_upper, name_str)
+
+
 def clean_parsed_fields(desc, agency, sub_agency=None, equipment=None, sub_equipment=None):
     """
     Cleans and normalizes parsed fields.
@@ -255,7 +276,7 @@ def clean_parsed_fields(desc, agency, sub_agency=None, equipment=None, sub_equip
     Also normalizes the agency name to match Department names/codes if possible.
     """
     clean_desc = str(desc).strip() if desc else 'No Description'
-    clean_agency = str(agency).strip() if agency else 'General'
+    clean_agency = normalize_agency_name(agency) if agency else 'General'
     clean_sub_agency = str(sub_agency).strip() if sub_agency else None
     clean_equip = str(equipment).strip() if equipment else None
     clean_sub_equip = str(sub_equipment).strip() if sub_equipment else None
