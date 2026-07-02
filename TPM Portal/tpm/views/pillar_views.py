@@ -11,6 +11,30 @@ from tpm.utils.calculations import compute_achievement, compute_PRODUCTION, pars
 from tpm.utils.toasts import render_toast
 from portal.utils.access import user_can_edit_module
 
+import re
+
+def clean_equipment_name(name):
+    if not name:
+        return ""
+    name_upper = name.strip().upper()
+    # Match digit followed by spaces/hyphens then 'T' or 'MT' or 'TON'
+    match = re.search(r'(\d+)\s*(?:-|)?\s*(?:T|MT|TON|TONS)', name_upper)
+    if match and 'CRANE' in name_upper:
+        tonnage = match.group(1)
+        return f"{tonnage}T CRANE"
+    return name_upper
+
+from django.db.models import Q
+def get_equipment_filter_q(selected_equipment):
+    if not selected_equipment:
+        return Q()
+    cleaned = clean_equipment_name(selected_equipment)
+    match = re.match(r'^(\d+)T CRANE$', cleaned)
+    if match:
+        tonnage = match.group(1)
+        return Q(equipment__icontains=tonnage) & Q(equipment__icontains='crane')
+    return Q(equipment__iexact=selected_equipment)
+
 def get_months_list():
     return [
         (1, 'January'), (2, 'February'), (3, 'March'), (4, 'April'),
@@ -47,7 +71,7 @@ def get_pillar_display(pillar_id):
         'OTPM': 'Office TPM',
     }.get(pillar_id, pillar_id)
 
-def get_kpi_rows(dept, pillar_id, month, year):
+def get_kpi_rows(dept, pillar_id, month, year, selected_equipment=None):
     """Fetch defined KPIs for the pillar and merge with existing database entries"""
     # Auto clean up any accidental header imports from database
     bad_customs = CustomKPIDefinition.objects.filter(
@@ -74,6 +98,38 @@ def get_kpi_rows(dept, pillar_id, month, year):
         department=dept, pillar=pillar_id, month=month, year=year
     ).first()
     
+    # Calculate PM breakdown numbers/hours from Delay records
+    bd_nos = None
+    bd_hours = None
+    repetitive = None
+    if pillar_id == 'PM':
+        try:
+            from delays.models import DelayRecord
+            base_delays = DelayRecord.objects.filter(
+                department=dept,
+                date__month=month,
+                date__year=year
+            )
+            if selected_equipment:
+                eq_filter = get_equipment_filter_q(selected_equipment)
+                eq_delays = base_delays.filter(eq_filter)
+                bd_nos = eq_delays.count()
+                bd_hours = sum(d.duration_mins for d in eq_delays) / 60.0
+                repetitive = bd_nos
+            else:
+                bd_nos = base_delays.count()
+                bd_hours = sum(d.duration_mins for d in base_delays) / 60.0
+                
+                # Count repetitive breakdowns under normalized name in Python!
+                eq_counts = {}
+                for r in base_delays.exclude(equipment__isnull=True).exclude(equipment=''):
+                    cleaned = clean_equipment_name(r.equipment)
+                    if cleaned:
+                        eq_counts[cleaned] = eq_counts.get(cleaned, 0) + 1
+                repetitive = sum(1 for eq, count in eq_counts.items() if count >= 2)
+        except Exception as e:
+            print(f"Error calculating PM actuals: {e}")
+            
     kpi_rows = []
     for d in definitions:
         row_data = {
@@ -107,24 +163,55 @@ def get_kpi_rows(dept, pillar_id, month, year):
                 if db_val.benchmark is not None:
                     row_data['benchmark'] = db_val.benchmark
 
-        # For JH pillar, row 6 (JH Kaizen Completed): auto-calculate actual from KaizenSheet objects
+        # For JH pillar, row 6 (JH Kaizen Completed): auto-calculate actual from KaizenSheet objects if not in DB
         if pillar_id == 'JH' and d['sl_no'] == '6':
-            count = get_jh_kaizen_count(dept, month, year)
-            row_data['actual'] = count
-            if entry:
-                db_val, created_val = KPIValue.objects.get_or_create(
-                    pillar_entry=entry, sl_no='6',
-                    defaults={
-                        'kpi_name': d['name'],
-                        'uom': d['uom'],
-                        'benchmark': d['benchmark'],
-                        'target': d['target'],
-                        'actual': count
-                    }
-                )
-                if not created_val and db_val.actual != count:
-                    db_val.actual = count
-                    db_val.save(update_fields=['actual'])
+            db_val_exists = entry and KPIValue.objects.filter(pillar_entry=entry, sl_no='6').exclude(actual__isnull=True).exists()
+            if not db_val_exists:
+                count = get_jh_kaizen_count(dept, month, year)
+                row_data['actual'] = count
+                if entry:
+                    db_val, created_val = KPIValue.objects.get_or_create(
+                        pillar_entry=entry, sl_no='6',
+                        defaults={
+                            'kpi_name': d['name'],
+                            'uom': d['uom'],
+                            'benchmark': d['benchmark'],
+                            'target': d['target'],
+                            'actual': count
+                        }
+                    )
+                    if not created_val and db_val.actual != count:
+                        db_val.actual = count
+                        db_val.save(update_fields=['actual'])
+
+        # For PM pillar, rows 1, 2, 3: auto-calculate actual from DelayRecords if not in DB
+        if pillar_id == 'PM' and d['sl_no'] in ('1', '2', '3'):
+            db_val_exists = entry and KPIValue.objects.filter(pillar_entry=entry, sl_no=d['sl_no']).exclude(actual__isnull=True).exists()
+            if not db_val_exists:
+                val = None
+                if d['sl_no'] == '1' and bd_nos is not None:
+                    val = float(bd_nos)
+                elif d['sl_no'] == '2' and bd_hours is not None:
+                    val = round(bd_hours, 2)
+                elif d['sl_no'] == '3' and repetitive is not None:
+                    val = float(repetitive)
+                    
+                if val is not None:
+                    row_data['actual'] = val
+                    if entry:
+                        db_val, created_val = KPIValue.objects.get_or_create(
+                            pillar_entry=entry, sl_no=d['sl_no'],
+                            defaults={
+                                'kpi_name': d['name'],
+                                'uom': d['uom'],
+                                'benchmark': d['benchmark'],
+                                'target': d['target'],
+                                'actual': val
+                            }
+                        )
+                        if not created_val and db_val.actual != val:
+                            db_val.actual = val
+                            db_val.save(update_fields=['actual'])
 
         # Calculate achievement if actual & target are present
         if row_data['actual'] is not None and row_data['target'] is not None:
@@ -134,7 +221,7 @@ def get_kpi_rows(dept, pillar_id, month, year):
         
     return kpi_rows, entry
 
-def get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year):
+def get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year, selected_equipment=None):
     # Auto clean up any accidental header imports from database
     bad_customs = CustomKPIDefinition.objects.filter(
         sl_no__in=['S. NO.', 'S.NO.', 'S.No.', 'S. NO', 'S.NO', 's.no.', 's.no', 'SNO', 'Sno', 'sno', 'SL. NO.', 'SL.NO.', 'SL. NO', 'SL.NO', 'SLNO']
@@ -156,6 +243,53 @@ def get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year
             'custom_id': cd.id,
         })
     
+    # Calculate PM breakdown numbers/hours from Delay records for range
+    bd_nos = None
+    bd_hours = None
+    repetitive = None
+    if pillar_id == 'PM':
+        try:
+            from delays.models import DelayRecord
+            import calendar
+            start_date = datetime.date(from_year, from_month, 1)
+            last_day = calendar.monthrange(to_year, to_month)[1]
+            end_date = datetime.date(to_year, to_month, last_day)
+            
+            base_delays = DelayRecord.objects.filter(
+                department=dept,
+                date__gte=start_date,
+                date__lte=end_date
+            )
+            
+            if selected_equipment:
+                eq_filter = get_equipment_filter_q(selected_equipment)
+                eq_delays = base_delays.filter(eq_filter)
+                bd_nos = eq_delays.count()
+                bd_hours = sum(d.duration_mins for d in eq_delays) / 60.0
+                repetitive = bd_nos
+            else:
+                bd_nos = base_delays.count()
+                bd_hours = sum(d.duration_mins for d in base_delays) / 60.0
+                
+                # Average repetitive breakdown count per month in range
+                monthly_eq_counts = {}
+                for r in base_delays.exclude(equipment__isnull=True).exclude(equipment=''):
+                    cleaned = clean_equipment_name(r.equipment)
+                    if cleaned and r.date:
+                        key = (r.date.year, r.date.month, cleaned)
+                        monthly_eq_counts[key] = monthly_eq_counts.get(key, 0) + 1
+                
+                month_sums = {}
+                for (y, m, eq), count in monthly_eq_counts.items():
+                    key = (y, m)
+                    if count >= 2:
+                        month_sums[key] = month_sums.get(key, 0) + 1
+                
+                total_months = (to_year - from_year) * 12 + (to_month - from_month) + 1
+                repetitive = sum(month_sums.values()) / float(total_months) if total_months > 0 else 0.0
+        except Exception as e:
+            print(f"Error calculating PM range actuals: {e}")
+            
     kpi_rows = []
     for d in definitions:
         row_data = {
@@ -206,8 +340,19 @@ def get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year
                 if row_data['performance'] is not None: row_data['performance'] = round(row_data['performance'], 2)
                 if row_data['quality'] is not None: row_data['quality'] = round(row_data['quality'], 2)
         
-        if pillar_id == 'JH' and d['sl_no'] == '6':
+        if pillar_id == 'JH' and d['sl_no'] == '6' and not kpi_values.exists():
             row_data['actual'] = get_jh_kaizen_count_range(dept, from_month, from_year, to_month, to_year)
+
+        # For PM pillar, rows 1, 2, 3: override with dynamically calculated values if not in DB
+        if pillar_id == 'PM' and d['sl_no'] in ('1', '2', '3') and bd_nos is not None and not kpi_values.exists():
+            val = None
+            if d['sl_no'] == '1':
+                val = float(bd_nos)
+            elif d['sl_no'] == '2':
+                val = round(bd_hours, 2)
+            elif d['sl_no'] == '3':
+                val = round(repetitive, 2)
+            row_data['actual'] = val
 
         # Calculate achievement if actual & target are present
         if row_data['actual'] is not None and row_data['target'] is not None:
@@ -230,12 +375,15 @@ def pillar_page(request, dept_id, pillar_id):
     to_year = period['to_year']
     period_label = period['label']
     
+    selected_equipment = request.GET.get('selected_equipment', '').strip()
+    selected_kpi = request.GET.get('selected_kpi', '').strip()
+    
     if filter_type == 'range':
-        kpi_rows = get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year)
+        kpi_rows = get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year, selected_equipment)
         is_locked = True
         entry = None
     else:
-        kpi_rows, entry = get_kpi_rows(dept, pillar_id, month, year)
+        kpi_rows, entry = get_kpi_rows(dept, pillar_id, month, year, selected_equipment)
         is_locked = entry.is_locked() if entry else False
         
     today = datetime.date.today()
@@ -306,7 +454,22 @@ def pillar_page(request, dept_id, pillar_id):
                 key = f"{cell.machine_id}-{cell.step}-{cell.year}-{cell.month}-{cell.week}"
                 plan_cells_dict[key] = cell.status
 
+    equipments = []
+    if pillar_id == 'PM':
+        try:
+            from delays.models import DelayRecord
+            raw_eqs = DelayRecord.objects.filter(department=dept).exclude(equipment__isnull=True).exclude(equipment='').values_list('equipment', flat=True).distinct()
+            normalized_eqs = sorted(list(set(clean_equipment_name(e) for e in raw_eqs if e.strip())))
+            equipments = normalized_eqs
+        except Exception:
+            pass
+
     can_edit = user_can_edit_module(request.user, dept, 'TPM')
+    
+    analytics_ctx = {}
+    if active_tab == 'analytics':
+        analytics_ctx = get_analytics_context(request, dept, pillar_id)
+        
     context = {
         'dept': dept,
         'pillar_id': pillar_id,
@@ -334,7 +497,11 @@ def pillar_page(request, dept_id, pillar_id):
         'plan_cells_dict': plan_cells_dict,
         'steps_range': steps_range,
         'can_edit': can_edit,
+        'equipments': equipments,
+        'selected_equipment': selected_equipment,
+        'selected_kpi': selected_kpi,
     }
+    context.update(analytics_ctx)
     return render(request, 'department/pillar_entry.html', context)
 
 
@@ -351,14 +518,26 @@ def kpi_table_partial(request, dept_id, pillar_id):
     to_year = period['to_year']
     period_label = period['label']
     
+    selected_equipment = request.GET.get('selected_equipment', '').strip()
+    
     if filter_type == 'range':
-        kpi_rows = get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year)
+        kpi_rows = get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year, selected_equipment)
         is_locked = True
         entry = None
     else:
-        kpi_rows, entry = get_kpi_rows(dept, pillar_id, month, year)
+        kpi_rows, entry = get_kpi_rows(dept, pillar_id, month, year, selected_equipment)
         is_locked = entry.is_locked() if entry else False
         
+    equipments = []
+    if pillar_id == 'PM':
+        try:
+            from delays.models import DelayRecord
+            raw_eqs = DelayRecord.objects.filter(department=dept).exclude(equipment__isnull=True).exclude(equipment='').values_list('equipment', flat=True).distinct()
+            normalized_eqs = sorted(list(set(clean_equipment_name(e) for e in raw_eqs if e.strip())))
+            equipments = normalized_eqs
+        except Exception:
+            pass
+
     can_edit = user_can_edit_module(request.user, dept, 'TPM')
     context = {
         'dept': dept,
@@ -376,6 +555,8 @@ def kpi_table_partial(request, dept_id, pillar_id):
         'entry': entry,
         'month_label': period_label,
         'can_edit': can_edit,
+        'equipments': equipments,
+        'selected_equipment': selected_equipment,
     }
     return render(request, 'partials/_kpi_table.html', context)
 
@@ -390,6 +571,7 @@ def save_kpi_row(request, dept_id, pillar_id):
     month = int(request.GET.get('month'))
     year = int(request.GET.get('year'))
     sl_no = request.GET.get('sl_no')
+    selected_equipment = request.GET.get('selected_equipment', '').strip()
     
     entry, created = PillarEntry.objects.get_or_create(
         department=dept, pillar=pillar_id, month=month, year=year
@@ -452,8 +634,6 @@ def save_kpi_row(request, dept_id, pillar_id):
             db_val.actual = round(compute_PRODUCTION(db_val.availability, db_val.performance, db_val.quality), 2)
         else:
             db_val.actual = float(actual_str) if actual_str else None
-    elif pillar_id == 'JH' and sl_no == '6':
-        db_val.actual = get_jh_kaizen_count(dept, month, year)
     else:
         db_val.actual = float(actual_str) if actual_str else None
         
@@ -493,6 +673,7 @@ def save_kpi_row(request, dept_id, pillar_id):
         'filter_type': 'single',
         'show_toast': True,
         'toast_message': f"Row {row_data['sl_no']} Saved",
+        'selected_equipment': selected_equipment,
     }
     
     return render(request, 'partials/_kpi_row.html', context)
@@ -691,9 +872,7 @@ def delete_custom_kpi(request, dept_id, pillar_id, custom_id):
     return response
 
 
-@dept_access_required
-def analytics_partial(request, dept_id, pillar_id):
-    dept = get_object_or_404(Department, id=dept_id)
+def get_analytics_context(request, dept, pillar_id):
     period = parse_period(request)
     filter_type = period['filter_type']
     month = period['month']
@@ -716,14 +895,28 @@ def analytics_partial(request, dept_id, pillar_id):
         
     chart_labels = [rm['label'] for rm in range_months]
     
-    definitions = KPI_DEFINITIONS.get(pillar_id, [])
+    definitions = list(KPI_DEFINITIONS.get(pillar_id, []))
+    custom_defs = CustomKPIDefinition.objects.filter(department=dept, pillar=pillar_id).order_by('id')
+    for cd in custom_defs:
+        definitions.append({
+            'sl_no': cd.sl_no,
+            'name': cd.name,
+            'uom': cd.uom,
+            'benchmark': cd.benchmark,
+            'target': cd.target,
+            'is_custom': True,
+            'custom_id': cd.id,
+        })
+        
+    selected_kpi = request.GET.get('selected_kpi', '').strip()
     
     kpis_trend_data = {}
     for d in definitions:
         kpis_trend_data[d['sl_no']] = {
             'name': d['name'],
             'actuals': [],
-            'targets': []
+            'targets': [],
+            'benchmarks': []
         }
         for rm in range_months:
             val = KPIValue.objects.filter(
@@ -733,8 +926,9 @@ def analytics_partial(request, dept_id, pillar_id):
                 pillar_entry__year=rm['year'],
                 sl_no=d['sl_no']
             ).first()
-            kpis_trend_data[d['sl_no']]['actuals'].append(val.actual if val else None)
-            kpis_trend_data[d['sl_no']]['targets'].append(val.target if val and val.target is not None else d['target'])
+            kpis_trend_data[d['sl_no']]['actuals'].append(val.actual if (val and val.actual is not None) else 0.0)
+            kpis_trend_data[d['sl_no']]['targets'].append(val.target if val and val.target is not None else d.get('target'))
+            kpis_trend_data[d['sl_no']]['benchmarks'].append(val.benchmark if val and val.benchmark is not None else d.get('benchmark'))
 
     # Bar chart achievement rates for current month/range
     if filter_type == 'range':
@@ -761,7 +955,7 @@ def analytics_partial(request, dept_id, pillar_id):
             bar_values.append(0.0)
             bar_colors.append('#6B7A99')  # Gray
             
-    context = {
+    return {
         'dept': dept,
         'pillar_id': pillar_id,
         'filter_type': filter_type,
@@ -778,5 +972,12 @@ def analytics_partial(request, dept_id, pillar_id):
         'bar_colors_json': json.dumps(bar_colors),
         'months_labels_json': json.dumps(chart_labels),
         'kpi_rows': kpi_rows,
+        'selected_kpi': selected_kpi,
     }
+
+
+@dept_access_required
+def analytics_partial(request, dept_id, pillar_id):
+    dept = get_object_or_404(Department, id=dept_id)
+    context = get_analytics_context(request, dept, pillar_id)
     return render(request, 'partials/_analytics_charts.html', context)

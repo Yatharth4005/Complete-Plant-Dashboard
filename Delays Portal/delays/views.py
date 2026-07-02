@@ -14,6 +14,29 @@ from delays.forms import DelayRecordForm
 from delays.utils.parser import parse_excel_file, normalize_agency_name
 from portal.utils.access import user_can_access_module, user_can_edit_module
 
+import re
+
+def clean_equipment_name(name):
+    if not name:
+        return ""
+    name_upper = name.strip().upper()
+    # Match digit followed by spaces/hyphens then 'T' or 'MT' or 'TON'
+    match = re.search(r'(\d+)\s*(?:-|)?\s*(?:T|MT|TON|TONS)', name_upper)
+    if match and 'CRANE' in name_upper:
+        tonnage = match.group(1)
+        return f"{tonnage}T CRANE"
+    return name_upper
+
+def get_equipment_filter_q(selected_equipment):
+    if not selected_equipment:
+        return Q()
+    cleaned = clean_equipment_name(selected_equipment)
+    match = re.match(r'^(\d+)T CRANE$', cleaned)
+    if match:
+        tonnage = match.group(1)
+        return Q(equipment__icontains=tonnage) & Q(equipment__icontains='crane')
+    return Q(equipment__iexact=selected_equipment)
+
 def get_department_autocompletes(department, records):
     if department.id == 0:
         custom_options = DelayDropdownOption.objects.none()
@@ -35,13 +58,15 @@ def get_department_autocompletes(department, records):
     
     equipments_set = set(custom_options.filter(category__iexact='Equipment').values_list('value', flat=True).distinct())
     equipments_set.update(records.exclude(equipment__isnull=True).exclude(equipment='').exclude(equipment='NIL').values_list('equipment', flat=True).distinct())
-    equipments = sorted([x for x in equipments_set if x])
+    normalized_eqs_set = set(clean_equipment_name(x) for x in equipments_set if x.strip())
+    equipments = sorted(list(normalized_eqs_set))
     
     sub_equipments_set = set(custom_options.filter(category__iexact='Sub-Equipment').values_list('value', flat=True).distinct())
     sub_equipments_set.update(records.exclude(sub_equipment__isnull=True).exclude(sub_equipment='').values_list('sub_equipment', flat=True).distinct())
     sub_equipments = sorted([x for x in sub_equipments_set if x])
     
-    incharges_set = set(records.order_by('shift_incharge').values_list('shift_incharge', flat=True).distinct().exclude(shift_incharge=''))
+    incharges_set = set(custom_options.filter(category__iexact='Shift Incharge').values_list('value', flat=True).distinct())
+    incharges_set.update(records.order_by('shift_incharge').values_list('shift_incharge', flat=True).distinct().exclude(shift_incharge=''))
     incharges = sorted([x for x in incharges_set if x])
     
     return {
@@ -263,9 +288,17 @@ def dept_overview(request, dept_id):
     else:
         equip_breakdown = all_records.exclude(
             Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')  # type: ignore
-        ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')[:5]
-        equip_labels = [x['equipment'] for x in equip_breakdown]
-        equip_data = [round(x['total'], 1) for x in equip_breakdown]
+        ).values('equipment').annotate(total=Sum('duration_mins'))
+        
+        py_eq_totals = {}
+        for eb in equip_breakdown:
+            cleaned = clean_equipment_name(eb['equipment'])
+            if cleaned:
+                py_eq_totals[cleaned] = py_eq_totals.get(cleaned, 0.0) + (eb['total'] or 0.0)
+                
+        sorted_py_eqs = sorted(py_eq_totals.items(), key=lambda x: x[1], reverse=True)
+        equip_labels = [x[0] for x in sorted_py_eqs[:5]]
+        equip_data = [round(x[1], 1) for x in sorted_py_eqs[:5]]
     
     # List of sheets parsed
     sheets_parsed = [s for s in all_records.order_by('sheet_name').values_list('sheet_name', flat=True).distinct() if s]
@@ -303,18 +336,26 @@ def dept_overview(request, dept_id):
     # Pareto Calculation by Equipment
     all_equip_breakdown = all_records.exclude(
         Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')  # type: ignore
-    ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')
+    ).values('equipment').annotate(total=Sum('duration_mins'))
     
-    total_equip_mins = sum(x['total'] for x in all_equip_breakdown)
+    py_eq_totals_pareto = {}
+    for eb in all_equip_breakdown:
+        cleaned = clean_equipment_name(eb['equipment'])
+        if cleaned:
+            py_eq_totals_pareto[cleaned] = py_eq_totals_pareto.get(cleaned, 0.0) + (eb['total'] or 0.0)
+            
+    sorted_py_eqs_pareto = sorted(py_eq_totals_pareto.items(), key=lambda x: x[1], reverse=True)
+    total_equip_mins = sum(x[1] for x in sorted_py_eqs_pareto)
+    
     equip_pareto = []
     running_equip_mins = 0
-    for idx, eb in enumerate(all_equip_breakdown):
-        running_equip_mins += eb['total']
+    for idx, (eq, total) in enumerate(sorted_py_eqs_pareto):
+        running_equip_mins += total
         cum_percent = (running_equip_mins / total_equip_mins * 100) if total_equip_mins > 0 else 0.0
         equip_pareto.append({
-            'equipment': eb['equipment'] or "N/A",
-            'mins': round(eb['total'], 1),
-            'percent': round((eb['total'] / total_equip_mins * 100) if total_equip_mins > 0 else 0.0, 1),
+            'equipment': eq or "N/A",
+            'mins': round(total, 1),
+            'percent': round((total / total_equip_mins * 100) if total_equip_mins > 0 else 0.0, 1),
             'cum_percent': round(cum_percent, 1),
             'rank': idx + 1,
             'is_vital': cum_percent <= 85.0 or idx == 0
@@ -380,7 +421,7 @@ def dept_overview(request, dept_id):
     sorted_keywords.sort(key=lambda x: x['count'], reverse=True)
  
     # Status filtering for logs table
-    status_filter = request.GET.get('status', 'unlocked').strip()
+    status_filter = request.GET.get('status', 'all').strip()
     if status_filter == 'unlocked':
         table_records = all_records.filter(is_locked=False)
     elif status_filter == 'locked':
@@ -632,7 +673,8 @@ def records_table(request, dept_id):
         records = records.filter(sub_agency=sub_agency_filter)
         
     if equipment_filter:
-        records = records.filter(equipment=equipment_filter)
+        eq_filter = get_equipment_filter_q(equipment_filter)
+        records = records.filter(eq_filter)
         
     if sub_equipment_filter:
         records = records.filter(sub_equipment=sub_equipment_filter)
@@ -652,7 +694,7 @@ def records_table(request, dept_id):
         all_records = DelayRecord.objects.filter(department=department)
     
     # Filter by status
-    status_filter = request.GET.get('status', 'unlocked').strip()
+    status_filter = request.GET.get('status', 'all').strip()
     if status_filter == 'unlocked':
         records = records.filter(is_locked=False)
     elif status_filter == 'locked':
@@ -1132,6 +1174,10 @@ def manage_options(request, dept_id):
             parent_value = request.POST.get('parent_value', '').strip() or None
             
             if category and value:
+                if category == 'Shift Incharge':
+                    role = request.POST.get('role', '').strip()
+                    phone = request.POST.get('phone', '').strip()
+                    parent_value = f"{role}|{phone}"
                 value_clean = normalize_agency_name(value) if category.lower() == 'agency' else value
                 option, created = DelayDropdownOption.objects.get_or_create(
                     department=department,
@@ -1204,15 +1250,32 @@ def manage_options(request, dept_id):
                 category='Sub-Equipment',
                 value=val
             )
+            
+        db_incharges = records.values_list('shift_incharge', flat=True).distinct().exclude(shift_incharge='')
+        for val in db_incharges:
+            DelayDropdownOption.objects.get_or_create(
+                department=department,
+                category='Shift Incharge',
+                value=val
+            )
 
     options = DelayDropdownOption.objects.filter(department=department).order_by('category', 'value')
     
     # Predefined suggested categories
-    suggested_categories = ['Agency', 'Sub-Agency', 'Equipment', 'Sub-Equipment']
+    suggested_categories = ['Agency', 'Sub-Agency', 'Equipment', 'Sub-Equipment', 'Shift Incharge']
     db_categories = list(options.values_list('category', flat=True).distinct())
     for cat in db_categories:
         if cat not in suggested_categories:
             suggested_categories.append(cat)
+
+    for opt in options:
+        if opt.category == 'Shift Incharge' and opt.parent_value:
+            parts = opt.parent_value.split('|')
+            opt.role = parts[0] if len(parts) > 0 else ''
+            opt.phone = parts[1] if len(parts) > 1 else ''
+        else:
+            opt.role = ''
+            opt.phone = ''
 
     context = {
         'department': department,

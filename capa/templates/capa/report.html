@@ -145,7 +145,7 @@
       <div class="filter-group" style="flex: 1.5; min-width: 180px;">
         <label style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 4px; display: block;">Select CAPA Report / Sheet</label>
         <select name="upload_id" class="capa-input" style="height: 36px; font-size: 0.8rem; width: 100%;" onchange="this.form.submit()">
-          <option value="new_file" {% if selected_upload_id == 'new_file' %}selected{% endif %}>Default manual list</option>
+          <option value="new_file" {% if selected_upload_id == 'new_file' %}selected{% endif %}>{{ active_dept.code }}</option>
           {% for upload in uploads %}
             <option value="{{ upload.id }}" {% if selected_upload_id == upload.id %}selected{% endif %}>
               {{ upload.upload_date|date:"d.m.Y"|default:"No Date" }} — {{ upload.filename|truncatechars:45 }}
@@ -199,9 +199,9 @@
                 },
                 documentNo: '{{ r.document_no|escapejs }}',
                 issueNo: '{{ r.issue_no|escapejs }}',
-                issueDate: '{{ r.issue_date|escapejs }}',
+                issueDate: formatDateForInput('{{ r.issue_date|escapejs }}'),
                 areaSection: '{{ r.area_section|escapejs }}',
-                dateIncident: '{{ r.date_incident|escapejs }}',
+                dateIncident: formatDateForInput('{{ r.date_incident|escapejs }}'),
                 capaNo: '{{ r.capa_no|escapejs }}',
                 status: '{{ r.status|escapejs }}',
                 
@@ -229,7 +229,7 @@
                 detailedPlan: '{{ r.detailed_plan|escapejs }}',
                 modifiedDocsOther: '{{ r.modified_documents_other|escapejs }}',
                 trainingDetails: '{{ r.training_details|escapejs }}',
-                dateImplementation: '{{ r.date_implementation|escapejs }}',
+                dateImplementation: formatDateForInput('{{ r.date_implementation|escapejs }}'),
                 effectivenessEvaluation: '{{ r.effectiveness_evaluation|escapejs }}',
                 
                 preparedBy: '{{ r.prepared_by|escapejs }}',
@@ -280,8 +280,16 @@
                   const rawTeam = JSON.parse(document.getElementById('team-{{ r.id }}').textContent || '{}');
                   this.team = this.normalizeTeam(rawTeam);
                   this.whys = JSON.parse(document.getElementById('whys-{{ r.id }}').textContent || '[]');
-                  this.corrective = JSON.parse(document.getElementById('corrective-{{ r.id }}').textContent || '[]');
-                  this.preventive = JSON.parse(document.getElementById('preventive-{{ r.id }}').textContent || '[]');
+                  this.corrective = (JSON.parse(document.getElementById('corrective-{{ r.id }}').textContent || '[]')).map(act => {
+                    act.target_date = formatDateForInput(act.target_date);
+                    act.impl_date = formatDateForInput(act.impl_date);
+                    return act;
+                  });
+                  this.preventive = (JSON.parse(document.getElementById('preventive-{{ r.id }}').textContent || '[]')).map(act => {
+                    act.target_date = formatDateForInput(act.target_date);
+                    act.impl_date = formatDateForInput(act.impl_date);
+                    return act;
+                  });
                   this.fiveM = JSON.parse(document.getElementById('fivem-{{ r.id }}').textContent || '[]');
                   this.modifiedDocs = JSON.parse(document.getElementById('modifieddocs-{{ r.id }}').textContent || '[]');
                 },
@@ -293,9 +301,9 @@
                   this.editMode = false;
                   this.documentNo = '{{ r.document_no|escapejs }}';
                   this.issueNo = '{{ r.issue_no|escapejs }}';
-                  this.issueDate = '{{ r.issue_date|escapejs }}';
+                  this.issueDate = formatDateForInput('{{ r.issue_date|escapejs }}');
                   this.areaSection = '{{ r.area_section|escapejs }}';
-                  this.dateIncident = '{{ r.date_incident|escapejs }}';
+                  this.dateIncident = formatDateForInput('{{ r.date_incident|escapejs }}');
                   this.capaNo = '{{ r.capa_no|escapejs }}';
                   this.status = '{{ r.status|escapejs }}';
                   
@@ -323,7 +331,7 @@
                   this.detailedPlan = '{{ r.detailed_plan|escapejs }}';
                   this.modifiedDocsOther = '{{ r.modified_documents_other|escapejs }}';
                   this.trainingDetails = '{{ r.training_details|escapejs }}';
-                  this.dateImplementation = '{{ r.date_implementation|escapejs }}';
+                  this.dateImplementation = formatDateForInput('{{ r.date_implementation|escapejs }}');
                   this.effectivenessEvaluation = '{{ r.effectiveness_evaluation|escapejs }}';
                   
                   this.preparedBy = '{{ r.prepared_by|escapejs }}';
@@ -333,8 +341,16 @@
                   const rawTeam = JSON.parse(document.getElementById('team-{{ r.id }}').textContent || '{}');
                   this.team = this.normalizeTeam(rawTeam);
                   this.whys = JSON.parse(document.getElementById('whys-{{ r.id }}').textContent || '[]');
-                  this.corrective = JSON.parse(document.getElementById('corrective-{{ r.id }}').textContent || '[]');
-                  this.preventive = JSON.parse(document.getElementById('preventive-{{ r.id }}').textContent || '[]');
+                  this.corrective = (JSON.parse(document.getElementById('corrective-{{ r.id }}').textContent || '[]')).map(act => {
+                    act.target_date = formatDateForInput(act.target_date);
+                    act.impl_date = formatDateForInput(act.impl_date);
+                    return act;
+                  });
+                  this.preventive = (JSON.parse(document.getElementById('preventive-{{ r.id }}').textContent || '[]')).map(act => {
+                    act.target_date = formatDateForInput(act.target_date);
+                    act.impl_date = formatDateForInput(act.impl_date);
+                    return act;
+                  });
                   this.fiveM = JSON.parse(document.getElementById('fivem-{{ r.id }}').textContent || '[]');
                   this.modifiedDocs = JSON.parse(document.getElementById('modifieddocs-{{ r.id }}').textContent || '[]');
                 },
@@ -413,11 +429,11 @@
                 </td>
                 <td style="width: 25%; font-weight: bold; background-color: #f8fafc; color: var(--jspl-navy); vertical-align: middle;">Issue No / Date:</td>
                 <td style="width: 25%; vertical-align: middle;">
-                  <span x-show="!editMode" class="view-value view-value-bold" x-text="issueNo + ' / ' + issueDate"></span>
+                  <span x-show="!editMode" class="view-value view-value-bold" x-text="issueNo + ' / ' + formatDisplayDate(issueDate)"></span>
                   <div x-show="editMode" style="display: flex; gap: 8px; align-items: center;">
                     <input type="text" name="issue_no" class="capa-input" x-model="issueNo" required style="width: 60px; font-weight: bold;" placeholder="Issue No">
                     <span>/</span>
-                    <input type="text" name="issue_date" class="capa-input" x-model="issueDate" required style="font-weight: bold;" placeholder="DD.MM.YYYY">
+                    <input type="date" name="issue_date" class="capa-input" x-model="issueDate" required style="font-weight: bold;">
                   </div>
                 </td>
               </tr>
@@ -438,8 +454,8 @@
               <tr>
                 <td class="capa-hdr-label">Date of Incident</td>
                 <td style="vertical-align: middle;">
-                  <span x-show="!editMode" class="view-value mono" x-text="dateIncident || '—'"></span>
-                  <input x-show="editMode" type="text" name="date_incident" class="capa-input" x-model="dateIncident" placeholder="e.g. 12.09.2024">
+                  <span x-show="!editMode" class="view-value mono" x-text="formatDisplayDate(dateIncident)"></span>
+                  <input x-show="editMode" type="date" name="date_incident" class="capa-input" x-model="dateIncident">
                 </td>
                 <td class="capa-hdr-label">CAPA No.</td>
                 <td style="vertical-align: middle;">
@@ -546,7 +562,15 @@
                         <!-- Team Leader -->
                         <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
                           <span x-show="!editMode" class="view-value" x-text="team.team_leader || '—'"></span>
-                          <input x-show="editMode" type="text" name="team_leader" class="capa-input" x-model="team.team_leader" placeholder="Team Leader Name" style="height: 32px;">
+                          <select x-show="editMode" name="team_leader" class="capa-input" x-model="team.team_leader" style="height: 32px;">
+                            <option value="">Select Team Leader...</option>
+                            <template x-if="team.team_leader && !{{ shift_incharges_json|safe }}.includes(team.team_leader)">
+                              <option :value="team.team_leader" x-text="team.team_leader" selected></option>
+                            </template>
+                            {% for si in shift_incharges %}
+                              <option value="{{ si }}">{{ si }}</option>
+                            {% endfor %}
+                          </select>
                         </td>
                         <!-- Team Members -->
                         <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
@@ -589,7 +613,15 @@
                 <td class="capa-hdr-label">Responsibility:</td>
                 <td style="vertical-align: middle;">
                   <span x-show="!editMode" class="view-value" x-text="actionResponsibility || '—'"></span>
-                  <input x-show="editMode" type="text" name="action_responsibility" class="capa-input" x-model="actionResponsibility" placeholder="Responsibility name">
+                  <select x-show="editMode" name="action_responsibility" class="capa-input" x-model="actionResponsibility">
+                    <option value="">Select Responsibility...</option>
+                    <template x-if="actionResponsibility && !{{ shift_incharges_json|safe }}.includes(actionResponsibility)">
+                      <option :value="actionResponsibility" x-text="actionResponsibility" selected></option>
+                    </template>
+                    {% for si in shift_incharges %}
+                      <option value="{{ si }}">{{ si }}</option>
+                    {% endfor %}
+                  </select>
                 </td>
               </tr>
 
@@ -687,15 +719,23 @@
                           </td>
                           <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
                             <span x-show="!editMode" class="view-value" x-text="act.responsibility || '—'"></span>
-                            <input x-show="editMode" type="text" name="c_responsibility" class="capa-input" x-model="act.responsibility" placeholder="Responsible" style="height: 32px;">
+                            <select x-show="editMode" name="c_responsibility" class="capa-input" x-model="act.responsibility" style="height: 32px;">
+                              <option value="">Select Responsible...</option>
+                              <template x-if="act.responsibility && !{{ shift_incharges_json|safe }}.includes(act.responsibility)">
+                                <option :value="act.responsibility" x-text="act.responsibility" selected></option>
+                              </template>
+                              {% for si in shift_incharges %}
+                                <option value="{{ si }}">{{ si }}</option>
+                              {% endfor %}
+                            </select>
                           </td>
                           <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
-                            <span x-show="!editMode" class="view-value mono" x-text="act.target_date || '—'"></span>
-                            <input x-show="editMode" type="text" name="c_target_date" class="capa-input" x-model="act.target_date" placeholder="DD.MM.YYYY" style="height: 32px;">
+                            <span x-show="!editMode" class="view-value mono" x-text="formatDisplayDate(act.target_date)"></span>
+                            <input x-show="editMode" type="date" name="c_target_date" class="capa-input" x-model="act.target_date" style="height: 32px;">
                           </td>
                           <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
-                            <span x-show="!editMode" class="view-value mono" x-text="act.impl_date || '—'"></span>
-                            <input x-show="editMode" type="text" name="c_impl_date" class="capa-input" x-model="act.impl_date" placeholder="DD.MM.YYYY" style="height: 32px;">
+                            <span x-show="!editMode" class="view-value mono" x-text="formatDisplayDate(act.impl_date)"></span>
+                            <input x-show="editMode" type="date" name="c_impl_date" class="capa-input" x-model="act.impl_date" style="height: 32px;">
                           </td>
                           <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle;">
                             <span class="status-badge" :class="isClosed(act.impl_date) ? 'status-completed' : 'status-progress'" x-text="isClosed(act.impl_date) ? 'Closed' : 'Open/In Progress'"></span>
@@ -744,15 +784,23 @@
                           </td>
                           <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
                             <span x-show="!editMode" class="view-value" x-text="act.responsibility || '—'"></span>
-                            <input x-show="editMode" type="text" name="p_responsibility" class="capa-input" x-model="act.responsibility" placeholder="Responsible" style="height: 32px;">
+                            <select x-show="editMode" name="p_responsibility" class="capa-input" x-model="act.responsibility" style="height: 32px;">
+                              <option value="">Select Responsible...</option>
+                              <template x-if="act.responsibility && !{{ shift_incharges_json|safe }}.includes(act.responsibility)">
+                                <option :value="act.responsibility" x-text="act.responsibility" selected></option>
+                              </template>
+                              {% for si in shift_incharges %}
+                                <option value="{{ si }}">{{ si }}</option>
+                              {% endfor %}
+                            </select>
                           </td>
                           <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
-                            <span x-show="!editMode" class="view-value mono" x-text="act.target_date || '—'"></span>
-                            <input x-show="editMode" type="text" name="p_target_date" class="capa-input" x-model="act.target_date" placeholder="DD.MM.YYYY" style="height: 32px;">
+                            <span x-show="!editMode" class="view-value mono" x-text="formatDisplayDate(act.target_date)"></span>
+                            <input x-show="editMode" type="date" name="p_target_date" class="capa-input" x-model="act.target_date" style="height: 32px;">
                           </td>
                           <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: middle;">
-                            <span x-show="!editMode" class="view-value mono" x-text="act.impl_date || '—'"></span>
-                            <input x-show="editMode" type="text" name="p_impl_date" class="capa-input" x-model="act.impl_date" placeholder="DD.MM.YYYY" style="height: 32px;">
+                            <span x-show="!editMode" class="view-value mono" x-text="formatDisplayDate(act.impl_date)"></span>
+                            <input x-show="editMode" type="date" name="p_impl_date" class="capa-input" x-model="act.impl_date" style="height: 32px;">
                           </td>
                           <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle;">
                             <span class="status-badge" :class="isClosed(act.impl_date) ? 'status-completed' : 'status-progress'" x-text="isClosed(act.impl_date) ? 'Closed' : 'Open/In Progress'"></span>
@@ -827,8 +875,8 @@
               <tr>
                 <td class="capa-hdr-label">10. Date of Implementation:</td>
                 <td colspan="3" style="vertical-align: middle;">
-                  <span x-show="!editMode" class="view-value mono" x-text="dateImplementation || '—'"></span>
-                  <input x-show="editMode" type="text" name="date_implementation" class="capa-input" x-model="dateImplementation" placeholder="e.g. 12.09.2024">
+                  <span x-show="!editMode" class="view-value mono" x-text="formatDisplayDate(dateImplementation)"></span>
+                  <input x-show="editMode" type="date" name="date_implementation" class="capa-input" x-model="dateImplementation">
                 </td>
               </tr>
 
@@ -860,16 +908,39 @@
                     <tbody>
                       <tr>
                         <td style="border: none; border-right: 1px solid #000; padding: 8px; vertical-align: middle;">
-                          <span x-show="!editMode" class="view-value" style="text-align: center;" x-text="preparedBy || '—'"></span>
-                          <input x-show="editMode" type="text" name="prepared_by" class="capa-input" x-model="preparedBy" placeholder="Name">
+                          <select x-show="editMode" name="prepared_by" class="capa-input" x-model="preparedBy">
+                            <option value="">Select Prepared By...</option>
+                            <template x-if="preparedBy && !{{ user_choices_json|safe }}.includes(preparedBy)">
+                              <option :value="preparedBy" x-text="preparedBy" selected></option>
+                            </template>
+                            {% for uc in user_choices %}
+                              <option value="{{ uc }}">{{ uc }}</option>
+                            {% endfor %}
+                          </select>
                         </td>
                         <td style="border: none; border-right: 1px solid #000; padding: 8px; vertical-align: middle;">
                           <span x-show="!editMode" class="view-value" style="text-align: center;" x-text="reviewedBy || '—'"></span>
-                          <input x-show="editMode" type="text" name="reviewed_by" class="capa-input" x-model="reviewedBy" placeholder="Name">
+                          <select x-show="editMode" name="reviewed_by" class="capa-input" x-model="reviewedBy">
+                            <option value="">Select Reviewed By...</option>
+                            <template x-if="reviewedBy && !{{ user_choices_json|safe }}.includes(reviewedBy)">
+                              <option :value="reviewedBy" x-text="reviewedBy" selected></option>
+                            </template>
+                            {% for uc in user_choices %}
+                              <option value="{{ uc }}">{{ uc }}</option>
+                            {% endfor %}
+                          </select>
                         </td>
                         <td style="border: none; padding: 8px; vertical-align: middle;">
                           <span x-show="!editMode" class="view-value" style="text-align: center;" x-text="approvedBy || '—'"></span>
-                          <input x-show="editMode" type="text" name="approved_by" class="capa-input" x-model="approvedBy" placeholder="Name">
+                          <select x-show="editMode" name="approved_by" class="capa-input" x-model="approvedBy">
+                            <option value="">Select Approved By...</option>
+                            <template x-if="approvedBy && !{{ user_choices_json|safe }}.includes(approvedBy)">
+                              <option :value="approvedBy" x-text="approvedBy" selected></option>
+                            </template>
+                            {% for uc in user_choices %}
+                              <option value="{{ uc }}">{{ uc }}</option>
+                            {% endfor %}
+                          </select>
                         </td>
                       </tr>
                     </tbody>
@@ -896,4 +967,32 @@
   {% endif %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function formatDateForInput(dateStr) {
+    if (!dateStr) return '';
+    const clean = dateStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+    const match = clean.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    if (match) {
+      const day = match[1].padStart(2, '0');
+      const month = match[2].padStart(2, '0');
+      const year = match[3];
+      return `${year}-${month}-${day}`;
+    }
+    return '';
+  }
+
+  function formatDisplayDate(dateStr) {
+    if (!dateStr) return '—';
+    const clean = dateStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+      const parts = clean.split('-');
+      return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+    return clean;
+  }
+</script>
 {% endblock %}

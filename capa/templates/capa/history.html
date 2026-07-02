@@ -90,16 +90,16 @@
               </td>
               <td style="text-align: center; vertical-align: middle;" class="mono">{{ sheet.uploaded_at|date:"d M Y, H:i" }}</td>
               <td style="text-align: center; font-weight: bold; vertical-align: middle;">{{ sheet.num_records }}</td>
-              <td style="text-align: left; vertical-align: middle;">{{ sheet.uploaded_by.get_display_name|default:sheet.uploaded_by.username }}</td>
+              <td style="text-align: left; vertical-align: middle;">{{ sheet.uploaded_by.get_display_name|default:sheet.uploaded_by.username|default:"Manual Entry" }}</td>
               <td style="text-align: center; vertical-align: middle;">
-                <div style="display: flex; gap: 8px; justify-content: center;">
-                  <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ sheet.id }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; line-height: 26px; display: inline-block;">
+                <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                  <a href="{% url 'capa:report' active_dept.id %}?upload_id={{ sheet.id }}" class="btn btn-secondary" style="padding: 0 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; line-height: 26px; display: inline-block; text-decoration: none;">
                     View
                   </a>
                   <form id="delete-form-{{ sheet.id }}" action="{% url 'capa:delete_upload' active_dept.id sheet.id %}" method="POST" style="display: none;">
                     {% csrf_token %}
                   </form>
-                  <button type="button" @click="showConfirm('Delete CAPA Sheet', 'Are you sure you want to delete the CAPA session \'{{ sheet.filename|escapejs }}\'? This will delete all associated CAPA reports and is irreversible.', () => { document.getElementById('delete-form-{{ sheet.id }}').submit(); })" class="btn" style="background-color: var(--status-red) !important; color: white !important; padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; border: none;">
+                  <button type="button" @click="showConfirm('Delete CAPA Sheet', 'Are you sure you want to delete the CAPA session \'{{ sheet.filename|escapejs }}\'? This will delete all associated CAPA reports and is irreversible.', () => { document.getElementById('delete-form-{{ sheet.id }}').submit(); })" class="btn" style="background-color: var(--status-red) !important; color: white !important; padding: 4px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: bold; height: 26px; border: none; line-height: 1;">
                     Delete
                   </button>
                 </div>

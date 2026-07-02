@@ -1,6 +1,7 @@
 import os
 import json
 from datetime import datetime
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
@@ -217,7 +218,7 @@ def capa_dashboard(request, dept_id):
                     
                     dept_files.append({
                         'id': f"manual_{d.id}",
-                        'name': 'Default manual list',
+                        'name': f"{d.code}",
                         'date': '—',
                         'total': d_manual_recs.count(),
                         'open': m_open,
@@ -298,7 +299,7 @@ def capa_dashboard(request, dept_id):
             
             sheet_comparisons.append({
                 'id': 'new_file',
-                'name': 'Default manual list',
+                'name': f"{active_dept.code}",
                 'date': '—',
                 'total': manual_recs.count(),
                 'open': file_open_actions,
@@ -393,13 +394,28 @@ def capa_identification(request, dept_id):
     owners = User.objects.filter(is_active=True).order_by('first_name')
     uploads = CAPADocxUpload.objects.filter(department=active_dept).order_by('-uploaded_at')
     
+    delay_record_id = request.GET.get('delay_record_id')
+    delay_rec = None
+    if delay_record_id:
+        try:
+            from delays.models import DelayRecord
+            delay_rec = DelayRecord.objects.get(id=int(delay_record_id), department=active_dept)
+        except Exception:
+            pass
+
     import random
     # Pre-fills for team, corrective and preventive actions
     prefills = {
         'capa_no': f"CAPA-{active_dept.code}-{(CAPAReport.objects.filter(department=active_dept).count() + 1):03d}",
         'document_no': f"{datetime.now().year}/DOC-{random.randint(100, 999)}/{active_dept.code}",
         'issue_no': str(random.randint(1, 12)),
-        'issue_date': datetime.now().strftime('%d.%m.%Y'),
+        'issue_date': datetime.now().strftime('%Y-%m-%d'),
+        'area_section': '',
+        'date_incident': '',
+        'problem_what': '',
+        'breakdown_hrs': '',
+        'breakdown_from': '',
+        'breakdown_to': '',
         'responsible_team': {
             'team_leader': '',
             'team_members': '',
@@ -414,6 +430,18 @@ def capa_identification(request, dept_id):
             {'action': '', 'responsibility': '', 'target_date': '', 'impl_date': ''},
         ]
     }
+
+    if delay_rec:
+        prefills['area_section'] = delay_rec.equipment or ""
+        prefills['date_incident'] = delay_rec.date.strftime('%Y-%m-%d') if delay_rec.date else datetime.now().strftime('%Y-%m-%d')
+        prefills['problem_what'] = delay_rec.description or ""
+        prefills['breakdown_hrs'] = str(round(delay_rec.duration_mins / 60.0, 2)) if delay_rec.duration_mins else ""
+        prefills['breakdown_from'] = delay_rec.start_time or ""
+        prefills['breakdown_to'] = delay_rec.end_time or ""
+        if delay_rec.shift_incharge:
+            prefills['responsible_team']['team_leader'] = delay_rec.shift_incharge
+            
+    dropdown_res = get_dropdown_resources(active_dept)
     
     context = {
         'active_dept_id': dept_id,
@@ -425,6 +453,7 @@ def capa_identification(request, dept_id):
         'uploads': uploads,
         'prefills': prefills,
     }
+    context.update(dropdown_res)
     return render(request, 'capa/manual_entry.html', context)
 
 
@@ -442,6 +471,8 @@ def capa_report(request, dept_id):
     if upload_id and upload_id != 'new_file':
         try:
             selected_upload_id = int(upload_id)
+            if selected_upload_id == 0:
+                raise ValueError("Virtual manual ID")
             selected_upload = get_object_or_404(CAPADocxUpload, id=selected_upload_id, department=active_dept)
             reports = CAPAReport.objects.filter(department=active_dept, docx_upload=selected_upload)
         except ValueError:
@@ -486,6 +517,7 @@ def capa_report(request, dept_id):
             'whys_json': json.dumps(whys_list),
         })
         
+    dropdown_res = get_dropdown_resources(active_dept)
     context = {
         'active_dept_id': dept_id,
         'active_dept': active_dept,
@@ -497,6 +529,7 @@ def capa_report(request, dept_id):
         'selected_upload': selected_upload,
         'can_edit': True,
     }
+    context.update(dropdown_res)
     return render(request, 'capa/report.html', context)
 
 
@@ -594,6 +627,19 @@ def capa_history(request, dept_id):
     uploaded_files = process_upload_history(uploaded_files_qs)
     manual_sheets = process_upload_history(manual_sheets_qs)
     
+    if manual_count > 0:
+        latest_report = CAPAReport.objects.filter(department=active_dept, docx_upload=None).order_by('-id').first()
+        created_date = latest_report.created_at if latest_report else None
+        created_by_user = latest_report.created_by if latest_report else None
+        manual_sheets.append({
+            'id': 0,
+            'filename': active_dept.code,
+            'uploaded_at': created_date,
+            'num_records': manual_count,
+            'uploaded_by': created_by_user,
+            'is_virtual': True
+        })
+        
     context = {
         'active_dept_id': dept_id,
         'active_dept': active_dept,
@@ -796,11 +842,14 @@ def upload_file(request, dept_id):
 @module_access_required('CAPA')
 def delete_upload(request, dept_id, upload_id):
     active_dept = get_object_or_404(Department, id=dept_id)
-    upload = get_object_or_404(CAPADocxUpload, id=upload_id, department=active_dept)
-    
-    filename = upload.filename
-    upload.delete() # cascading deletes associated CAPAReport records
-    messages.success(request, f"File upload '{filename}' successfully deleted.")
+    if int(upload_id) == 0:
+        CAPAReport.objects.filter(department=active_dept, docx_upload=None).delete()
+        messages.success(request, f"All manual reports under '{active_dept.code}' successfully deleted.")
+    else:
+        upload = get_object_or_404(CAPADocxUpload, id=upload_id, department=active_dept)
+        filename = upload.filename
+        upload.delete() # cascading deletes associated CAPAReport records
+        messages.success(request, f"File upload '{filename}' successfully deleted.")
     return redirect('capa:history', dept_id=dept_id)
 
 @login_required
@@ -1264,3 +1313,37 @@ def download_pdf(request, dept_id, capa_id):
     response = HttpResponse(pdf_val, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+
+def get_dropdown_resources(active_dept):
+    from delays.models import DelayDropdownOption, DelayRecord
+    incharge_opts = DelayDropdownOption.objects.filter(
+        department=active_dept, category__iexact='Shift Incharge'
+    ).values_list('value', flat=True).distinct()
+    incharge_names = set(incharge_opts)
+    
+    db_incharges = DelayRecord.objects.filter(department=active_dept).exclude(shift_incharge__isnull=True).exclude(shift_incharge='').values_list('shift_incharge', flat=True).distinct()
+    incharge_names.update(db_incharges)
+    
+    shift_incharges_list = sorted(list(set(name.strip() for name in incharge_names if name and name.strip())))
+    
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    system_users = User.objects.filter(is_active=True).order_by('first_name', 'last_name', 'username')
+    
+    user_choices = []
+    for u in system_users:
+        display_name = u.get_display_name() if hasattr(u, 'get_display_name') else f"{u.first_name} {u.last_name}".strip()
+        if not display_name:
+            display_name = u.username
+        user_choices.append(display_name.strip())
+        
+    user_choices = sorted(list(set(name for name in user_choices if name)))
+    
+    return {
+        'shift_incharges': shift_incharges_list,
+        'shift_incharges_json': json.dumps(shift_incharges_list),
+        'user_choices': user_choices,
+        'user_choices_json': json.dumps(user_choices),
+    }
+

@@ -565,5 +565,25 @@
       arrow.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
     }
   }
+
+  // Auto-expand and scroll to a specific user if user_id is provided in the URL query string
+  document.addEventListener("DOMContentLoaded", function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('user_id');
+    if (userId) {
+      // Toggle rows open
+      toggleUserRows(userId);
+      // Find the user header row and scroll it into view
+      const headerRow = document.querySelector(`.user-header-row[data-user-id="${userId}"]`);
+      if (headerRow) {
+        headerRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Add a temporary highlight flash effect
+        headerRow.style.backgroundColor = '#dbeafe';
+        setTimeout(() => {
+          headerRow.style.backgroundColor = '';
+        }, 3000);
+      }
+    }
+  });
 </script>
 {% endblock %}

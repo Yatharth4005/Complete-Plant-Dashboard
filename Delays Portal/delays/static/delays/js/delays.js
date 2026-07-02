@@ -276,12 +276,12 @@ function initCharts() {
                 }]
             },
             options: Object.assign({}, commonOptions, {
-                indexAxis: 'y', // Makes the bar chart horizontal
+                indexAxis: 'x', // Makes the bar chart vertical (straight bars)
                 plugins: {
                     legend: { display: false }
                 },
                 scales: {
-                    x: {
+                    y: {
                         beginAtZero: true,
                         grid: { color: '#E5E7EB' },
                         title: {
@@ -291,10 +291,12 @@ function initCharts() {
                         },
                         ticks: { font: { family: "'JetBrains Mono', monospace" } }
                     },
-                    y: {
+                    x: {
                         grid: { display: false },
                         ticks: {
-                            font: { family: "'Sora', sans-serif", size: 11 }
+                            font: { family: "'Sora', sans-serif", size: 10 },
+                            maxRotation: 30,
+                            minRotation: 30
                         }
                     }
                 }

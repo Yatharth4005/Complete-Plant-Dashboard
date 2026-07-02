@@ -179,8 +179,25 @@ def user_informations(request):
     """
     users = User.objects.all().select_related('department').order_by('username')
     departments = Department.objects.filter(is_active=True).order_by('name')
+    
+    from collections import defaultdict
+    accesses = UserModuleAccess.objects.filter(user__in=users)
+    user_dept_map = defaultdict(set)
+    for a in accesses:
+        user_dept_map[a.user_id].add(a.department_id)
+        
+    users_data = []
+    for u in users:
+        dept_ids = list(user_dept_map[u.id])
+        if u.department_id and u.department_id not in dept_ids:
+            dept_ids.append(u.department_id)
+        users_data.append({
+            'user': u,
+            'accessed_dept_ids': dept_ids
+        })
+        
     context = {
-        'users': users,
+        'users_data': users_data,
         'departments': departments,
         'active_section': 'user_info',
     }
@@ -227,7 +244,7 @@ def admin_create_user(request):
         last_name = request.POST.get('last_name', '').strip()
         phone = request.POST.get('phone', '').strip()
         designation = request.POST.get('designation', '').strip()
-        dept_id = request.POST.get('department')
+        dept_ids = [int(x) for x in request.POST.getlist('departments') if x.isdigit()]
         role = request.POST.get('role', 'USER')
         
         # If username is not passed, use email as username
@@ -245,8 +262,8 @@ def admin_create_user(request):
         if existing_user:
             if not existing_user.is_active:
                 dept = None
-                if role == 'USER' and dept_id:
-                    dept = Department.objects.filter(id=dept_id).first()
+                if role == 'USER' and dept_ids:
+                    dept = Department.objects.filter(id=dept_ids[0]).first()
                 
                 existing_user.first_name = first_name
                 existing_user.last_name = last_name
@@ -261,6 +278,20 @@ def admin_create_user(request):
                     existing_user.set_password(password)
                 
                 existing_user.save()
+                
+                # Grant access to selected departments
+                if role == 'USER' and dept_ids:
+                    active_modules = Module.objects.filter(is_active=True)
+                    for d_id in dept_ids:
+                        d = Department.objects.filter(id=d_id).first()
+                        if d:
+                            for m in active_modules:
+                                UserModuleAccess.objects.update_or_create(
+                                    user=existing_user,
+                                    department=d,
+                                    module=m,
+                                    defaults={'access_level': 'EDIT', 'granted_by': request.user}
+                                )
                 
                 # Grant plant-wide access if checked
                 grant_all_access = request.POST.get('grant_all_access') == 'on'
@@ -289,8 +320,8 @@ def admin_create_user(request):
                 return redirect(request.META.get('HTTP_REFERER', 'portal:user_informations'))
             
         dept = None
-        if role == 'USER' and dept_id:
-            dept = Department.objects.filter(id=dept_id).first()
+        if role == 'USER' and dept_ids:
+            dept = Department.objects.filter(id=dept_ids[0]).first()
             
         # Create user instance
         user = User(
@@ -313,6 +344,20 @@ def admin_create_user(request):
             user.set_password(password)
             
         user.save()
+        
+        # Grant access to selected departments
+        if role == 'USER' and dept_ids:
+            active_modules = Module.objects.filter(is_active=True)
+            for d_id in dept_ids:
+                d = Department.objects.filter(id=d_id).first()
+                if d:
+                    for m in active_modules:
+                        UserModuleAccess.objects.update_or_create(
+                            user=user,
+                            department=d,
+                            module=m,
+                            defaults={'access_level': 'EDIT', 'granted_by': request.user}
+                        )
         
         # Grant plant-wide access if checked
         grant_all_access = request.POST.get('grant_all_access') == 'on'
@@ -408,14 +453,61 @@ def admin_edit_user(request, user_id):
             user.role = role
             user.is_plant_admin = (role == 'ADMIN')
         
-        dept_id = request.POST.get('department')
-        if user.role == 'USER' and dept_id:
-            user.department = Department.objects.filter(id=dept_id).first()
+        dept_ids = [int(x) for x in request.POST.getlist('departments') if x.isdigit()]
+        if user.role == 'USER' and dept_ids:
+            user.department = Department.objects.filter(id=dept_ids[0]).first()
         else:
             user.department = None
             
         user.save()
-        messages.success(request, f"User '{user.username}' updated successfully.")
+        
+        # Grant plant-wide access if checked
+        grant_all_access = request.POST.get('grant_all_access') == 'on'
+        if grant_all_access:
+            depts = Department.objects.filter(is_active=True)
+            mods = Module.objects.filter(is_active=True)
+            for d in depts:
+                for m in mods:
+                    UserModuleAccess.objects.update_or_create(
+                        user=user,
+                        department=d,
+                        module=m,
+                        defaults={'access_level': 'EDIT', 'granted_by': request.user}
+                    )
+            messages.success(request, f"User '{user.username}' updated and granted full access to all departments/modules.")
+        else:
+            if user.role == 'USER':
+                # Get existing accesses
+                existing_levels = {
+                    (access.department_id, access.module_id): access.access_level
+                    for access in UserModuleAccess.objects.filter(user=user)
+                }
+                
+                # Revoke module accesses for any department not in the selected dept_ids
+                UserModuleAccess.objects.filter(user=user).exclude(department_id__in=dept_ids).delete()
+                
+                # Grant/update access for each selected department
+                active_modules = Module.objects.filter(is_active=True)
+                access_level_chosen = request.POST.get('access_control_level')
+                
+                for d_id in dept_ids:
+                    d = Department.objects.filter(id=d_id).first()
+                    if d:
+                        for m in active_modules:
+                            if access_level_chosen in ('EDIT', 'VIEW'):
+                                target_level = access_level_chosen
+                            else:
+                                target_level = existing_levels.get((d.id, m.id), 'EDIT')
+                                
+                            UserModuleAccess.objects.update_or_create(
+                                user=user,
+                                department=d,
+                                module=m,
+                                defaults={'access_level': target_level, 'granted_by': request.user}
+                            )
+                messages.success(request, f"User '{user.username}' updated and department access updated.")
+            else:
+                messages.success(request, f"User '{user.username}' updated successfully.")
         
     return redirect('portal:user_informations')
 

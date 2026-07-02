@@ -2,9 +2,9 @@
   <form method="GET" id="date-filter-form" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
     <!-- Preserve tab/workstation context if present -->
     {% if tab %}
-      <input type="hidden" name="tab" value="{{ tab }}">
+      <input type="hidden" name="tab" {% if pillar_id %}x-bind:value="activeTab"{% endif %} value="{{ tab }}">
     {% elif active_tab %}
-      <input type="hidden" name="tab" value="{{ active_tab }}">
+      <input type="hidden" name="tab" {% if pillar_id %}x-bind:value="activeTab"{% endif %} value="{{ active_tab }}">
     {% endif %}
     {% if analytics_data.selected_ws_id %}
       <input type="hidden" name="workstation_id" value="{{ analytics_data.selected_ws_id }}">
@@ -38,6 +38,31 @@
         <input type="month" name="to_period_month" value="{{ to_year }}-{% if to_month < 10 %}0{% endif %}{{ to_month }}" class="input-mono" style="width: 160px; max-width: 160px; height: 36px; padding: 6px 12px; border: 1px solid var(--jspl-border); border-radius: 4px; outline: none; font-family: inherit;" onchange="submitPeriodFilter()">
       </div>
     </div>
+
+    {% if pillar_id == 'PM' %}
+      <div style="display: flex; flex-direction: column;">
+        <label style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-muted); margin-bottom: 4px;">Equipment</label>
+        <select name="selected_equipment" class="input-mono" style="width: 220px; max-width: 220px; height: 36px; padding: 6px 12px; border: 1px solid var(--jspl-border); border-radius: 4px;" onchange="submitPeriodFilter()">
+          <option value="">-- All Equipments --</option>
+          {% for eq in equipments %}
+            <option value="{{ eq }}" {% if eq == selected_equipment %}selected{% endif %}>{{ eq }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+
+    {% if pillar_id %}
+      <div x-show="activeTab === 'analytics'" style="display: flex; flex-direction: column;">
+        <label style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-muted); margin-bottom: 4px;">KPI / Parameter</label>
+        <select name="selected_kpi" id="selected-kpi-select" class="input-mono" style="width: 250px; max-width: 250px; height: 36px; padding: 6px 12px; border: 1px solid var(--jspl-border); border-radius: 4px;" onchange="submitPeriodFilter()">
+          <option value="">-- All KPIs (Actuals) --</option>
+          {% for row in kpi_rows %}
+            <option value="{{ row.sl_no }}" {% if selected_kpi == row.sl_no %}selected{% endif %}>{{ row.kpi_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+
 
     <noscript>
       <button type="submit" class="btn btn-secondary" style="height: 36px; padding: 6px 16px;">Apply</button>

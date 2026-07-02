@@ -102,11 +102,6 @@
         
         <div style="display: flex; gap: 24px; margin-bottom: 15px; flex-wrap: wrap;">
           <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: var(--jspl-navy);">
-            <input type="radio" name="association_type" value="default" x-model="associationType" style="width: 16px; height: 16px; accent-color: var(--jspl-blue);">
-            Default manual list
-          </label>
-          
-          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: var(--jspl-navy);">
             <input type="radio" name="association_type" value="new" x-model="associationType" style="width: 16px; height: 16px; accent-color: var(--jspl-blue);">
             Create a new file
           </label>
@@ -160,7 +155,7 @@
             <div style="display: flex; gap: 8px; align-items: center;">
               <input type="text" name="issue_no" class="capa-input" value="{{ prefills.issue_no }}" required style="width: 80px; font-weight: bold;" placeholder="Issue No">
               <span>/</span>
-              <input type="text" name="issue_date" class="capa-input" value="{{ prefills.issue_date }}" required style="font-weight: bold;" placeholder="DD.MM.YYYY">
+              <input type="date" name="issue_date" class="capa-input" value="{{ prefills.issue_date }}" required style="font-weight: bold;">
             </div>
           </td>
         </tr>
@@ -173,14 +168,14 @@
           </td>
           <td class="capa-hdr-label">Area / Section</td>
           <td>
-            <input type="text" name="area_section" class="capa-input" placeholder="e.g. Mill Electrical">
+            <input type="text" name="area_section" class="capa-input" placeholder="e.g. Mill Electrical" value="{{ prefills.area_section }}">
           </td>
         </tr>
         
         <tr>
           <td class="capa-hdr-label">Date of Incident</td>
           <td>
-            <input type="text" name="date_incident" class="capa-input" placeholder="e.g. 12.09.2024" value="{{ today }}">
+            <input type="date" name="date_incident" class="capa-input" value="{{ prefills.date_incident|default:today }}">
           </td>
           <td class="capa-hdr-label">CAPA No. *</td>
           <td>
@@ -206,7 +201,7 @@
         <tr>
           <td class="capa-hdr-label">What:</td>
           <td colspan="3">
-            <textarea name="problem_what" class="capa-textarea" placeholder="What happened?" required></textarea>
+            <textarea name="problem_what" class="capa-textarea" placeholder="What happened?" required>{{ prefills.problem_what }}</textarea>
           </td>
         </tr>
         <tr>
@@ -248,11 +243,11 @@
           <td colspan="3">
             <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
               <span>Duration (Hrs):</span>
-              <input type="text" name="breakdown_hrs" class="capa-input" style="width: 80px;" placeholder="e.g. 4.5">
+              <input type="text" name="breakdown_hrs" class="capa-input" style="width: 80px;" placeholder="e.g. 4.5" value="{{ prefills.breakdown_hrs }}">
               <span>From Time:</span>
-              <input type="text" name="breakdown_from" class="capa-input" style="width: 120px;" placeholder="HH:MM AM/PM">
+              <input type="text" name="breakdown_from" class="capa-input" style="width: 120px;" placeholder="HH:MM AM/PM" value="{{ prefills.breakdown_from }}">
               <span>To Time:</span>
-              <input type="text" name="breakdown_to" class="capa-input" style="width: 120px;" placeholder="HH:MM AM/PM">
+              <input type="text" name="breakdown_to" class="capa-input" style="width: 120px;" placeholder="HH:MM AM/PM" value="{{ prefills.breakdown_to }}">
             </div>
           </td>
         </tr>
@@ -276,7 +271,12 @@
                 <tr>
                   <!-- Team Leader -->
                   <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
-                    <input type="text" name="team_leader" class="capa-input" x-model="team.team_leader" placeholder="Team Leader Name" style="height: 32px;">
+                    <select name="team_leader" class="capa-input" x-model="team.team_leader" style="height: 32px;">
+                      <option value="">Select Team Leader...</option>
+                      {% for si in shift_incharges %}
+                        <option value="{{ si }}" {% if si == prefills.responsible_team.team_leader %}selected{% endif %}>{{ si }}</option>
+                      {% endfor %}
+                    </select>
                   </td>
                   <!-- Team Members -->
                   <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
@@ -313,7 +313,12 @@
           </td>
           <td class="capa-hdr-label">Responsibility:</td>
           <td>
-            <input type="text" name="action_responsibility" class="capa-input" placeholder="Responsibility name">
+            <select name="action_responsibility" class="capa-input">
+              <option value="">Select Responsibility...</option>
+              {% for si in shift_incharges %}
+                <option value="{{ si }}">{{ si }}</option>
+              {% endfor %}
+            </select>
           </td>
         </tr>
 
@@ -397,13 +402,18 @@
                       <input type="text" name="c_action" class="capa-input" placeholder="Corrective Action" style="height: 32px;" x-model="act.action" required>
                     </td>
                     <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
-                      <input type="text" name="c_responsibility" class="capa-input" placeholder="Responsible" style="height: 32px;" x-model="act.responsibility">
+                      <select name="c_responsibility" class="capa-input" style="height: 32px;" x-model="act.responsibility">
+                        <option value="">Select Responsible...</option>
+                        {% for si in shift_incharges %}
+                          <option value="{{ si }}">{{ si }}</option>
+                        {% endfor %}
+                      </select>
                     </td>
                     <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
-                      <input type="text" name="c_target_date" class="capa-input" placeholder="DD.MM.YYYY" style="height: 32px;" x-model="act.target_date">
+                      <input type="date" name="c_target_date" class="capa-input" style="height: 32px;" x-model="act.target_date">
                     </td>
                     <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
-                      <input type="text" name="c_impl_date" class="capa-input" placeholder="DD.MM.YYYY" style="height: 32px;" x-model="act.impl_date">
+                      <input type="date" name="c_impl_date" class="capa-input" style="height: 32px;" x-model="act.impl_date">
                     </td>
                     <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;">
                       <span class="status-badge" :class="isClosed(act.impl_date) ? 'status-completed' : 'status-progress'" x-text="isClosed(act.impl_date) ? 'Closed' : 'Open/In Progress'"></span>
@@ -447,13 +457,18 @@
                       <input type="text" name="p_action" class="capa-input" placeholder="Preventive Action" style="height: 32px;" x-model="act.action" required>
                     </td>
                     <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
-                      <input type="text" name="p_responsibility" class="capa-input" placeholder="Responsible" style="height: 32px;" x-model="act.responsibility">
+                      <select name="p_responsibility" class="capa-input" style="height: 32px;" x-model="act.responsibility">
+                        <option value="">Select Responsible...</option>
+                        {% for si in shift_incharges %}
+                          <option value="{{ si }}">{{ si }}</option>
+                        {% endfor %}
+                      </select>
                     </td>
                     <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
-                      <input type="text" name="p_target_date" class="capa-input" placeholder="DD.MM.YYYY" style="height: 32px;" x-model="act.target_date">
+                      <input type="date" name="p_target_date" class="capa-input" style="height: 32px;" x-model="act.target_date">
                     </td>
                     <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px;">
-                      <input type="text" name="p_impl_date" class="capa-input" placeholder="DD.MM.YYYY" style="height: 32px;" x-model="act.impl_date">
+                      <input type="date" name="p_impl_date" class="capa-input" style="height: 32px;" x-model="act.impl_date">
                     </td>
                     <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle;">
                       <span class="status-badge" :class="isClosed(act.impl_date) ? 'status-completed' : 'status-progress'" x-text="isClosed(act.impl_date) ? 'Closed' : 'Open/In Progress'"></span>
@@ -507,7 +522,7 @@
         <tr>
           <td class="capa-hdr-label">10. Date of Implementation:</td>
           <td colspan="3">
-            <input type="text" name="date_implementation" class="capa-input" placeholder="e.g. 12.09.2024" value="{{ today }}">
+            <input type="date" name="date_implementation" class="capa-input" value="{{ prefills.date_implementation|default:today }}">
           </td>
         </tr>
 
@@ -538,13 +553,30 @@
               <tbody>
                 <tr>
                   <td style="border: none; border-right: 1px solid #000; padding: 8px;">
-                    <input type="text" name="prepared_by" class="capa-input" placeholder="Name">
+                    {% with curr_user_name=request.user.get_display_name|default:request.user.username %}
+                    <select name="prepared_by" class="capa-input">
+                      <option value="">Select Prepared By...</option>
+                      {% for uc in user_choices %}
+                        <option value="{{ uc }}" {% if uc == curr_user_name %}selected{% endif %}>{{ uc }}</option>
+                      {% endfor %}
+                    </select>
+                    {% endwith %}
                   </td>
                   <td style="border: none; border-right: 1px solid #000; padding: 8px;">
-                    <input type="text" name="reviewed_by" class="capa-input" placeholder="Name">
+                    <select name="reviewed_by" class="capa-input">
+                      <option value="">Select Reviewed By...</option>
+                      {% for uc in user_choices %}
+                        <option value="{{ uc }}">{{ uc }}</option>
+                      {% endfor %}
+                    </select>
                   </td>
                   <td style="border: none; padding: 8px;">
-                    <input type="text" name="approved_by" class="capa-input" placeholder="Name">
+                    <select name="approved_by" class="capa-input">
+                      <option value="">Select Approved By...</option>
+                      {% for uc in user_choices %}
+                        <option value="{{ uc }}">{{ uc }}</option>
+                      {% endfor %}
+                    </select>
                   </td>
                 </tr>
               </tbody>
@@ -567,7 +599,7 @@
 <script>
   function capaFormHandler() {
     return {
-      associationType: 'default',
+      associationType: 'new',
       existingFileId: '',
       isClosed(dateStr) {
         if (!dateStr) return false;
@@ -578,7 +610,7 @@
         return true;
       },
       team: {
-        team_leader: '',
+        team_leader: '{{ prefills.responsible_team.team_leader|escapejs }}',
         team_members: '',
         role_function: '',
         contact_nos: ''

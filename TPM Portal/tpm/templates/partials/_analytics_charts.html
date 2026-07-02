@@ -1,7 +1,16 @@
 {# partials/_analytics_charts.html #}
 <div id="analytics-container">
   <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow-sm);">
-    <h3 style="margin-bottom: 15px;">Monthly Performance Trend (Year YTD)</h3>
+    <h3 style="margin-bottom: 15px;">
+      Monthly Performance Trend (Year YTD) — 
+      {% if selected_kpi %}
+        {% for row in kpi_rows %}
+          {% if row.sl_no == selected_kpi %}{{ row.kpi_name }}{% endif %}
+        {% endfor %}
+      {% else %}
+        All KPIs (Actual)
+      {% endif %}
+    </h3>
     <div style="position: relative; height: 350px;">
       <canvas id="kpiTrendChart"></canvas>
     </div>
@@ -32,8 +41,8 @@
             <tr>
               <td class="mono">{{ row.sl_no }}</td>
               <td>{{ row.kpi_name }}</td>
-              <td class="mono" style="text-align: right;">{{ row.target|default:"—" }}</td>
-              <td class="mono" style="text-align: right;">{{ row.actual|default:"—" }}</td>
+              <td class="mono" style="text-align: right;">{{ row.target|default_if_none:"—" }}</td>
+              <td class="mono" style="text-align: right;">{{ row.actual|default_if_none:"0" }}</td>
               <td class="mono {% if row.achievement >= 90 %}text-status-green{% elif row.achievement >= 75 %}text-status-amber{% else %}text-status-red{% endif %}" style="text-align: right; font-weight: bold;">
                 {% if row.achievement is not None %}{{ row.achievement|floatformat:1 }}%{% else %}—{% endif %}
               </td>
@@ -61,23 +70,55 @@
       
       // 1. Line Chart setup
       const lineDatasets = [];
-      let colorIndex = 0;
+      const selectedKpi = '{{ selected_kpi }}';
       
-      for (const sl in trends) {
-        const kpi = trends[sl];
-        const color = colorsPalette[colorIndex % colorsPalette.length];
-        
+      if (selectedKpi && trends[selectedKpi]) {
+        const kpi = trends[selectedKpi];
         lineDatasets.push({
-          label: `Sl ${sl} (Actual)`,
+          label: 'Actual',
           data: kpi.actuals,
-          borderColor: color,
+          borderColor: '#003478', // JSPL Navy
           backgroundColor: 'transparent',
-          borderWidth: 2,
+          borderWidth: 3,
           tension: 0.2,
           spanGaps: true
         });
-        
-        colorIndex++;
+        lineDatasets.push({
+          label: 'Target',
+          data: kpi.targets,
+          borderColor: '#16A34A', // Green
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [5, 5], // Dashed for Target
+          tension: 0.2,
+          spanGaps: true
+        });
+        lineDatasets.push({
+          label: 'Benchmark',
+          data: kpi.benchmarks,
+          borderColor: '#F47920', // JSPL Orange
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [2, 2], // Dotted for Benchmark
+          tension: 0.2,
+          spanGaps: true
+        });
+      } else {
+        let colorIndex = 0;
+        for (const sl in trends) {
+          const kpi = trends[sl];
+          const color = colorsPalette[colorIndex % colorsPalette.length];
+          lineDatasets.push({
+            label: kpi.name,
+            data: kpi.actuals,
+            borderColor: color,
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            tension: 0.2,
+            spanGaps: true
+          });
+          colorIndex++;
+        }
       }
       
       const ctxTrend = document.getElementById('kpiTrendChart').getContext('2d');

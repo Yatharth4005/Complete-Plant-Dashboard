@@ -29,16 +29,25 @@
       <div class="form-column">
         <h4 class="form-sec-title">🕒 Time & Duration Details</h4>
         
-        <div class="form-field-group">
-          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Date *</label>
-          {{ form.date }}
-          {% if form.date.errors %}
-            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.date.errors }}</div>
-          {% endif %}
+        <div class="field-row-2">
+          <div class="form-field-group">
+            <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Start Date *</label>
+            {{ form.date }}
+            {% if form.date.errors %}
+              <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.date.errors }}</div>
+            {% endif %}
+          </div>
+          
+          <div class="form-field-group">
+            <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">End Date *</label>
+            {{ form.end_date }}
+            {% if form.end_date.errors %}
+              <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.end_date.errors }}</div>
+            {% endif %}
+          </div>
         </div>
         
-
-        <div class="field-row-2">
+        <div class="field-row-2" style="margin-top: 15px;">
           <div class="form-field-group">
             <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Start Time</label>
             {{ form.start_time }}
@@ -61,6 +70,14 @@
           {{ form.duration_mins }}
           {% if form.duration_mins.errors %}
             <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.duration_mins.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="form-field-group" style="margin-top: 15px;">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Production Loss (Tons)</label>
+          {{ form.production_loss }}
+          {% if form.production_loss.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.production_loss.errors }}</div>
           {% endif %}
         </div>
       </div>
@@ -88,7 +105,7 @@
         </div>
         
         <div class="form-field-group internal-only-field">
-          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Sub Agency</label>
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Area</label>
           {{ form.sub_agency }}
           {% if form.sub_agency.errors %}
             <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.sub_agency.errors }}</div>
@@ -135,12 +152,12 @@
       </div>
       
       <div class="form-field-group">
-        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">WHY-WHY/CAPA Analysis</label>
+        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">CAPA Analysis</label>
         <div style="display: flex; align-items: center; gap: 8px;">
           {{ form.why }}
           {% if is_edit %}
             <a id="why-btn-edit" 
-               href="{% if record.why == 'CAPA' %}/dashboard/capa/?action=new&delay_record_id={{ record.id }}{% else %}#{% endif %}" 
+               href="{% if record.why == 'CAPA' %}/capa/department/{{ department.id }}/identification/?delay_record_id={{ record.id }}{% else %}#{% endif %}" 
                class="btn-fill-sheet" 
                onclick="{% if record.why == 'NO' or not record.why %}return false;{% endif %}"
                style="{% if record.why == 'CAPA' %}display: inline-flex;{% else %}display: none;{% endif %} text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap;"
@@ -177,7 +194,7 @@
         const val = this.value;
         const recordId = "{{ record.id }}";
         if (val === 'CAPA') {
-            btn.href = '/dashboard/capa/?action=new&delay_record_id=' + recordId;
+            btn.href = '/capa/department/{{ department.id }}/identification/?delay_record_id=' + recordId;
             btn.innerText = 'Fill CAPA';
             btn.style.display = 'inline-flex';
             btn.onclick = null;
@@ -263,48 +280,163 @@
       }
     }
 
-    // Automatic duration calculation based on Start Time & End Time
+    // Automatic date-time-duration synchronization logic
+    const dateInput = document.getElementById('id_date');
+    const endDateInput = document.getElementById('id_end_date');
     const startTimeInput = document.getElementById('id_start_time');
     const endTimeInput = document.getElementById('id_end_time');
     const durationInput = document.getElementById('id_duration_mins');
-    
-    function calculateDuration() {
-      if (!startTimeInput || !endTimeInput || !durationInput) return;
-      
-      const startTimeVal = startTimeInput.value.trim();
-      const endTimeVal = endTimeInput.value.trim();
-      
-      if (!startTimeVal || !endTimeVal) return;
-      
-      // Matches standard HH:MM time format
-      const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
-      const startMatch = startTimeVal.match(timeRegex);
-      const endMatch = endTimeVal.match(timeRegex);
-      
-      if (startMatch && endMatch) {
-        const startHrs = parseInt(startMatch[1], 10);
-        const startMins = parseInt(startMatch[2], 10);
-        const endHrs = parseInt(endMatch[1], 10);
-        const endMins = parseInt(endMatch[2], 10);
-        
-        let startTotal = startHrs * 60 + startMins;
-        let endTotal = endHrs * 60 + endMins;
-        
-        // Handle midnight crossing
-        if (endTotal < startTotal) {
-          endTotal += 24 * 60;
+
+    function parseDateTime(dateStr, timeStr) {
+      if (!dateStr || !timeStr) return null;
+      const timeParts = timeStr.split(':');
+      if (timeParts.length < 2) return null;
+      const hour = parseInt(timeParts[0], 10);
+      const min = parseInt(timeParts[1], 10);
+      const d = new Date(dateStr);
+      d.setHours(hour, min, 0, 0);
+      return d;
+    }
+
+    function formatTime(dateObj) {
+      const h = String(dateObj.getHours()).padStart(2, '0');
+      const m = String(dateObj.getMinutes()).padStart(2, '0');
+      return `${h}:${m}`;
+    }
+
+    // Standard date format for browser inputs (YYYY-MM-DD)
+    function formatDate(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function syncDateTimeFields(trigger) {
+      const startDateVal = dateInput.value;
+      const startTimeVal = startTimeInput.value;
+      const endDateVal = endDateInput.value;
+      const endTimeVal = endTimeInput.value;
+      const durationVal = parseFloat(durationInput.value);
+
+      if (trigger === 'duration') {
+        // Calculate End Date & End Time from Start + Duration
+        if (startDateVal && startTimeVal && !isNaN(durationVal)) {
+          const startDt = parseDateTime(startDateVal, startTimeVal);
+          if (startDt) {
+            const endDt = new Date(startDt.getTime() + durationVal * 60000);
+            endDateInput.value = formatDate(endDt);
+            endTimeInput.value = formatTime(endDt);
+          }
         }
-        
-        const diff = endTotal - startTotal;
-        durationInput.value = diff;
+      } else if (trigger === 'end') {
+        // Calculate Duration from Start and End Date/Times
+        if (startDateVal && startTimeVal && endDateVal && endTimeVal) {
+          const startDt = parseDateTime(startDateVal, startTimeVal);
+          const endDt = parseDateTime(endDateVal, endTimeVal);
+          if (startDt && endDt) {
+            const diffMs = endDt.getTime() - startDt.getTime();
+            if (diffMs >= 0) {
+              durationInput.value = Math.round(diffMs / 60000);
+            }
+          }
+        }
+      } else if (trigger === 'start') {
+        // Start Date or Start Time changed
+        if (!isNaN(durationVal)) {
+          // If duration is present, prioritize shifting End Date/Time
+          if (startDateVal && startTimeVal) {
+            const startDt = parseDateTime(startDateVal, startTimeVal);
+            if (startDt) {
+              const endDt = new Date(startDt.getTime() + durationVal * 60000);
+              endDateInput.value = formatDate(endDt);
+              endTimeInput.value = formatTime(endDt);
+            }
+          }
+        } else if (endDateVal && endTimeVal) {
+          // If no duration but end is present, calculate duration
+          if (startDateVal && startTimeVal) {
+            const startDt = parseDateTime(startDateVal, startTimeVal);
+            const endDt = parseDateTime(endDateVal, endTimeVal);
+            if (startDt && endDt) {
+              const diffMs = endDt.getTime() - startDt.getTime();
+              if (diffMs >= 0) {
+                durationInput.value = Math.round(diffMs / 60000);
+              }
+            }
+          }
+        } else if (endTimeInput.value) {
+          // Calculate End Date & Duration directly from Start Date, Start Time, and End Time
+          if (startDateVal && startTimeVal) {
+            const startParts = startTimeVal.split(':');
+            const endParts = endTimeInput.value.split(':');
+            if (startParts.length >= 2 && endParts.length >= 2) {
+              const startHrs = parseInt(startParts[0], 10);
+              const startMins = parseInt(startParts[1], 10);
+              const endHrs = parseInt(endParts[0], 10);
+              const endMins = parseInt(endParts[1], 10);
+
+              let startTotal = startHrs * 60 + startMins;
+              let endTotal = endHrs * 60 + endMins;
+
+              const endDt = new Date(startDateVal);
+              if (endTotal < startTotal) {
+                endDt.setDate(endDt.getDate() + 1);
+                endTotal += 24 * 60;
+              }
+
+              endDateInput.value = formatDate(endDt);
+              durationInput.value = endTotal - startTotal;
+            }
+          }
+        }
+      } else if (trigger === 'endtime') {
+        // End Time changed
+        if (startDateVal && startTimeVal && endTimeVal) {
+          const startParts = startTimeVal.split(':');
+          const endParts = endTimeVal.split(':');
+          if (startParts.length >= 2 && endParts.length >= 2) {
+            const startHrs = parseInt(startParts[0], 10);
+            const startMins = parseInt(startParts[1], 10);
+            const endHrs = parseInt(endParts[0], 10);
+            const endMins = parseInt(endParts[1], 10);
+
+            let startTotal = startHrs * 60 + startMins;
+            let endTotal = endHrs * 60 + endMins;
+
+            const endDt = new Date(startDateVal);
+            if (endTotal < startTotal) {
+              endDt.setDate(endDt.getDate() + 1);
+              endTotal += 24 * 60;
+            }
+
+            endDateInput.value = formatDate(endDt);
+            durationInput.value = endTotal - startTotal;
+          }
+        }
       }
     }
-    
-    if (startTimeInput && endTimeInput) {
-      startTimeInput.addEventListener('input', calculateDuration);
-      endTimeInput.addEventListener('input', calculateDuration);
-      startTimeInput.addEventListener('change', calculateDuration);
-      endTimeInput.addEventListener('change', calculateDuration);
+
+    // Bind listeners
+    if (dateInput) {
+      dateInput.addEventListener('input', () => syncDateTimeFields('start'));
+      dateInput.addEventListener('change', () => syncDateTimeFields('start'));
+    }
+    if (startTimeInput) {
+      startTimeInput.addEventListener('input', () => syncDateTimeFields('start'));
+      startTimeInput.addEventListener('change', () => syncDateTimeFields('start'));
+    }
+    if (durationInput) {
+      durationInput.addEventListener('input', () => syncDateTimeFields('duration'));
+      durationInput.addEventListener('change', () => syncDateTimeFields('duration'));
+    }
+    if (endDateInput) {
+      endDateInput.addEventListener('input', () => syncDateTimeFields('end'));
+      endDateInput.addEventListener('change', () => syncDateTimeFields('end'));
+    }
+    if (endTimeInput) {
+      endTimeInput.addEventListener('input', () => syncDateTimeFields('endtime'));
+      endTimeInput.addEventListener('change', () => syncDateTimeFields('endtime'));
     }
   });
 </script>

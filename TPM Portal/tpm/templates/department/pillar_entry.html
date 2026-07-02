@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-  <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-sm); margin-bottom: 24px;">
+  <div x-data="{ activeTab: '{{ active_tab|default:"entry" }}' }" style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-sm); margin-bottom: 24px;">
         <!-- Title and Filter Row -->
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--jspl-border); padding-bottom: 16px; margin-bottom: 20px;">
       <div>
@@ -24,7 +24,7 @@
     {% include "partials/_date_filter.html" with active_tab=active_tab %}
 
     <!-- TABS CONTROLLER (Alpine.js + HTMX) -->
-    <div x-data="{ activeTab: '{{ active_tab|default:"entry" }}' }">
+    <div>
       <div class="tab-container" style="display: flex; align-items: center; flex-wrap: wrap;">
         <button class="tab-btn" :class="{ 'active': activeTab === 'entry' }"
                 hx-get="{% url 'kpi_table_partial' dept.id pillar_id %}"

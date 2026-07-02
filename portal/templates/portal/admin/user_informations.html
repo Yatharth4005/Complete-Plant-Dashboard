@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-container" x-data="{ resetUserId: null, resetUserName: '', resetModalOpen: false, addModalOpen: false, editModalOpen: false, editUser: {}, deleteUserId: null, deleteUserName: '', deleteModalOpen: false }">
+<div class="page-container" x-data="{ resetUserId: null, resetUserName: '', resetModalOpen: false, addModalOpen: false, editModalOpen: false, editUser: {}, deleteUserId: null, deleteUserName: '', deleteModalOpen: false, createDepts: [] }">
   
   <div class="dashboard-header-row">
     <div>
@@ -18,7 +18,7 @@
     <button type="button" 
             class="btn btn-primary" 
             style="padding: 10px 18px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;"
-            @click="addModalOpen = true">
+            @click="createDepts = []; addModalOpen = true">
       ➕ Create User Account
     </button>
   </div>
@@ -49,7 +49,8 @@
           </tr>
         </thead>
         <tbody>
-          {% for u in users %}
+          {% for u_data in users_data %}
+            {% with u=u_data.user %}
             <tr style="border-bottom: 1px solid var(--jspl-border); background-color: {% if forloop.counter|divisibleby:2 %}var(--jspl-gray){% else %}var(--jspl-white){% endif %}; transition: background-color 0.2s;">
               <!-- Photo / Avatar -->
               <td style="padding: 10px; vertical-align: middle; text-align: center;">
@@ -119,8 +120,8 @@
                               email: '{{ u.email|escapejs }}',
                               phone: '{{ u.phone|escapejs }}',
                               designation: '{{ u.designation|escapejs }}',
-                              department_id: '{{ u.department.id|default:'' }}',
-                              role: '{{ u.role|escapejs }}'
+                              role: '{{ u.role|escapejs }}',
+                              accessed_depts: {{ u_data.accessed_dept_ids|safe }}
                             };
                             editModalOpen = true;
                           ">
@@ -143,6 +144,7 @@
                 </div>
               </td>
             </tr>
+            {% endwith %}
           {% empty %}
             <tr>
               <td colspan="8" style="text-align: center; padding: 30px; color: var(--jspl-muted);">No users found.</td>
@@ -254,7 +256,7 @@
           </div>
         </div>
 
-        <!-- Department & Designation -->
+        <!-- Department & System Role -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;" x-data="{ userRole: 'USER' }">
           <div>
             <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">System Role</label>
@@ -263,14 +265,39 @@
               <option value="ADMIN">Administrator</option>
             </select>
           </div>
-          <div x-show="userRole === 'USER'">
-            <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Department</label>
-            <select name="department" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
-              <option value="">No Department</option>
-              {% for d in departments %}
-                <option value="{{ d.id }}">🏢 {{ d.name }}</option>
-              {% endfor %}
-            </select>
+        </div>
+
+        <!-- Departments Dropdown to Tag Multi-select (Create Mode) -->
+        <div x-show="userRole === 'USER'" style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 8px;">Departments (Select to grant access)</label>
+          <select class="input-mono" 
+                  style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;"
+                  @change="
+                    const selectedId = parseInt($event.target.value);
+                    if (selectedId && !createDepts.includes(selectedId)) {
+                      createDepts.push(selectedId);
+                    }
+                    $event.target.value = '';
+                  ">
+            <option value="">Select Department...</option>
+            {% for d in departments %}
+              <option value="{{ d.id }}">🏢 {{ d.name }}</option>
+            {% endfor %}
+          </select>
+          
+          <!-- Selected Departments Badge Container -->
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+            <template x-for="deptId in createDepts" :key="deptId">
+              <div style="background-color: #E0F2FE; color: #0369A1; font-size: 0.82rem; font-weight: bold; padding: 6px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(3,105,161,0.2);">
+                <span x-text="getDeptName(deptId)"></span>
+                <button type="button" 
+                        @click="createDepts = createDepts.filter(id => id !== deptId)" 
+                        style="border: none; background: none; color: #0369A1; cursor: pointer; font-size: 1.1rem; padding: 0; line-height: 1; display: inline-flex; align-items: center; justify-content: center; font-weight: bold;">
+                  &times;
+                </button>
+                <input type="hidden" name="departments" :value="deptId">
+              </div>
+            </template>
           </div>
         </div>
 
@@ -366,31 +393,90 @@
               <option value="ADMIN">Administrator</option>
             </select>
           </div>
-          <div x-show="editUser.role === 'USER'">
-            <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Department</label>
-            <select name="department" x-model="editUser.department_id" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
-              <option value="">No Department</option>
-              {% for d in departments %}
-                <option value="{{ d.id }}">🏢 {{ d.name }}</option>
-              {% endfor %}
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Designation</label>
+            <select name="designation" x-model="editUser.designation" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
+              <option value="">No Designation</option>
+              <option value="HOD">HOD</option>
+              <option value="SPOC">SPOC</option>
+              <option value="Engineer">Engineer</option>
+              <option value="Operator">Operator</option>
             </select>
           </div>
         </div>
 
-        <!-- Designation -->
-        <div style="margin-bottom: 24px;">
-          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Designation</label>
-          <select name="designation" x-model="editUser.designation" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;">
-            <option value="">No Designation</option>
-            <option value="HOD">HOD</option>
-            <option value="SPOC">SPOC</option>
-            <option value="Engineer">Engineer</option>
-            <option value="Operator">Operator</option>
+        <!-- Departments Dropdown to Tag Multi-select (Edit Mode) -->
+        <div x-show="editUser.role === 'USER'" style="margin-bottom: 24px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 8px;">Departments (Select to grant access)</label>
+          <select class="input-mono" 
+                  style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;"
+                  @change="
+                    const selectedId = parseInt($event.target.value);
+                    if (selectedId && editUser.accessed_depts && !editUser.accessed_depts.includes(selectedId)) {
+                      editUser.accessed_depts.push(selectedId);
+                    }
+                    $event.target.value = '';
+                  ">
+            <option value="">Select Department...</option>
+            {% for d in departments %}
+              <option value="{{ d.id }}">🏢 {{ d.name }}</option>
+            {% endfor %}
           </select>
+          
+          <!-- Selected Departments Badge Container -->
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+            <template x-for="deptId in editUser.accessed_depts" :key="deptId">
+              <div style="background-color: #E0F2FE; color: #0369A1; font-size: 0.82rem; font-weight: bold; padding: 6px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(3,105,161,0.2);">
+                <span x-text="getDeptName(deptId)"></span>
+                <button type="button" 
+                        @click="editUser.accessed_depts = editUser.accessed_depts.filter(id => id !== deptId)" 
+                        style="border: none; background: none; color: #0369A1; cursor: pointer; font-size: 1.1rem; padding: 0; line-height: 1; display: inline-flex; align-items: center; justify-content: center; font-weight: bold;">
+                  &times;
+                </button>
+                <input type="hidden" name="departments" :value="deptId">
+              </div>
+            </template>
+          </div>
         </div>
 
         <!-- Form Actions -->
-        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--jspl-border); padding-top: 16px; position: relative;">
+          
+          <!-- Access Control Dropdown Wrapper -->
+          <div style="position: relative; margin-right: auto;" x-data="{ accessDropdownOpen: false }">
+            <button type="button" 
+                    @click="accessDropdownOpen = !accessDropdownOpen"
+                    @click.outside="accessDropdownOpen = false"
+                    class="btn" 
+                    style="background-color: var(--jspl-blue); color: white !important; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; padding: 10px 18px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer;">
+              🔑 Access Control
+            </button>
+            <!-- Dropdown options -->
+            <div x-show="accessDropdownOpen" 
+                 x-transition
+                 x-cloak
+                 style="position: absolute; bottom: 100%; left: 0; margin-bottom: 8px; background: white; border: 1px solid var(--jspl-border); border-radius: 8px; box-shadow: var(--shadow-lg); min-width: 170px; z-index: 1001; padding: 6px 0; overflow: hidden;">
+              <button type="submit" 
+                      name="access_control_level" 
+                      value="EDIT" 
+                      style="width: 100%; text-align: left; padding: 10px 16px; border: none; background: none; font-size: 0.85rem; font-weight: 600; color: var(--jspl-navy); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
+                      @mouseenter="$el.style.backgroundColor = '#f8fafc'"
+                      @mouseleave="$el.style.backgroundColor = 'transparent'"
+                      @click="accessDropdownOpen = false">
+                ✏️ View + Edit
+              </button>
+              <button type="submit" 
+                      name="access_control_level" 
+                      value="VIEW" 
+                      style="width: 100%; text-align: left; padding: 10px 16px; border: none; background: none; font-size: 0.85rem; font-weight: 600; color: var(--jspl-navy); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
+                      @mouseenter="$el.style.backgroundColor = '#f8fafc'"
+                      @mouseleave="$el.style.backgroundColor = 'transparent'"
+                      @click="accessDropdownOpen = false">
+                👁️ View Only
+              </button>
+            </div>
+          </div>
+
           <button type="button" @click="editModalOpen = false" class="btn" style="background-color: var(--jspl-gray); color: var(--jspl-text) !important; border: 1px solid var(--jspl-border);">Cancel</button>
           <button type="submit" class="btn btn-primary">Save Changes</button>
         </div>
@@ -438,7 +524,17 @@
           </div>
         </form>
       </div>
-    </div>
   </div>
 </div>
+
+<script>
+  const deptLookup = {
+    {% for d in departments %}
+      "{{ d.id }}": "{{ d.name|escapejs }}",
+    {% endfor %}
+  };
+  function getDeptName(id) {
+    return deptLookup[id] || ('Dept #' + id);
+  }
+</script>
 {% endblock %}

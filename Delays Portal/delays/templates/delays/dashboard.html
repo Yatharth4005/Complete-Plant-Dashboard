@@ -77,6 +77,11 @@
       <a href="{% url 'delays:download_pdf_report' department.id %}" class="btn-dashboard btn-pdf-gradient">
         📄 Download PDF Report
       </a>
+      {% if can_edit and department.id and department.id != 0 %}
+        <a href="{% url 'delays:manage_options' department.id %}" class="btn-dashboard btn-primary-gradient" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, var(--delays-accent) 0%, #E05300 100%); color: #FFFFFF !important; box-shadow: 0 4px 10px rgba(244,121,32,0.25); white-space: nowrap;">
+          ⚙️ Manage Dropdown Options
+        </a>
+      {% endif %}
     </div>
   </div>
 
@@ -274,9 +279,9 @@
           </div>
           
           <div class="filter-group">
-            <label class="filter-label">Sub-Agency</label>
+            <label class="filter-label">Area</label>
             <select name="sub_agency" class="filter-input input-mono">
-              <option value="">All Sub-Agencies</option>
+              <option value="">All Areas</option>
               {% for sa in sub_agencies %}
                 <option value="{{ sa }}">{{ sa }}</option>
               {% endfor %}
@@ -313,14 +318,7 @@
             <input type="date" name="date_end" value="{{ date_end }}" class="filter-input input-mono" onchange="updateAnalyticsDates()">
           </div>
 
-          <div class="filter-group">
-            <label class="filter-label">Status</label>
-            <select name="status" class="filter-input input-mono">
-              <option value="unlocked" {% if status == 'unlocked' %}selected{% endif %}>Unlocked (Draft)</option>
-              <option value="locked" {% if status == 'locked' %}selected{% endif %}>Locked (Saved)</option>
-              <option value="all" {% if status == 'all' %}selected{% endif %}>All Records</option>
-            </select>
-          </div>
+
         </form>
 
         <!-- Logs Table Container -->
@@ -713,7 +711,7 @@
     if (!btn) return;
     const val = selectEl.value;
     if (val === 'CAPA') {
-        btn.href = '/dashboard/capa/?action=new&delay_record_id=' + recordId;
+        btn.href = '/capa/department/{{ department.id }}/identification/?delay_record_id=' + recordId;
         btn.innerText = 'Fill CAPA';
         btn.style.display = 'inline-flex';
         btn.onclick = null;

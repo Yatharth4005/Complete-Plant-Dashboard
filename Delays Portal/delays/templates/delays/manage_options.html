@@ -29,7 +29,7 @@
     <div class="tabs-header" style="flex-wrap: wrap;">
       {% for cat in suggested_categories %}
         <button class="tab-btn" :class="{ 'active': activeTab === '{{ cat }}' }" @click="activeTab = '{{ cat }}'; searchText = ''">
-          {{ cat }}
+          {% if cat == 'Sub-Agency' %}Area{% else %}{{ cat }}{% endif %}
         </button>
       {% endfor %}
     </div>
@@ -54,12 +54,12 @@
             <input type="hidden" name="category" value="{{ cat }}">
             
             <div style="font-weight: 700; color: var(--delays-primary); font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
-              <span>➕</span> Add {{ cat }}:
+              <span>➕</span> Add {% if cat == 'Sub-Agency' %}Area{% else %}{{ cat }}{% endif %}:
             </div>
             
             <!-- Value input -->
             <div style="flex: 1.5; min-width: 200px;">
-              <input type="text" name="value" placeholder="Enter option name..." required 
+              <input type="text" name="value" placeholder="{% if cat == 'Shift Incharge' %}Enter Incharge Name...{% else %}Enter option name...{% endif %}" required 
                      class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px;">
             </div>
             
@@ -78,6 +78,15 @@
                 <option value="C">C</option>
               </select>
             </div>
+            {% elif cat == 'Shift Incharge' %}
+            <div style="flex: 1; min-width: 150px;">
+              <input type="text" name="role" placeholder="Role (e.g. AM, DM)..." required 
+                     class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px;">
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+              <input type="text" name="phone" placeholder="Phone Number..." required 
+                     class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px;">
+            </div>
             {% endif %}
             
             <div>
@@ -92,7 +101,13 @@
           <table class="delays-table">
             <thead>
               <tr>
-                <th>Value</th>
+                {% if cat == 'Shift Incharge' %}
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Phone Number</th>
+                {% else %}
+                  <th>Value</th>
+                {% endif %}
                 <th style="width: 100px; text-align: center;">Actions</th>
               </tr>
             </thead>
@@ -100,12 +115,18 @@
               {% for opt in options %}
                 {% if opt.category == cat %}
                   <tr x-show="!searchText || '{{ opt.value|escapejs }}'.toLowerCase().includes(searchText.toLowerCase()) || '{{ opt.parent_value|default:''|escapejs }}'.toLowerCase().includes(searchText.toLowerCase())">
-                    <td style="font-weight: 600; color: var(--delays-primary);">
-                      {{ opt.value }}
-                      {% if opt.category == 'Equipment' and opt.parent_value %}
-                        <span class="agency-badge" style="background: rgba(244,121,32,0.08); color: var(--delays-accent); border-color: rgba(244,121,32,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Category {{ opt.parent_value }}</span>
-                      {% endif %}
-                    </td>
+                    {% if cat == 'Shift Incharge' %}
+                      <td style="font-weight: 600; color: var(--delays-primary);">{{ opt.value }}</td>
+                      <td>{{ opt.role }}</td>
+                      <td>{{ opt.phone }}</td>
+                    {% else %}
+                      <td style="font-weight: 600; color: var(--delays-primary);">
+                        {{ opt.value }}
+                        {% if opt.category == 'Equipment' and opt.parent_value %}
+                          <span class="agency-badge" style="background: rgba(244,121,32,0.08); color: var(--delays-accent); border-color: rgba(244,121,32,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Category {{ opt.parent_value }}</span>
+                        {% endif %}
+                      </td>
+                    {% endif %}
                     <td style="text-align: center;">
                       <form id="delete-option-form-{{ opt.id }}" action="{% url 'delays:manage_options' department.id %}" method="POST" style="margin: 0; display: inline;">
                         {% csrf_token %}

@@ -33,11 +33,13 @@
     {% if is_admin or can_edit and not r.is_locked %}
       <select name="equipment" class="table-select-equipment">
         <option value="">NIL</option>
-        {% if r.equipment and r.equipment not in equipments %}
+        {% with req_upper=r.equipment|upper %}
+        {% if r.equipment and req_upper not in equipments %}
           <option value="{{ r.equipment }}" selected>{{ r.equipment }}</option>
         {% endif %}
+        {% endwith %}
         {% for eq in equipments_list %}
-          <option value="{{ eq.value }}" {% if eq.value == r.equipment %}selected{% endif %}>{{ eq.display }}</option>
+          <option value="{{ eq.value }}" {% if eq.value|upper == r.equipment|upper %}selected{% endif %}>{{ eq.display }}</option>
         {% endfor %}
       </select>
     {% else %}
@@ -60,7 +62,7 @@
         
         <!-- The button that appears dynamically -->
         <a id="why-btn-{{ r.id }}" 
-           href="{% if r.why == 'CAPA' %}/dashboard/capa/?action=new&delay_record_id={{ r.id }}{% else %}#{% endif %}" 
+           href="{% if r.why == 'CAPA' %}/capa/department/{{ r.department.id }}/identification/?delay_record_id={{ r.id }}{% else %}#{% endif %}" 
            class="btn-fill-sheet" 
            onclick="{% if r.why == 'NO' or not r.why %}return false;{% endif %}"
            style="{% if r.why == 'CAPA' %}display: inline-flex;{% else %}display: none;{% endif %} text-decoration: none; padding: 4px 8px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap; align-items: center; justify-content: center;"
@@ -72,7 +74,7 @@
           {{ r.why|default:"NO" }}
         </span>
         {% if r.why == 'CAPA' %}
-          <a href="/dashboard/capa/" class="btn-fill-sheet" style="text-decoration: none; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--delays-primary); background: transparent; color: var(--delays-primary);" target="_blank">
+          <a href="/capa/department/{{ r.department.id }}/" class="btn-fill-sheet" style="text-decoration: none; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--delays-primary); background: transparent; color: var(--delays-primary);" target="_blank">
             View CAPAs
           </a>
         {% endif %}

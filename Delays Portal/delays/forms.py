@@ -4,6 +4,10 @@ from delays.models import DelayRecord, DelayDropdownOption
 from delays.utils.parser import normalize_agency_name
 
 class DelayRecordForm(forms.ModelForm):
+    end_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'input-mono', 'id': 'id_end_date'})
+    )
     agency_type = forms.ChoiceField(
         choices=[('Internal', 'Internal'), ('External', 'External')],
         required=True,
@@ -25,23 +29,34 @@ class DelayRecordForm(forms.ModelForm):
             'placeholder': 'Duration in minutes'
         })
     )
+    production_loss = forms.FloatField(
+        required=False,
+        initial=0.0,
+        widget=forms.NumberInput(attrs={
+            'class': 'input-mono',
+            'placeholder': 'Production loss in tons',
+            'step': 'any'
+        })
+    )
 
     class Meta:
         model = DelayRecord
         fields = [
-            'date', 'start_time', 'end_time', 'duration_mins',
+            'date', 'end_date', 'start_time', 'end_time', 'duration_mins', 'production_loss',
             'agency_type', 'agency', 'sub_agency', 'equipment', 'sub_equipment',
             'shift_incharge', 'description', 'why'
         ]
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date', 'class': 'input-mono'}),
-            'start_time': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'e.g. 22:15', 'id': 'id_start_time'}),
-            'end_time': forms.TextInput(attrs={'class': 'input-mono', 'placeholder': 'e.g. 22:25', 'id': 'id_end_time'}),
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'input-mono', 'id': 'id_date'}),
+            'start_time': forms.TimeInput(attrs={'type': 'time', 'class': 'input-mono', 'id': 'id_start_time'}),
+            'end_time': forms.TimeInput(attrs={'type': 'time', 'class': 'input-mono', 'id': 'id_end_time'}),
         }
 
     def __init__(self, *args, **kwargs):
         department = kwargs.pop('department', None)
         super().__init__(*args, **kwargs)
+        if not self.initial.get('end_date') and self.initial.get('date'):
+            self.initial['end_date'] = self.initial.get('date')
         
         # Default choices if nothing in DB
         agency_list = ['Mechanical', 'Electrical', 'Planned', 'Operations', 'Instrumentation']
@@ -88,9 +103,28 @@ class DelayRecordForm(forms.ModelForm):
             sub_equip_set.update(DelayRecord.objects.filter(department=department).exclude(sub_equipment__isnull=True).exclude(sub_equipment='').values_list('sub_equipment', flat=True).distinct())
             sub_equip_list = sorted([x for x in sub_equip_set if x])
 
-            # Fetch shift incharges from unique past values
-            incharge_set = set(DelayRecord.objects.filter(department=department).exclude(shift_incharge__isnull=True).exclude(shift_incharge='').values_list('shift_incharge', flat=True).distinct())
-            incharge_list = sorted([x for x in incharge_set if x])
+            # Fetch shift incharges from dropdown options + unique past values
+            incharge_opts = DelayDropdownOption.objects.filter(
+                department=department, category__iexact='Shift Incharge'
+            )
+            incharge_list = []
+            incharge_names_with_details = set()
+            for opt in incharge_opts:
+                if opt.parent_value and '|' in opt.parent_value:
+                    parts = opt.parent_value.split('|')
+                    role = parts[0]
+                    phone = parts[1]
+                    display_name = f"{opt.value} - {role} ({phone})"
+                else:
+                    display_name = opt.value
+                incharge_list.append((opt.value, display_name))
+                incharge_names_with_details.add(opt.value.strip().lower())
+                
+            db_incharges = sorted(list(DelayRecord.objects.filter(department=department).exclude(shift_incharge__isnull=True).exclude(shift_incharge='').values_list('shift_incharge', flat=True).distinct()))
+            for inc in db_incharges:
+                if inc.strip().lower() not in incharge_names_with_details:
+                    incharge_list.append((inc, inc))
+            incharge_list.sort(key=lambda x: x[1].lower())
             
         # Internal Choices
         internal_choices = [(a, a) for a in agency_list]
@@ -104,9 +138,10 @@ class DelayRecordForm(forms.ModelForm):
         # Combine choices so Django validation passes when any is chosen
         self.fields['agency'].choices = [('', 'Select Agency')] + internal_choices + external_choices
         self.fields['equipment'].choices = [('', 'Select Equipment')] + equip_list
-        self.fields['sub_agency'].choices = [('', 'Select Sub Agency')] + [(sa, sa) for sa in sub_agency_list]
+        self.fields['sub_agency'].choices = [('', 'Select Area')] + [(sa, sa) for sa in sub_agency_list]
+        self.fields['sub_agency'].label = 'Area'
         self.fields['sub_equipment'].choices = [('', 'Select Sub Equipment')] + [(se, se) for se in sub_equip_list]
-        self.fields['shift_incharge'].choices = [('', 'Select Shift Incharge')] + [(inc, inc) for inc in incharge_list]
+        self.fields['shift_incharge'].choices = [('', 'Select Shift Incharge')] + incharge_list
         
         # If editing an existing instance, preserve values and set initial agency_type
         if self.instance and self.instance.pk:

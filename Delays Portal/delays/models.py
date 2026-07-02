@@ -42,6 +42,7 @@ class DelayRecord(models.Model):
     start_time = models.CharField(max_length=50, blank=True, null=True, help_text="e.g. '22:15'")
     end_time = models.CharField(max_length=50, blank=True, null=True, help_text="e.g. '22:25'")
     duration_mins = models.FloatField(default=0.0, help_text="Delay duration in minutes")
+    production_loss = models.FloatField(default=0.0, blank=True, null=True, help_text="Production loss in Tons")
     
     # Categorization
     agency_type = models.CharField(max_length=50, default='Internal', choices=[('Internal', 'Internal'), ('External', 'External')])
@@ -58,6 +59,7 @@ class DelayRecord(models.Model):
     description = models.TextField(help_text="Detailed description of the delay/breakdown")
     why = models.TextField(blank=True, null=True, help_text="Root cause or 'why-why' analysis")
     is_locked = models.BooleanField(default=False, help_text="Locked records can only be edited by Admins")
+    end_date = models.DateField(blank=True, null=True, help_text="End date of the delay/breakdown")
 
     class Meta:
         ordering = ['-date', 'start_time']
@@ -66,6 +68,8 @@ class DelayRecord(models.Model):
         return f"{self.department.code} - {self.date} - {self.agency} ({self.duration_mins} min)"
 
     def save(self, *args, **kwargs):
+        if not self.end_date and self.date:
+            self.end_date = self.date
         super().save(*args, **kwargs)
         self.update_notifications()
 
