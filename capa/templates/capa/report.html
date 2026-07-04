@@ -3,7 +3,7 @@
 
 {% block title %}Master CAPA Report — {{ active_dept.name }}{% endblock %}
 
-{% block extra_css %}
+{% block capa_extra_css %}
 <style>
   .capa-form-table {
     width: 100%;
@@ -113,7 +113,7 @@
   <span class="breadcrumb-current">CAPA Report</span>
 {% endblock %}
 
-{% block content %}
+{% block capa_content %}
 <div class="page-container">
 
   <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-start;">
@@ -969,7 +969,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block capa_extra_js %}
 <script>
   function formatDateForInput(dateStr) {
     if (!dateStr) return '';

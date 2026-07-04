@@ -23,45 +23,47 @@
   <!-- Module Cards Grid -->
   <div class="module-cards-grid">
     {% for item in module_cards %}
-      {% if item.accessible %}
-        <!-- ACCESSIBLE CARD -->
-        <a href="{% url 'portal:enter_module' department.id item.module.key %}" 
-           class="module-card card {{ item.module.color_class }} accessible-module-card">
-          <div class="module-card-top">
-            <span class="module-large-icon">
-              {% include "portal/partials/_module_icon.html" with key=item.module.key %}
-            </span>
-            <span class="access-badge {{ item.access_level|lower }}">{% if item.access_level == 'EDIT' %}View + Edit{% else %}View Only{% endif %}</span>
+      {% if item.module.key != 'Delays' %}
+        {% if item.accessible %}
+          <!-- ACCESSIBLE CARD -->
+          <a href="{% url 'portal:enter_module' department.id item.module.key %}" 
+             class="module-card card {{ item.module.color_class }} accessible-module-card">
+            <div class="module-card-top">
+              <span class="module-large-icon">
+                {% include "portal/partials/_module_icon.html" with key=item.module.key %}
+              </span>
+              <span class="access-badge {{ item.access_level|lower }}">{% if item.access_level == 'EDIT' %}View + Edit{% else %}View Only{% endif %}</span>
+            </div>
+            <div class="module-card-middle">
+              <h3>{{ item.module.label }}</h3>
+              <p>{{ item.module.description }}</p>
+            </div>
+            <div class="module-card-bottom">
+              <span class="launch-label">Open Dashboard →</span>
+            </div>
+          </a>
+        {% else %}
+          <!-- LOCKED CARD -->
+          <div class="module-card card locked-module-card" x-data="{ showTooltip: false }"
+               @mouseenter="showTooltip = true" @mouseleave="showTooltip = false">
+            <div class="module-card-top">
+              <span class="module-large-icon">🔒</span>
+              <span class="access-badge locked">RESTRICTED</span>
+            </div>
+            <div class="module-card-middle">
+              <h3>{{ item.module.label }}</h3>
+              <p>{{ item.module.description }}</p>
+            </div>
+            <div class="module-card-bottom">
+              <span class="locked-label">Access Restricted</span>
+            </div>
+            
+            <!-- Access Denied Tooltip -->
+            <div class="access-tooltip" x-show="showTooltip" x-transition x-cloak>
+              🔒 You do not have permissions for {{ item.module.key }}. Please contact your Plant System Administrator.
+            </div>
           </div>
-          <div class="module-card-middle">
-            <h3>{{ item.module.label }}</h3>
-            <p>{{ item.module.description }}</p>
-          </div>
-          <div class="module-card-bottom">
-            <span class="launch-label">Open Dashboard →</span>
-          </div>
-        </a>
-      {% else %}
-        <!-- LOCKED CARD -->
-        <div class="module-card card locked-module-card" x-data="{ showTooltip: false }"
-             @mouseenter="showTooltip = true" @mouseleave="showTooltip = false">
-          <div class="module-card-top">
-            <span class="module-large-icon">🔒</span>
-            <span class="access-badge locked">RESTRICTED</span>
-          </div>
-          <div class="module-card-middle">
-            <h3>{{ item.module.label }}</h3>
-            <p>{{ item.module.description }}</p>
-          </div>
-          <div class="module-card-bottom">
-            <span class="locked-label">Access Restricted</span>
-          </div>
-          
-          <!-- Access Denied Tooltip -->
-          <div class="access-tooltip" x-show="showTooltip" x-transition x-cloak>
-            🔒 You do not have permissions for {{ item.module.key }}. Please contact your Plant System Administrator.
-          </div>
-        </div>
+        {% endif %}
       {% endif %}
     {% endfor %}
   </div>

@@ -2,7 +2,7 @@
 
 {% block title %}CAPA Manual Entry — {{ active_dept.name }}{% endblock %}
 
-{% block extra_css %}
+{% block capa_extra_css %}
 <style>
   .capa-form-table {
     width: 100%;
@@ -82,12 +82,22 @@
   <span class="breadcrumb-current">CAPA Manual Entry</span>
 {% endblock %}
 
-{% block content %}
+{% block capa_content %}
 <div class="page-container" x-data="capaFormHandler()">
 
-  <div style="margin-bottom: 25px;">
-    <h1 class="portal-page-title">CAPA Manual Entry</h1>
-    <p class="portal-page-subtitle">Register and evaluate a new breakdown incident or quality parameter manually for <b>{{ active_dept.name }}</b></p>
+  <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div>
+      <h1 class="portal-page-title" style="margin: 0;">CAPA Manual Entry</h1>
+      <p class="portal-page-subtitle" style="margin: 4px 0 0 0;">Register and evaluate a new breakdown incident or quality parameter manually for <b>{{ active_dept.name }}</b></p>
+    </div>
+    {% if request.GET.delay_record_id %}
+      <a href="{% url 'delays:dept_overview' active_dept.id %}" 
+         style="background-color: var(--jspl-orange); color: white; text-decoration: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; border: none; box-shadow: 0 4px 12px rgba(244, 121, 32, 0.15); font-size: 0.88rem; transition: all 0.2s ease;"
+         onmouseover="this.style.filter='brightness(0.95)';"
+         onmouseout="this.style.filter='none';">
+        ⏱ Back to Delays Log
+      </a>
+    {% endif %}
   </div>
 
   <div class="card" style="max-width: 900px; margin: 0 auto 40px; padding: 25px; border: 1px solid var(--jspl-border);">
@@ -595,7 +605,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block capa_extra_js %}
 <script>
   function capaFormHandler() {
     return {

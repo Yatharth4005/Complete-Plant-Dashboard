@@ -1,0 +1,126 @@
+<div class="fy-filter-container" style="display: flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); padding: 8px 16px; border-radius: 8px; flex-wrap: wrap;">
+  <!-- FY Dropdown -->
+  <div style="display: flex; align-items: center; gap: 6px;">
+    <span style="font-size: 0.8rem; font-weight: bold; color: #ffffff !important;">Select FY:</span>
+    <select id="fy_dropdown" class="filter-input input-mono" style="height: 34px; padding: 4px 8px; font-size: 0.8rem; border-radius: 4px; min-width: 140px; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.25); background: white; color: var(--jspl-navy);" onchange="onFYChange(this.value)">
+      <option value="default">Current + Last FY</option>
+      <option value="FY-2026">FY 2026-27 (Current)</option>
+      <option value="FY-2025">FY 2025-26</option>
+      <option value="FY-2024">FY 2024-25</option>
+      <option value="FY-2023">FY 2023-24</option>
+      <option value="custom">Custom Range</option>
+    </select>
+  </div>
+
+  <!-- Date Inputs -->
+  <div style="display: flex; align-items: center; gap: 6px;">
+    <span style="font-size: 0.8rem; font-weight: bold; color: #ffffff !important;">From:</span>
+    <input type="date" id="header_date_start" name="date_start" value="{{ date_start }}" class="filter-input input-mono" style="height: 34px; padding: 4px 8px; font-size: 0.8rem; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.25); background: white; color: var(--jspl-navy);" onchange="onHeaderDateChange()">
+  </div>
+  <div style="display: flex; align-items: center; gap: 6px;">
+    <span style="font-size: 0.8rem; font-weight: bold; color: #ffffff !important;">To:</span>
+    <input type="date" id="header_date_end" name="date_end" value="{{ date_end }}" class="filter-input input-mono" style="height: 34px; padding: 4px 8px; font-size: 0.8rem; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.25); background: white; color: var(--jspl-navy);" onchange="onHeaderDateChange()">
+  </div>
+</div>
+
+<script>
+  function onFYChange(value) {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1; // 1-12
+    
+    let startStr = "";
+    let endStr = "";
+    
+    if (value === 'default') {
+      let startYear = (currentMonth >= 4) ? currentYear - 1 : currentYear - 2;
+      startStr = `${startYear}-04-01`;
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      endStr = `${yyyy}-${mm}-${dd}`;
+    } else if (value.startsWith('FY-')) {
+      const year = parseInt(value.split('-')[1]);
+      startStr = `${year}-04-01`;
+      endStr = `${year + 1}-03-31`;
+    } else {
+      return;
+    }
+    
+    document.getElementById('header_date_start').value = startStr;
+    document.getElementById('header_date_end').value = endStr;
+    applyDateFilter(startStr, endStr);
+  }
+
+  function onHeaderDateChange() {
+    const startStr = document.getElementById('header_date_start').value;
+    const endStr = document.getElementById('header_date_end').value;
+    document.getElementById('fy_dropdown').value = 'custom';
+    applyDateFilter(startStr, endStr);
+  }
+
+  function applyDateFilter(startStr, endStr) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('date_start', startStr);
+    url.searchParams.set('date_end', endStr);
+    window.location.href = url.toString();
+  }
+
+  // Synchronize fields from URL on load
+  document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    const startParam = params.get('date_start');
+    const endParam = params.get('date_end');
+    
+    const startInput = document.getElementById('header_date_start');
+    const endInput = document.getElementById('header_date_end');
+    const dropdown = document.getElementById('fy_dropdown');
+    
+    if (!startInput || !endInput || !dropdown) return;
+    
+    if (startParam) startInput.value = startParam;
+    if (endParam) endInput.value = endParam;
+
+    if (startParam && endParam) {
+      const startParts = startParam.split('-');
+      const endParts = endParam.split('-');
+      if (startParts[1] === '04' && startParts[2] === '01' && endParts[1] === '03' && endParts[2] === '31') {
+        const startYear = parseInt(startParts[0]);
+        const endYear = parseInt(endParts[0]);
+        if (endYear === startYear + 1) {
+          const selectVal = `FY-${startYear}`;
+          if ([...dropdown.options].some(o => o.value === selectVal)) {
+            dropdown.value = selectVal;
+            return;
+          }
+        }
+      }
+      
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth() + 1;
+      let defaultStartYear = (currentMonth >= 4) ? currentYear - 1 : currentYear - 2;
+      const defaultStartStr = `${defaultStartYear}-04-01`;
+      const defaultEndStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
+      if (startParam === defaultStartStr && endParam === defaultEndStr) {
+        dropdown.value = 'default';
+      } else {
+        dropdown.value = 'custom';
+      }
+    } else {
+      dropdown.value = 'default';
+      if (!startInput.value || !endInput.value) {
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth() + 1;
+        let startYear = (currentMonth >= 4) ? currentYear - 1 : currentYear - 2;
+        startInput.value = `${startYear}-04-01`;
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        endInput.value = `${yyyy}-${mm}-${dd}`;
+      }
+    }
+  });
+</script>

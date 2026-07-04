@@ -2,25 +2,16 @@
 {% load static %}
 
 {% block delays_header_right %}
-<div class="header-right">
-  <label for="dept-select" class="selector-label">🏢 Change Department:</label>
-  <select id="dept-select" class="dept-dropdown" onchange="window.location.href='/delays/department/' + this.value + '/'">
-    {% if request.user.is_admin %}
-      <option value="0" {% if department.id == 0 %}selected{% endif %}>Overall Plant</option>
-    {% endif %}
-    {% for d in departments %}
-      <option value="{{ d.id }}" {% if d.id == department.id %}selected{% endif %}>
-        {{ d.name }} ({{ d.code }})
-      </option>
-    {% endfor %}
-  </select>
-</div>
+  {% if active_tab == 'dashboard' or active_tab == 'summary' or active_tab == 'pareto' or active_tab == 'mttr_mtbf' or active_tab == 'capa_summary' %}
+    {% include 'portal/partials/_fy_filter.html' %}
+  {% endif %}
 {% endblock %}
 
 {% block delays_content %}
-<div x-data="{ uploadOpen: false, deleteOpen: false, deleteUrl: '', activeTab: 'logs' }">
+<div x-data="{ uploadOpen: false, deleteOpen: false, deleteUrl: '', activeTab: '{% if active_tab == 'summary' %}logs{% elif active_tab == 'pareto' %}pareto{% elif active_tab == 'mttr_mtbf' %}mttr_mtbf{% elif active_tab == 'capa_summary' %}capa_summary{% else %}pareto{% endif %}' }">
 
   <!-- TOP ACTIONS & KPI GRID -->
+  {% if active_tab != 'summary' %}
   <div class="delays-dashboard-top">
     <!-- KPI cards -->
     <div class="kpi-grid">
@@ -65,147 +56,16 @@
       </div>
     </div>
 
-    <div class="action-buttons-panel">
-      {% if can_edit %}
-        <button class="btn-dashboard btn-primary-gradient" @click="uploadOpen = true">
-          📁 Upload Excel Report
-        </button>
-        <a href="{% url 'delays:new_record' department.id %}" class="btn-dashboard btn-secondary-gradient">
-          📝 Manual Delay Entry
-        </a>
-      {% endif %}
-      <a href="{% url 'delays:download_pdf_report' department.id %}" class="btn-dashboard btn-pdf-gradient">
-        📄 Download PDF Report
-      </a>
-      {% if can_edit and department.id and department.id != 0 %}
-        <a href="{% url 'delays:manage_options' department.id %}" class="btn-dashboard btn-primary-gradient" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, var(--delays-accent) 0%, #E05300 100%); color: #FFFFFF !important; box-shadow: 0 4px 10px rgba(244,121,32,0.25); white-space: nowrap;">
-          ⚙️ Manage Dropdown Options
-        </a>
-      {% endif %}
-    </div>
-  </div>
 
-  <style>
-    .delays-chart-large {
-      grid-column: span 2;
-    }
-    @media (max-width: 1024px) {
-      .delays-chart-large {
-        grid-column: span 1;
-      }
-    }
-  </style>
-
-  <!-- ANALYTICS CHARTS SECTION -->
-  <div class="analytics-charts-grid">
-    <!-- Chart 1: Daily Trend / Department Comparison -->
-    <div class="chart-card delays-chart-large">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px;">
-        <h3 id="trendChartTitle" class="chart-title" style="margin: 0; border-bottom: none; padding-bottom: 0;">📈 {% if department.id == 0 %}Department Downtime Comparison (Mins){% else %}{% if date_start or date_end %}Daily Downtime Trend (Mins){% else %}Monthly Downtime Trend (Mins){% endif %}{% endif %}</h3>
-        {% if department.id == 0 %}
-          <button id="backToOverallBtn" class="btn-dashboard btn-secondary-gradient" style="display: none; font-size: 0.75rem; padding: 6px 12px; margin: 0; line-height: 1; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; background: linear-gradient(135deg, var(--jspl-blue, #0057A8) 0%, var(--jspl-navy, #003478) 100%); color: white;">
-            ← Back to Overall View
-          </button>
-        {% endif %}
-      </div>
-      <div class="chart-container" id="trendChartContainer" style="position: relative; transition: transform 0.4s ease, opacity 0.4s ease; transform: scale(1); opacity: 1; height: 260px;">
-        <canvas id="trendChart"></canvas>
-      </div>
-    </div>
-    
-    <!-- Chart 2: Agency Share -->
-    <div class="chart-card">
-      <h3 class="chart-title">🍕 {% if department.id == 0 %}Downtime Share by Department{% else %}Downtime Share by Agency{% endif %}</h3>
-      <div class="chart-container">
-        <canvas id="agencyChart"></canvas>
-      </div>
-    </div>
-    
-    <!-- Chart 3: Top Bottlenecks -->
-    <div class="chart-card">
-      <h3 class="chart-title" style="margin-bottom: 12px; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px;">🔥 {% if department.id == 0 %}Top 5 Bottleneck Departments{% else %}Top 5 Bottleneck Equipments{% endif %}</h3>
-      <div class="chart-container" style="height: 260px;">
-        <canvas id="equipmentChart"></canvas>
-      </div>
-    </div>
-    
-    <!-- INSIGHTS CARD (Fills the empty 2-column gap next to Chart 3) -->
-    <div class="chart-card delays-chart-large" style="display: flex; flex-direction: column; justify-content: space-between;">
-      <h3 class="chart-title" style="margin-bottom: 15px; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-        💡 Downtime Insights &amp; Mitigation Action Plan
-      </h3>
-      
-      <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: start; height: calc(100% - 45px); padding-bottom: 5px;">
-        <!-- Left Column: Data-driven Insights -->
-        <div style="display: flex; flex-direction: column; gap: 15px; height: 100%; justify-content: center;">
-          <div style="background: rgba(244,121,32,0.03); border: 1px solid rgba(244,121,32,0.15); border-radius: 6px; padding: 14px;">
-            <strong style="color: var(--delays-accent); font-size: 0.82rem; text-transform: uppercase; display: block; margin-bottom: 6px;">🚨 Primary Bottleneck Alert</strong>
-            <p style="margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--delays-text);">
-              {% if department.id == 0 %}
-                The top bottleneck agency across the plant is <strong>{{ top_agency }}</strong>, causing <strong>{{ top_agency_mins }} mins</strong> of delay. Focus corrective actions on this group first.
-              {% else %}
-                The most critical breakdown area is <strong>{{ top_agency }}</strong>, contributing <strong>{{ top_agency_mins }} mins</strong> of downtime.
-              {% endif %}
-            </p>
-          </div>
-          
-          <div style="background: rgba(0,40,85,0.02); border: 1px solid rgba(0,40,85,0.1); border-radius: 6px; padding: 14px;">
-            <strong style="color: var(--delays-primary); font-size: 0.82rem; text-transform: uppercase; display: block; margin-bottom: 6px;">📈 Failure Pattern Analysis</strong>
-            <p style="margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--delays-text);">
-              Based on keyword scans in logs, <strong>{{ top_mitigation_category }}</strong> is the most frequent category. Reducing these incidents will optimize plant availability by up to 20%.
-            </p>
-          </div>
-        </div>
-        
-        <!-- Right Column: Suggestions Checklist -->
-        <div style="background: #fafbfc; border: 1px solid var(--delays-border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px; height: calc(100% - 34px); justify-content: center;">
-          <strong style="color: var(--delays-primary); font-size: 0.82rem; text-transform: uppercase; display: block; margin-bottom: 4px;">⚡ Target Action Checklist</strong>
-          
-          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.82rem; color: #4b5563;">
-            <label style="display: flex; gap: 8px; cursor: pointer; align-items: flex-start;">
-              <input type="checkbox" checked style="margin-top: 3px;">
-              <span><b>Lubrication &amp; Alignment Audits:</b> Schedule thermography on drives and couplings to check alignment.</span>
-            </label>
-            <label style="display: flex; gap: 8px; cursor: pointer; align-items: flex-start;">
-              <input type="checkbox" style="margin-top: 3px;">
-              <span><b>PM Checklist Reviews:</b> Incorporate cable cabinet dust filters and fastener checks in weekly schedules.</span>
-            </label>
-            <label style="display: flex; gap: 8px; cursor: pointer; align-items: flex-start;">
-              <input type="checkbox" style="margin-top: 3px;">
-              <span><b>SOP Compliance:</b> Audit roll change sequence and guide adjustment transitions to cut down waiting time.</span>
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
+  {% endif %}
 
   <!-- SEARCH, FILTER, AND LOGS TABS -->
+  {% if active_tab != 'dashboard' %}
   <div class="data-section-card">
-    <div class="tabs-header">
-      <button class="tab-btn" :class="{ 'active': activeTab === 'logs' }" @click="activeTab = 'logs'">
-        📋 {% if department.id == 0 %}Department-wise Delay Summary{% else %}Detailed Delay Logs{% endif %}
-      </button>
-      <button class="tab-btn" :class="{ 'active': activeTab === 'pareto' }" @click="activeTab = 'pareto'">
-        📊 Pareto Analysis (80/20)
-      </button>
-      <button class="tab-btn" :class="{ 'active': activeTab === 'mitigation' }" @click="activeTab = 'mitigation'">
-        💡 Delay Reduction &amp; Mitigation
-      </button>
-      <button class="tab-btn" :class="{ 'active': activeTab === 'uploads' }" @click="activeTab = 'uploads'">
-        📂 Upload History
-      </button>
-      <button class="tab-btn" :class="{ 'active': activeTab === 'notifications' }" @click="activeTab = 'notifications'" style="position: relative; display: flex; align-items: center; gap: 6px;">
-        🔔 Notifications
-        {% if unread_notifications_count > 0 %}
-          <span style="background: #EF4444; color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; line-height: 1; display: inline-flex; align-items: center; justify-content: center;">
-            {{ unread_notifications_count }}
-          </span>
-        {% endif %}
-      </button>
-    </div>
 
     <!-- TAB 1: LOGS TABLE & FILTERS -->
+    {% if active_tab == 'summary' %}
     <div x-show="activeTab === 'logs'" x-transition>
       
       {% if department.id == 0 %}
@@ -308,15 +168,8 @@
             </select>
           </div>
           
-          <div class="filter-group">
-            <label class="filter-label">Start Date</label>
-            <input type="date" name="date_start" value="{{ date_start }}" class="filter-input input-mono" onchange="updateAnalyticsDates()">
-          </div>
-          
-          <div class="filter-group">
-            <label class="filter-label">End Date</label>
-            <input type="date" name="date_end" value="{{ date_end }}" class="filter-input input-mono" onchange="updateAnalyticsDates()">
-          </div>
+          <input type="hidden" name="date_start" value="{{ date_start }}">
+          <input type="hidden" name="date_end" value="{{ date_end }}">
 
 
         </form>
@@ -327,6 +180,7 @@
         </div>
       {% endif %}
     </div>
+    {% endif %}
 
     <!-- TAB 2: UPLOAD HISTORY -->
     <div x-show="activeTab === 'uploads'" x-transition style="display: none;">
@@ -616,7 +470,530 @@
         {% endfor %}
       </div>
     </div>
+
+    <!-- TAB 6: MTTR/MTBF ANALYSIS -->
+    <div x-show="activeTab === 'mttr_mtbf'" x-transition style="display: none; padding: 24px;" x-data="reliabilityAnalysis()">
+      <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h3 style="color: var(--jspl-navy); margin: 0 0 6px 0;">⏱ MTTR / MTBF Equipment Analysis</h3>
+          <p style="color: var(--delays-muted, #6b7280); font-size: 0.85rem; margin: 0;">
+            Reliability metrics (Mean Time to Repair, Mean Time Between Failures, and Availability) grouped by Area &amp; Equipment.
+          </p>
+        </div>
+        <button @click="showLocalCalculator = !showLocalCalculator" class="btn-dashboard btn-primary-gradient" style="font-size: 0.8rem; padding: 8px 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer;">
+          🧮 <span x-text="showLocalCalculator ? 'Hide Calculator' : 'Open Calculator'"></span>
+        </button>
+      </div>
+
+      <!-- Dropdown Filters for Reliability Table -->
+      <div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 16px; flex-wrap: wrap;">
+        <div class="filter-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+          <label class="filter-label">Filter Sub Area</label>
+          <select x-model="searchSubArea" class="filter-input input-mono" style="width: 100%;">
+            <option value="">All Sub Areas</option>
+            <template x-for="area in subAreas" :key="area">
+              <option :value="area" x-text="area"></option>
+            </template>
+          </select>
+        </div>
+        <div class="filter-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+          <label class="filter-label">Filter Equipment</label>
+          <select x-model="searchEquipment" class="filter-input input-mono" style="width: 100%;">
+            <option value="">All Equipments</option>
+            <template x-for="eq in equipments" :key="eq">
+              <option :value="eq" x-text="eq"></option>
+            </template>
+          </select>
+        </div>
+      </div>
+
+      <!-- Collapsible Calculator Block -->
+      <div x-show="showLocalCalculator" style="margin-bottom: 24px; border: 1px solid var(--delays-border); border-radius: 12px; overflow: hidden; background: #fafbfd; box-shadow: 0 4px 12px rgba(0,0,0,0.02); padding: 20px;" x-data="{
+        calcCalTime: 720,
+        calcShutdown: 24,
+        calcDowntime: 12,
+        calcFailures: 3,
+        
+        formulaMTTR_num: 'downtime',
+        formulaMTTR_den: 'failures',
+        
+        formulaMTBF_num: 'uptime',
+        formulaMTBF_den: 'failures',
+        
+        formulaAvailability_num: 'mtbf',
+        formulaAvailability_den: 'mtbf + mttr',
+        formulaAvailability_mult: '100',
+        
+        evaluateFormula(formulaStr, scope) {
+          try {
+            let expr = formulaStr.toLowerCase().replace(/[^a-z0-9+\-*/().\s]/g, '');
+            expr = expr.replace(/\buptime\b/g, scope.uptime);
+            expr = expr.replace(/\bdowntime\b/g, scope.downtime);
+            expr = expr.replace(/\bshutdown\b/g, scope.shutdown);
+            expr = expr.replace(/\bfailures\b/g, scope.failures);
+            expr = expr.replace(/\bcalendar\b/g, scope.calendar);
+            expr = expr.replace(/\bmttr\b/g, scope.mttr || 0);
+            expr = expr.replace(/\bmtbf\b/g, scope.mtbf || 0);
+            
+            let res = Function('return (' + expr + ')')();
+            return isNaN(res) || !isFinite(res) ? 0 : res;
+          } catch(e) {
+            return 0;
+          }
+        },
+        
+        get calcUptime() {
+          return Math.max(this.calcCalTime - this.calcShutdown - this.calcDowntime, 0);
+        },
+        
+        get calcMTTR() {
+          let scope = {
+            calendar: this.calcCalTime,
+            shutdown: this.calcShutdown,
+            downtime: this.calcDowntime,
+            failures: this.calcFailures,
+            uptime: this.calcUptime
+          };
+          let formula = '(' + this.formulaMTTR_num + ') / (' + this.formulaMTTR_den + ')';
+          return this.evaluateFormula(formula, scope);
+        },
+        
+        get calcMTBF() {
+          let scope = {
+            calendar: this.calcCalTime,
+            shutdown: this.calcShutdown,
+            downtime: this.calcDowntime,
+            failures: this.calcFailures,
+            uptime: this.calcUptime
+          };
+          let formula = '(' + this.formulaMTBF_num + ') / (' + this.formulaMTBF_den + ')';
+          return this.evaluateFormula(formula, scope);
+        },
+        
+        get calcAvailability() {
+          let scope = {
+            calendar: this.calcCalTime,
+            shutdown: this.calcShutdown,
+            downtime: this.calcDowntime,
+            failures: this.calcFailures,
+            uptime: this.calcUptime,
+            mttr: this.calcMTTR,
+            mtbf: this.calcMTBF
+          };
+          let formula = '(' + this.formulaAvailability_num + ') / (' + this.formulaAvailability_den + ') * (' + this.formulaAvailability_mult + ')';
+          return this.evaluateFormula(formula, scope);
+        }
+      }">
+        <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px;">
+          <!-- Left: Formulas and info -->
+          <div style="border-right: 1px solid var(--delays-border); padding-right: 20px;">
+            <h4 style="color: var(--delays-primary); margin: 0 0 16px 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">Edit Formula Mathematical Models</h4>
+            
+            <div style="display: flex; flex-direction: column; gap: 18px;">
+              <!-- 1. MTTR Formula Box -->
+              <div style="background: white; border-radius: 8px; border: 1px solid #E5E7EB; padding: 12px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
+                <strong style="color: var(--delays-accent); font-size: 0.82rem; display: block; margin-bottom: 8px; text-transform: uppercase;">1. MTTR (Mean Time To Repair)</strong>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-family: monospace; font-size: 0.9rem; color: #475569; font-weight: bold; white-space: nowrap;">MTTR =</span>
+                  <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                    <input type="text" x-model="formulaMTTR_num" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-bottom: 2px;">
+                    <div style="width: 100%; height: 2px; background: #64748b; margin: 4px 0;"></div>
+                    <input type="text" x-model="formulaMTTR_den" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-top: 2px;">
+                  </div>
+                </div>
+                <span style="font-size: 0.7rem; color: #64748b; margin-top: 8px; display: block;">Variables: <code>downtime</code>, <code>failures</code>, <code>calendar</code>, <code>shutdown</code>, <code>uptime</code></span>
+              </div>
+              
+              <!-- 2. MTBF Formula Box -->
+              <div style="background: white; border-radius: 8px; border: 1px solid #E5E7EB; padding: 12px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
+                <strong style="color: var(--delays-accent); font-size: 0.82rem; display: block; margin-bottom: 8px; text-transform: uppercase;">2. MTBF (Mean Time Between Failures)</strong>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-family: monospace; font-size: 0.9rem; color: #475569; font-weight: bold; white-space: nowrap;">MTBF =</span>
+                  <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                    <input type="text" x-model="formulaMTBF_num" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-bottom: 2px;">
+                    <div style="width: 100%; height: 2px; background: #64748b; margin: 4px 0;"></div>
+                    <input type="text" x-model="formulaMTBF_den" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-top: 2px;">
+                  </div>
+                </div>
+                <span style="font-size: 0.7rem; color: #64748b; margin-top: 8px; display: block;">Variables: <code>uptime</code>, <code>failures</code>, <code>calendar</code>, <code>shutdown</code>, <code>downtime</code></span>
+              </div>
+              
+              <!-- 3. Availability Formula Box -->
+              <div style="background: white; border-radius: 8px; border: 1px solid #E5E7EB; padding: 12px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
+                <strong style="color: var(--delays-accent); font-size: 0.82rem; display: block; margin-bottom: 8px; text-transform: uppercase;">3. Operational Availability Formula</strong>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-family: monospace; font-size: 0.9rem; color: #475569; font-weight: bold; white-space: nowrap;">Avail =</span>
+                  <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                    <input type="text" x-model="formulaAvailability_num" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-bottom: 2px;">
+                    <div style="width: 100%; height: 2px; background: #64748b; margin: 4px 0;"></div>
+                    <input type="text" x-model="formulaAvailability_den" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-top: 2px;">
+                  </div>
+                  <span style="font-family: monospace; font-size: 1.1rem; color: #475569; font-weight: bold;">&times;</span>
+                  <input type="text" x-model="formulaAvailability_mult" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 60px; outline: none; margin-bottom: 0;">
+                </div>
+                <span style="font-size: 0.7rem; color: #64748b; margin-top: 8px; display: block;">Variables: <code>mtbf</code>, <code>mttr</code>, <code>uptime</code>, <code>downtime</code>, <code>calendar</code>, <code>shutdown</code></span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Right: Calculator Controls -->
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <h4 style="color: var(--delays-primary); margin: 0 0 4px 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">Live Simulator</h4>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="filter-group" style="margin-bottom: 0;">
+                <label class="filter-label" style="margin-bottom: 4px;">Total Calendar Time (Hrs)</label>
+                <input type="number" min="0" x-model.number="calcCalTime" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
+              </div>
+              <div class="filter-group" style="margin-bottom: 0;">
+                <label class="filter-label" style="margin-bottom: 4px;">Planned Shutdown (Hrs)</label>
+                <input type="number" min="0" x-model.number="calcShutdown" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
+              </div>
+              <div class="filter-group" style="margin-bottom: 0;">
+                <label class="filter-label" style="margin-bottom: 4px;">Unplanned Downtime (Hrs)</label>
+                <input type="number" min="0" x-model.number="calcDowntime" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
+              </div>
+              <div class="filter-group" style="margin-bottom: 0;">
+                <label class="filter-label" style="margin-bottom: 4px;">No. of Failures (Nos.)</label>
+                <input type="number" min="1" x-model.number="calcFailures" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
+              </div>
+            </div>
+            
+            <!-- Result Panel -->
+            <div style="margin-top: 8px; background: white; border: 1px solid var(--delays-border); border-radius: 8px; padding: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; text-align: center;">
+              <div>
+                <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">Total Uptime</span>
+                <strong style="font-size: 1.1rem; color: var(--delays-primary); font-family: 'JetBrains Mono', monospace;" x-text="calcUptime.toFixed(1) + ' hrs'"></strong>
+              </div>
+              <div>
+                <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">MTTR</span>
+                <strong style="font-size: 1.1rem; color: var(--delays-accent); font-family: 'JetBrains Mono', monospace;" x-text="calcMTTR.toFixed(2) + ' hrs'"></strong>
+              </div>
+              <div>
+                <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">MTBF</span>
+                <strong style="font-size: 1.1rem; color: var(--delays-accent); font-family: 'JetBrains Mono', monospace;" x-text="calcMTBF.toFixed(1) + ' hrs'"></strong>
+              </div>
+              <div>
+                <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">Availability</span>
+                <strong style="font-size: 1.1rem; font-family: 'JetBrains Mono', monospace;" :style="{ color: calcAvailability >= 98.0 ? '#16a34a' : (calcAvailability >= 95.0 ? '#ea580c' : '#dc2626') }" x-text="calcAvailability.toFixed(2) + '%'"></strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="delays-table">
+          <thead>
+            <tr>
+              <th style="text-align: left;">Sub Area</th>
+              <th style="text-align: left;">Equipment</th>
+              <th style="text-align: right; width: 120px;">Shutdown (HRS)</th>
+              <th style="text-align: right; width: 120px;">downtime (HRS)</th>
+              <th style="text-align: right; width: 130px;">No. of failure (Nos.)</th>
+              <th style="text-align: right; width: 130px;">Repeatability (Nos.)</th>
+              <th style="text-align: right; width: 100px;">MTTR (Hrs)</th>
+              <th style="text-align: right; width: 100px;">MTBF(Hrs)</th>
+              <th style="text-align: right; width: 100px;">Availability</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(item, index) in filteredItems" :key="item.area + '-' + item.equipment">
+              <tr class="hover-row">
+                <td style="text-align: left;"><b x-text="item.area"></b></td>
+                <td style="text-align: left;" x-text="item.equipment"></td>
+                <td style="text-align: right; width: 120px; vertical-align: middle;">
+                  <input type="number" 
+                         step="0.1" 
+                         min="0" 
+                         x-model.number="item.shutdown_hrs" 
+                         @input="recalculateRow(item)" 
+                         @change="saveShutdown(item)"
+                         class="font-mono" 
+                         style="text-align: right; width: 80px; padding: 4px 8px; border: 1px dashed var(--delays-border, #cbd5e1); border-radius: 4px; background: transparent; color: inherit; font-weight: 600; outline: none; transition: border-color 0.2s;"
+                         onfocus="this.style.borderColor='var(--delays-primary, #F47920)'; this.style.borderStyle='solid';"
+                         onblur="this.style.borderColor='var(--delays-border, #cbd5e1)'; this.style.borderStyle='dashed';"
+                         :disabled="!{{ can_edit|yesno:'true,false' }}">
+                </td>
+                <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="parseFloat(item.downtime_hrs || 0).toFixed(1)"></td>
+                <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="item.failures"></td>
+                <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="item.repeatability"></td>
+                <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="parseFloat(item.mttr || 0).toFixed(1)"></td>
+                <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="parseFloat(item.mtbf || 0).toFixed(1)"></td>
+                <td style="text-align: right; font-weight: bold;" class="font-mono"
+                    :style="{ color: item.availability >= 98.0 ? '#16a34a' : (item.availability >= 95.0 ? '#ea580c' : '#dc2626') }"
+                    x-text="parseFloat(item.availability || 0).toFixed(2) + '%'">
+                </td>
+              </tr>
+            </template>
+            <!-- Fallback if filtered list is empty -->
+            <template x-if="filteredItems.length === 0">
+              <tr>
+                <td colspan="9" style="text-align: center; color: var(--delays-muted, #6b7280); padding: 30px;">
+                  No delay records match the filtered criteria.
+                </td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot style="border-top: 2px solid var(--delays-border, #cbd5e1); background: rgba(0,0,0,0.02); font-weight: bold;">
+            <!-- TOTAL row -->
+            <tr style="border-bottom: 1px solid var(--delays-border, #cbd5e1);">
+              <td colspan="2" style="text-align: left; padding: 10px;">TOTAL</td>
+              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalShutdown.toFixed(1)"></td>
+              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalDowntime.toFixed(1)"></td>
+              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalFailures"></td>
+              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalRepeatability"></td>
+              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="overallMTTR.toFixed(1)"></td>
+              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="overallMTBF.toFixed(1)"></td>
+              <td style="text-align: right; padding: 10px; color: var(--delays-primary, #F47920);" class="font-mono" x-text="overallAvailability.toFixed(2) + '%'"></td>
+            </tr>
+            <!-- AVERAGE row -->
+            <tr>
+              <td colspan="2" style="text-align: left; padding: 10px; color: var(--delays-muted, #6b7280);">AVERAGE</td>
+              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgShutdown.toFixed(1)"></td>
+              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgDowntime.toFixed(1)"></td>
+              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgFailures.toFixed(1)"></td>
+              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgRepeatability.toFixed(1)"></td>
+              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgMTTR.toFixed(1)"></td>
+              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgMTBF.toFixed(1)"></td>
+              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgAvailability.toFixed(2) + '%'"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
   </div>
+
+  <!-- TAB 7: CAPA SUMMARY -->
+  <div x-show="activeTab === 'capa_summary'" x-transition style="display: none; padding: 24px;">
+      <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h3 style="color: var(--jspl-navy); margin: 0 0 6px 0;">📋 CAPA Reports Summary</h3>
+          <p style="color: var(--delays-muted, #6b7280); font-size: 0.85rem; margin: 0;">
+            Corrective Actions and Preventive Actions (CAPA) logs for {{ department.name }}.
+          </p>
+        </div>
+        <a href="{% url 'capa:dashboard' department.id %}" class="btn-dashboard btn-primary-gradient" style="font-size: 0.8rem; padding: 8px 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+          🛡️ Go to CAPA Module →
+        </a>
+      </div>
+
+      <div class="table-responsive">
+        <table class="delays-table">
+          <thead>
+            <tr>
+              <th style="text-align: left; width: 280px;">CAPA Details</th>
+              <th style="text-align: center; width: 100px;">Status</th>
+              <th style="text-align: left; min-width: 200px;">Open Actions (Pending)</th>
+              <th style="text-align: left; min-width: 200px;">Closed Actions (Implemented)</th>
+              <th style="text-align: center; width: 100px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for report in capa_reports %}
+              <tr>
+                <!-- CAPA Details -->
+                <td style="text-align: left; vertical-align: top;">
+                  <div style="margin-bottom: 6px;">
+                    <span style="font-weight: bold; color: var(--delays-primary); font-size: 0.88rem;">CAPA No: {{ report.capa_no|default:"Draft" }}</span>
+                  </div>
+                  <div style="font-size: 0.78rem; color: #64748b; margin-bottom: 6px; line-height: 1.5;">
+                    📅 Incident: <b>{{ report.date_incident|default:"—" }}</b><br>
+                    📍 Area: <b>{{ report.area_section|default:"—" }}</b>
+                  </div>
+                  <div style="font-size: 0.8rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: var(--delays-text);">
+                    <strong style="font-size: 0.72rem; color: #475569; display: block; margin-bottom: 2px; text-transform: uppercase;">Problem Description:</strong>
+                    {{ report.problem_what|default:"No description recorded"|truncatewords:20 }}
+                  </div>
+                </td>
+                
+                <!-- Status -->
+                <td style="text-align: center; vertical-align: top; padding-top: 15px;">
+                  <span class="status-badge" style="
+                    {% if report.status == 'Closed' %}background: rgba(22,163,74,0.1); color: #16a34a;
+                    {% elif report.status == 'In Progress' %}background: rgba(234,88,12,0.1); color: #ea580c;
+                    {% else %}background: rgba(220,38,38,0.1); color: #dc2626;{% endif %}
+                    padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.78rem; display: inline-block;">
+                    {{ report.status }}
+                  </span>
+                </td>
+                
+                <!-- Open Actions -->
+                <td style="text-align: left; vertical-align: top; font-size: 0.8rem; line-height: 1.4; padding-top: 12px;">
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    {% for action in report.corrective_actions %}
+                      {% if not action.implementation_date %}
+                        <div style="background: rgba(234,88,12,0.02); border-left: 3px solid #ea580c; padding: 6px 10px; border-radius: 0 4px 4px 0; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;">
+                          <strong style="color: #1e293b;">{{ action.action }}</strong>
+                          <div style="color: #64748b; font-size: 0.72rem; margin-top: 4px;">
+                            Owner: <b>{{ action.responsibility|default:"—" }}</b> | Target: <b>{{ action.target_date|default:"—" }}</b>
+                          </div>
+                        </div>
+                      {% endif %}
+                    {% empty %}
+                      <span style="color: #94a3b8; font-style: italic;">No corrective actions listed.</span>
+                    {% endfor %}
+                  </div>
+                </td>
+                
+                <!-- Closed Actions -->
+                <td style="text-align: left; vertical-align: top; font-size: 0.8rem; line-height: 1.4; padding-top: 12px;">
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    {% for action in report.corrective_actions %}
+                      {% if action.implementation_date %}
+                        <div style="background: rgba(22,163,74,0.02); border-left: 3px solid #16a34a; padding: 6px 10px; border-radius: 0 4px 4px 0; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; opacity: 0.95;">
+                          <strong style="color: #64748b; text-decoration: line-through;">{{ action.action }}</strong>
+                          <div style="color: #16a34a; font-size: 0.72rem; margin-top: 4px; font-weight: 500;">
+                            Done: <b>{{ action.implementation_date }}</b> (by {{ action.responsibility|default:"—" }})
+                          </div>
+                        </div>
+                      {% endif %}
+                    {% empty %}
+                      <span style="color: #94a3b8; font-style: italic;">No completed actions.</span>
+                    {% endfor %}
+                  </div>
+                </td>
+                
+                <!-- Action -->
+                <td style="text-align: center; vertical-align: middle;">
+                  <a href="{% url 'capa:dashboard' department.id %}" class="btn-dashboard btn-primary-gradient" style="font-size: 0.75rem; padding: 8px 12px; text-decoration: none; display: inline-block; white-space: nowrap;">
+                    Open CAPA
+                  </a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--delays-muted, #6b7280); padding: 40px 20px;">
+                  No CAPA reports have been logged for {{ department.name }} yet.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <style>
+    .delays-chart-large {
+      grid-column: span 2;
+    }
+    @media (max-width: 1024px) {
+      .delays-chart-large {
+        grid-column: span 1;
+      }
+    }
+  </style>
+
+  <!-- ANALYTICS CHARTS SECTION -->
+  {% if active_tab == 'dashboard' %}
+  <div class="analytics-charts-grid" style="margin-top: 24px;">
+    <!-- Chart 1: Daily Trend / Department Comparison -->
+    <div class="chart-card delays-chart-large">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px;">
+        <h3 id="trendChartTitle" class="chart-title" style="margin: 0; border-bottom: none; padding-bottom: 0;">📈 {% if department.id == 0 %}Department Downtime Comparison (Mins){% else %}{% if is_monthly_trend %}Monthly Downtime Trend (Mins){% else %}Daily Downtime Trend (Mins){% endif %}{% endif %}</h3>
+        {% if department.id == 0 %}
+          <button id="backToOverallBtn" class="btn-dashboard btn-secondary-gradient" style="display: none; font-size: 0.75rem; padding: 6px 12px; margin: 0; line-height: 1; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; background: linear-gradient(135deg, var(--jspl-blue, #0057A8) 0%, var(--jspl-navy, #003478) 100%); color: white;">
+            ← Back to Overall View
+          </button>
+        {% endif %}
+      </div>
+      <div class="chart-container" id="trendChartContainer" style="position: relative; transition: transform 0.4s ease, opacity 0.4s ease; transform: scale(1); opacity: 1; height: 260px;">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Chart 2: Agency Share -->
+    <div class="chart-card">
+      <h3 class="chart-title">🍕 {% if department.id == 0 %}Downtime Share by Department{% else %}Downtime Share by Agency{% endif %}</h3>
+      <div class="chart-container">
+        <canvas id="agencyChart"></canvas>
+      </div>
+    </div>
+    </div>
+
+  <!-- DUAL INTERNAL VS EXTERNAL BOTTLENECKS SECTION -->
+  <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 20px;">
+    
+    <!-- Card 1: Internal Agency Bottlenecks -->
+    <div class="chart-card" style="display: flex; flex-direction: column; gap: 16px;">
+      <h3 class="chart-title" style="margin-bottom: 0; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+        ⚙️ Top Internal Bottlenecks (Assets &amp; Areas)
+      </h3>
+      
+      <!-- Top: Graph -->
+      <div class="chart-container" style="height: 220px; position: relative; width: 100%;">
+        <canvas id="internalChart"></canvas>
+      </div>
+      
+      <!-- Middle: Top 5 Words List -->
+      <div style="border-top: 1px solid var(--delays-border); padding-top: 12px;">
+        <strong style="color: var(--delays-primary); font-size: 0.85rem; display: block; margin-bottom: 8px; text-transform: uppercase;">📋 Top 5 Internal Assets</strong>
+        <ol style="margin: 0; padding-left: 18px; font-size: 0.85rem; color: var(--delays-text); line-height: 1.8; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">
+          {% for item in internal_list %}
+            <li><strong>{{ item.name }}</strong>: <span class="text-orange">{{ item.mins }} mins</span></li>
+          {% empty %}
+            <li style="list-style: none; margin-left: -18px; color: var(--delays-muted);">No internal delay data.</li>
+          {% endfor %}
+        </ol>
+      </div>
+      
+      <!-- Bottom: Reason Summary -->
+      <div style="background: rgba(244,121,32,0.03); border: 1px solid rgba(244,121,32,0.12); border-radius: 6px; padding: 14px;">
+        <strong style="color: var(--delays-accent); font-size: 0.8rem; text-transform: uppercase; display: block; margin-bottom: 6px;">💡 Reason Summary</strong>
+        <p style="margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--delays-text);">
+          {% if internal_summaries %}
+            {% for sum in internal_summaries %}
+              <b>{{ sum.equipment }}</b>: {{ sum.reasons.0 }}{% if not forloop.last %}; {% endif %}
+            {% endfor %}
+          {% else %}
+            No key internal breakdowns or root causes recorded in this range.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <!-- Card 2: External Agency Bottlenecks -->
+    <div class="chart-card" style="display: flex; flex-direction: column; gap: 16px;">
+      <h3 class="chart-title" style="margin-bottom: 0; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+        🌐 Top External Bottlenecks (Utilities &amp; Depts)
+      </h3>
+      
+      <!-- Top: Graph -->
+      <div class="chart-container" style="height: 220px; position: relative; width: 100%;">
+        <canvas id="externalChart"></canvas>
+      </div>
+      
+      <!-- Middle: Top 5 Words List -->
+      <div style="border-top: 1px solid var(--delays-border); padding-top: 12px;">
+        <strong style="color: var(--delays-primary); font-size: 0.85rem; display: block; margin-bottom: 8px; text-transform: uppercase;">📋 Top 5 External Agencies</strong>
+        <ol style="margin: 0; padding-left: 18px; font-size: 0.85rem; color: var(--delays-text); line-height: 1.8; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">
+          {% for item in external_list %}
+            <li><strong>{{ item.name }}</strong>: <span class="text-orange">{{ item.mins }} mins</span></li>
+          {% empty %}
+            <li style="list-style: none; margin-left: -18px; color: var(--delays-muted);">No external delay data.</li>
+          {% endfor %}
+        </ol>
+      </div>
+      
+      <!-- Bottom: Reason Summary -->
+      <div style="background: rgba(0,40,85,0.02); border: 1px solid rgba(0,40,85,0.08); border-radius: 6px; padding: 14px;">
+        <strong style="color: var(--delays-primary); font-size: 0.8rem; text-transform: uppercase; display: block; margin-bottom: 6px;">💡 Reason Summary</strong>
+        <p style="margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--delays-text);">
+          {% if external_summaries %}
+            {% for sum in external_summaries %}
+              <b>{{ sum.agency }}</b>: {{ sum.reasons.0 }}{% if not forloop.last %}; {% endif %}
+            {% endfor %}
+          {% else %}
+            No external utility failures or inter-department delays logged in this range.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+  </div>
+  {% endif %}
 
   <!-- EXCEL UPLOAD POPUP MODAL -->
   <div class="modal-overlay" x-show="uploadOpen" x-transition x-cloak>
@@ -687,6 +1064,20 @@
     </div>
   </div>
 
+  <!-- Action Buttons Panel at the bottom -->
+  {% if active_tab != 'summary' %}
+    <div class="action-buttons-panel" style="margin-top: 30px; border-top: 1px solid var(--delays-border); padding-top: 20px;">
+      {% if can_edit %}
+        <button class="btn-dashboard btn-primary-gradient" @click="uploadOpen = true">
+          📁 Upload Excel Report
+        </button>
+      {% endif %}
+      <a href="{% url 'delays:download_pdf_report' department.id %}" class="btn-dashboard btn-pdf-gradient">
+        📄 Download PDF Report
+      </a>
+    </div>
+  {% endif %}
+
 </div>
 
 <!-- Serialized Chart Data -->
@@ -700,11 +1091,164 @@
     equipLabels: {{ equip_labels_json|safe }},
     equipData: {{ equip_data_json|safe }},
     
+    internalLabels: {{ internal_labels_json|safe }},
+    internalData: {{ internal_data_json|safe }},
+    externalLabels: {{ external_labels_json|safe }},
+    externalData: {{ external_data_json|safe }},
+    
     // Pareto Chart data
     paretoLabels: {{ pareto_labels_json|safe }},
     paretoMins: {{ pareto_mins_json|safe }},
     paretoCum: {{ pareto_cum_json|safe }}
   };
+
+  function reliabilityAnalysis() {
+    return {
+      showLocalCalculator: false,
+      searchSubArea: '',
+      searchEquipment: '',
+      totalCalendarHrs: {{ total_calendar_hrs|default:720.0 }},
+      items: {{ mttr_mtbf_list_json|safe }},
+      
+      get subAreas() {
+        return [...new Set(this.items.map(i => i.area).filter(Boolean))].sort();
+      },
+      
+      get equipments() {
+        const filtered = this.searchSubArea 
+          ? this.items.filter(i => i.area === this.searchSubArea) 
+          : this.items;
+        return [...new Set(filtered.map(i => i.equipment).filter(Boolean))].sort();
+      },
+      
+      get filteredItems() {
+        return this.items.filter(item => {
+          const matchArea = !this.searchSubArea || item.area === this.searchSubArea;
+          const matchEquip = !this.searchEquipment || item.equipment === this.searchEquipment;
+          return matchArea && matchEquip;
+        });
+      },
+      
+      get totalShutdown() {
+        return this.filteredItems.reduce((sum, item) => sum + parseFloat(item.shutdown_hrs || 0), 0);
+      },
+      get totalDowntime() {
+        return this.filteredItems.reduce((sum, item) => sum + parseFloat(item.downtime_hrs || 0), 0);
+      },
+      get totalFailures() {
+        return this.filteredItems.reduce((sum, item) => sum + parseInt(item.failures || 0), 0);
+      },
+      get totalRepeatability() {
+        return this.filteredItems.reduce((sum, item) => sum + parseInt(item.repeatability || 0), 0);
+      },
+      get overallMTTR() {
+        const f = this.totalFailures;
+        return f > 0 ? this.totalDowntime / f : 0.0;
+      },
+      get overallMTBF() {
+        const f = this.totalFailures;
+        if (f === 0) return this.totalCalendarHrs;
+        const totalOpTime = this.filteredItems.reduce((sum, item) => {
+          const op = this.totalCalendarHrs - parseFloat(item.downtime_hrs || 0) - parseFloat(item.shutdown_hrs || 0);
+          return sum + Math.max(op, 0);
+        }, 0);
+        return totalOpTime / f;
+      },
+      get overallAvailability() {
+        let totalOpTime = 0;
+        let totalDivisor = 0;
+        this.filteredItems.forEach(item => {
+          const dt = parseFloat(item.downtime_hrs || 0);
+          const sh = parseFloat(item.shutdown_hrs || 0);
+          const op = Math.max(this.totalCalendarHrs - dt - sh, 0.0);
+          const div = Math.max(this.totalCalendarHrs - sh, 0.1);
+          totalOpTime += op;
+          totalDivisor += div;
+        });
+        if (totalDivisor <= 0.1) return 0.0;
+        const avail = (totalOpTime / totalDivisor) * 100.0;
+        return avail > 100.0 ? 100.0 : avail;
+      },
+      
+      get avgShutdown() {
+        const len = this.filteredItems.length;
+        return len > 0 ? this.totalShutdown / len : 0.0;
+      },
+      get avgDowntime() {
+        const len = this.filteredItems.length;
+        return len > 0 ? this.totalDowntime / len : 0.0;
+      },
+      get avgFailures() {
+        const len = this.filteredItems.length;
+        return len > 0 ? this.totalFailures / len : 0.0;
+      },
+      get avgRepeatability() {
+        const len = this.filteredItems.length;
+        return len > 0 ? this.totalRepeatability / len : 0.0;
+      },
+      get avgMTTR() {
+        const len = this.filteredItems.length;
+        if (len === 0) return 0.0;
+        const sumMTTR = this.filteredItems.reduce((sum, item) => sum + parseFloat(item.mttr || 0), 0);
+        return sumMTTR / len;
+      },
+      get avgMTBF() {
+        const len = this.filteredItems.length;
+        if (len === 0) return 0.0;
+        const sumMTBF = this.filteredItems.reduce((sum, item) => sum + parseFloat(item.mtbf || 0), 0);
+        return sumMTBF / len;
+      },
+      get avgAvailability() {
+        const len = this.filteredItems.length;
+        if (len === 0) return 0.0;
+        const sumAvail = this.filteredItems.reduce((sum, item) => sum + parseFloat(item.availability || 0), 0);
+        return sumAvail / len;
+      },
+      
+      recalculateRow(item) {
+        const dt = parseFloat(item.downtime_hrs || 0);
+        const sh = parseFloat(item.shutdown_hrs || 0);
+        const f = parseInt(item.failures || 0);
+        
+        item.mttr = f > 0 ? (dt / f) : 0.0;
+        
+        const op = Math.max(this.totalCalendarHrs - dt - sh, 0.0);
+        item.mtbf = f > 0 ? (op / f) : this.totalCalendarHrs;
+        
+        const div = Math.max(this.totalCalendarHrs - sh, 0.1);
+        let avail = (op / div) * 100.0;
+        if (avail > 100.0) avail = 100.0;
+        item.availability = avail;
+      },
+      
+      saveShutdown(item) {
+        const sh = parseFloat(item.shutdown_hrs || 0);
+        fetch('/delays/department/{{ department.id }}/save-shutdown/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify({
+            sub_area: item.area,
+            equipment: item.equipment,
+            shutdown_hrs: sh
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            console.log('Shutdown hours saved successfully:', data.shutdown_hrs);
+          } else {
+            console.error('Error saving shutdown hours:', data.message);
+          }
+        })
+        .catch(err => {
+          console.error('Network error saving shutdown hours:', err);
+        });
+      }
+    };
+  }
 
   function updateWhyButton(selectEl, recordId) {
     const btn = document.getElementById('why-btn-' + recordId);
@@ -781,22 +1325,5 @@
       updateFilterAgencyOptions();
     }
   });
-
-  function updateAnalyticsDates() {
-    const startVal = document.getElementsByName('date_start')[0].value;
-    const endVal = document.getElementsByName('date_end')[0].value;
-    const url = new URL(window.location.href);
-    if (startVal) {
-        url.searchParams.set('date_start', startVal);
-    } else {
-        url.searchParams.delete('date_start');
-    }
-    if (endVal) {
-        url.searchParams.set('date_end', endVal);
-    } else {
-        url.searchParams.delete('date_end');
-    }
-    window.location.href = url.toString();
-  }
 </script>
 {% endblock %}

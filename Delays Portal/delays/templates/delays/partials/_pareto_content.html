@@ -44,11 +44,17 @@
     </div>
   </div>
 
-  <div style="display: flex; flex-wrap: wrap; gap: 24px;">
+  <div style="display: flex; flex-wrap: wrap; gap: 24px;" x-data="{ showAgencyTable: false, showEquipTable: false }">
     <!-- Agency Pareto Table -->
     <div class="chart-card" style="box-shadow: none; padding: 0; flex: 1 1 350px; min-width: 300px; margin: 0;">
-      <h4 class="chart-title" style="padding: 16px 20px; margin-bottom: 0;">🏢 Agency Pareto Cumulative Table</h4>
-      <div class="table-responsive">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--delays-border); cursor: pointer; user-select: none;" @click="showAgencyTable = !showAgencyTable">
+        <h4 class="chart-title" style="padding: 0; margin: 0; border-bottom: none;">🏢 Agency Pareto Cumulative Table</h4>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--delays-secondary); font-weight: 600;">
+          <span x-text="showAgencyTable ? 'Collapse' : 'Expand'">Expand</span>
+          <span style="font-size: 0.95rem; transition: transform 0.2s; display: inline-block;" :style="showAgencyTable ? 'transform: rotate(0deg);' : 'transform: rotate(-90deg);'">▼</span>
+        </div>
+      </div>
+      <div class="table-responsive" x-show="showAgencyTable" x-transition style="display: none;">
         <table class="delays-table" style="font-size: 0.8rem;">
           <thead>
             <tr>
@@ -76,16 +82,28 @@
                   {% endif %}
                 </td>
               </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--delays-muted); padding: 20px;">
+                  No agency delay records found.
+                </td>
+              </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- Equipment Pareto Table -->
+    <!-- Equipment/Reason Pareto Table -->
     <div class="chart-card" style="box-shadow: none; padding: 0; flex: 1 1 350px; min-width: 300px; margin: 0;">
-      <h4 class="chart-title" style="padding: 16px 20px; margin-bottom: 0;">⚙️ {% if is_description %}Delay Reason{% else %}Equipment{% endif %} Pareto Cumulative Table</h4>
-      <div class="table-responsive">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--delays-border); cursor: pointer; user-select: none;" @click="showEquipTable = !showEquipTable">
+        <h4 class="chart-title" style="padding: 0; margin: 0; border-bottom: none;">⚙️ {% if is_description %}Delay Reason{% else %}Equipment{% endif %} Pareto Cumulative Table</h4>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--delays-secondary); font-weight: 600;">
+          <span x-text="showEquipTable ? 'Collapse' : 'Expand'">Expand</span>
+          <span style="font-size: 0.95rem; transition: transform 0.2s; display: inline-block;" :style="showEquipTable ? 'transform: rotate(0deg);' : 'transform: rotate(-90deg);'">▼</span>
+        </div>
+      </div>
+      <div class="table-responsive" x-show="showEquipTable" x-transition style="display: none;">
         <table class="delays-table" style="font-size: 0.8rem;">
           <thead>
             <tr>
@@ -111,6 +129,12 @@
                   {% else %}
                     <span class="status-badge success" style="font-size: 0.7rem; padding: 2px 6px;">Useful Many</span>
                   {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--delays-muted); padding: 20px;">
+                  No equipment or delay reason records found.
                 </td>
               </tr>
             {% endfor %}

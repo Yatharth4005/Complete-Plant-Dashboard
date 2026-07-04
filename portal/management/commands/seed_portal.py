@@ -107,7 +107,7 @@ class Command(BaseCommand):
                 'description': 'Uptime monitoring, machine availability logs, and maintenance alerts',
                 'icon': 'activity',
                 'color_class': 'module-availability',
-                'redirect_url_template': '/department/{dept_id}/coming-soon/availability/',
+                'redirect_url_template': '/delays/department/{dept_id}/',
                 'sort_order': 6,
             },
             {
@@ -152,7 +152,7 @@ class Command(BaseCommand):
                 'description': 'Quality control parameters, rejection tracking, and testing logs',
                 'icon': 'check-square',
                 'color_class': 'module-quality',
-                'redirect_url_template': '/department/{dept_id}/coming-soon/QUALITY/',
+                'redirect_url_template': '/quality/department/{dept_id}/',
                 'sort_order': 11,
             },
             {

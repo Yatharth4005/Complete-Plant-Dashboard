@@ -1,0 +1,253 @@
+{% extends 'quality/base_quality.html' %}
+{% load static %}
+
+{% block quality_extra_css %}
+<style>
+  .filter-card {
+    background: white;
+    border: 1px solid var(--quality-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(0, 52, 120, 0.02);
+  }
+  
+  .filter-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr) auto;
+    gap: 12px;
+    align-items: flex-end;
+  }
+  
+  @media (max-width: 1024px) {
+    .filter-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  @media (max-width: 768px) {
+    .filter-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .filter-input {
+    width: 100%;
+    height: 38px;
+    padding: 8px 12px;
+    border: 1px solid var(--quality-border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: var(--jspl-navy);
+    outline: none;
+    box-sizing: border-box;
+  }
+  
+  .filter-input:focus {
+    border-color: var(--quality-primary);
+  }
+  
+  .filter-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 6px;
+  }
+  
+  .report-table-card {
+    background: white;
+    border: 1px solid var(--quality-border);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0, 52, 120, 0.02);
+  }
+  
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+  }
+  
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  
+  .report-table th {
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 700;
+    padding: 12px;
+    text-align: left;
+    border-bottom: 2px solid var(--quality-border);
+    white-space: nowrap;
+  }
+  
+  .report-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--quality-border);
+    color: var(--jspl-navy);
+  }
+  
+  .report-table tr:hover {
+    background-color: #fafbfc;
+  }
+  
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    .report-table-card, .report-table-card * {
+      visibility: visible;
+    }
+    .report-table-card {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+    }
+    .no-print {
+      display: none !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block quality_content %}
+  
+  <!-- Filter Panel -->
+  <div class="filter-card no-print">
+    <form method="GET" action="{% url 'quality:quality_summary_report' department.id %}">
+      <div class="filter-grid">
+        <!-- Start Date -->
+        <div>
+          <label class="filter-label">From Date</label>
+          <input type="date" name="start_date" class="filter-input" value="{{ start_date|default:'' }}">
+        </div>
+        
+        <!-- End Date -->
+        <div>
+          <label class="filter-label">To Date</label>
+          <input type="date" name="end_date" class="filter-input" value="{{ end_date|default:'' }}">
+        </div>
+        
+        <!-- Caster -->
+        <div>
+          <label class="filter-label">Caster</label>
+          <select name="caster_type" class="filter-input">
+            <option value="">All Casters</option>
+            {% for c in casters %}
+              <option value="{{ c }}" {% if caster_type == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <!-- Section / Product -->
+        <div>
+          <label class="filter-label">Section / Product</label>
+          <select name="product_type" class="filter-input">
+            <option value="">All Products</option>
+            {% for p in products %}
+              <option value="{{ p }}" {% if product_type == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <!-- Search Keyword -->
+        <div>
+          <label class="filter-label">Search Keyword</label>
+          <input type="text" name="q" class="filter-input" placeholder="Heat No, Grade, ID..." value="{{ q|default:'' }}">
+        </div>
+        
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 8px;">
+          <button type="submit" class="btn-quality btn-quality-primary" style="height: 38px;">
+            🔍 Filter
+          </button>
+          <a href="{% url 'quality:quality_summary_report' department.id %}" class="btn-quality btn-quality-secondary" style="height: 38px; display: inline-flex; align-items: center; justify-content: center;">
+            🔄 Reset
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Summary Report Table -->
+  <div class="report-table-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div>
+        <h3 style="margin: 0; color: var(--quality-primary); font-weight: 700;">Quality Summary Log Report</h3>
+        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">Department Workspace Logs matching selected criteria</p>
+      </div>
+      <button onclick="window.print()" class="btn-quality btn-quality-secondary no-print" style="gap: 6px;">
+        🖨️ Print / Export PDF
+      </button>
+    </div>
+    
+    <div class="table-responsive">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>Entry No.</th>
+            <th>Date</th>
+            <th>Shift</th>
+            <th>Caster</th>
+            <th>Product / Section</th>
+            <th>Heat No.</th>
+            <th>Grade</th>
+            <th style="text-align: right;">Inspected (T)</th>
+            <th style="text-align: right;">FTR Qty (T)</th>
+            <th style="text-align: right;">FTR %</th>
+            <th>Defect Type</th>
+            <th style="text-align: right;">Rework (T)</th>
+            <th style="text-align: center;">Status</th>
+            <th style="text-align: center;" class="no-print">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in entries %}
+            <tr>
+              <td style="font-weight: bold; font-family: 'JetBrains Mono', monospace;">{{ entry.entry_no }}</td>
+              <td>{{ entry.date|date:"d-m-Y" }}</td>
+              <td style="font-weight: 600;">Shift {{ entry.shift }}</td>
+              <td>{{ entry.caster_type }}</td>
+              <td>{{ entry.product_type }}</td>
+              <td style="font-family: 'JetBrains Mono', monospace;">{{ entry.heat_number|default:"—" }}</td>
+              <td>{{ entry.grade|default:"—" }}</td>
+              <td style="text-align: right; font-weight: 600;">{{ entry.inspected_qty|floatformat:1 }}T</td>
+              <td style="text-align: right; font-weight: 600;">{{ entry.ftr_qty|floatformat:1 }}T</td>
+              <td style="text-align: right; font-weight: bold; color: {% if entry.ftr_percent >= 95 %}#16a34a{% elif entry.ftr_percent >= 90 %}#ea580c{% else %}#dc2626{% endif %};">
+                {{ entry.ftr_percent|floatformat:2 }}%
+              </td>
+              <td>{{ entry.defect_type|default:"—" }}</td>
+              <td style="text-align: right; font-weight: 600; color: {% if entry.rework_qty > 0 %}#dc2626{% else %}inherit{% endif %};">
+                {{ entry.rework_qty|floatformat:1 }}T
+              </td>
+              <td style="text-align: center;">
+                <span style="font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+                  {% if entry.status == 'SUBMITTED' %}background: rgba(22,163,74,0.1); color: var(--quality-success);{% else %}background: rgba(234,88,12,0.1); color: var(--quality-warning);{% endif %}">
+                  {{ entry.status }}
+                </span>
+              </td>
+              <td style="text-align: center;" class="no-print">
+                <a href="{% url 'quality:edit_quality_entry' department.id entry.id %}" style="text-decoration: none; font-size: 0.95rem;" title="Edit">✏️</a>
+                <a href="{% url 'quality:delete_quality_entry' department.id entry.id %}" style="text-decoration: none; font-size: 0.95rem; margin-left: 8px;" title="Delete" onclick="return confirm('Are you sure you want to delete this quality log?');">🗑️</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="14" style="text-align: center; color: var(--jspl-muted); padding: 30px;">
+                No quality entries found matching the filter options.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% endblock %}

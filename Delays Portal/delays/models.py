@@ -141,3 +141,17 @@ class DelayNotification(models.Model):
     def __str__(self):
         return f"From {self.from_department.code} to {self.to_department.code}: {self.message[:50]}"
 
+
+class EquipmentShutdownSetting(models.Model):
+    objects = models.Manager()
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='equipment_shutdown_settings')
+    sub_area = models.CharField(max_length=255)
+    equipment = models.CharField(max_length=255)
+    shutdown_hrs = models.FloatField(default=0.0)
+
+    class Meta:
+        unique_together = ('department', 'sub_area', 'equipment')
+
+    def __str__(self):
+        return f"{self.department.code} - {self.sub_area} / {self.equipment}: {self.shutdown_hrs} hrs"
+

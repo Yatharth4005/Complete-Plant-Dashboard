@@ -257,26 +257,26 @@ function initCharts() {
     }
 
     // ─────────────────────────────────────────────────────────
-    // CHART 3: TOP BOTTLENECK EQUIPMENTS (Horizontal Bar Chart)
+    // CHART 3: INTERNAL AGENCY BOTTLENECK CHARTS
     // ─────────────────────────────────────────────────────────
-    const equipCtx = document.getElementById('equipmentChart');
-    if (equipCtx) {
-        charts.equipment = new Chart(equipCtx, {
+    const internalCtx = document.getElementById('internalChart');
+    if (internalCtx) {
+        charts.internal = new Chart(internalCtx, {
             type: 'bar',
             data: {
-                labels: data.equipLabels,
+                labels: data.internalLabels,
                 datasets: [{
-                    label: 'Cumulative Downtime (Mins)',
-                    data: data.equipData,
-                    backgroundColor: 'rgba(10, 61, 98, 0.85)',
-                    borderColor: '#0A3D62',
+                    label: 'Downtime (Mins)',
+                    data: data.internalData,
+                    backgroundColor: 'rgba(0, 40, 85, 0.85)',
+                    borderColor: '#002855',
                     borderWidth: 1.5,
                     borderRadius: 4,
-                    hoverBackgroundColor: '#002855'
+                    hoverBackgroundColor: '#001b3a'
                 }]
             },
             options: Object.assign({}, commonOptions, {
-                indexAxis: 'x', // Makes the bar chart vertical (straight bars)
+                indexAxis: 'x',
                 plugins: {
                     legend: { display: false }
                 },
@@ -284,17 +284,55 @@ function initCharts() {
                     y: {
                         beginAtZero: true,
                         grid: { color: '#E5E7EB' },
-                        title: {
-                            display: true,
-                            text: 'Minutes',
-                            font: { family: "'Sora', sans-serif", weight: 'bold' }
-                        },
-                        ticks: { font: { family: "'JetBrains Mono', monospace" } }
+                        ticks: { font: { family: "'JetBrains Mono', monospace", size: 9 } }
                     },
                     x: {
                         grid: { display: false },
                         ticks: {
-                            font: { family: "'Sora', sans-serif", size: 10 },
+                            font: { family: "'Sora', sans-serif", size: 9 },
+                            maxRotation: 30,
+                            minRotation: 30
+                        }
+                    }
+                }
+            })
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // CHART 4: EXTERNAL AGENCY BOTTLENECK CHARTS
+    // ─────────────────────────────────────────────────────────
+    const externalCtx = document.getElementById('externalChart');
+    if (externalCtx) {
+        charts.external = new Chart(externalCtx, {
+            type: 'bar',
+            data: {
+                labels: data.externalLabels,
+                datasets: [{
+                    label: 'Downtime (Mins)',
+                    data: data.externalData,
+                    backgroundColor: 'rgba(244, 121, 32, 0.85)',
+                    borderColor: '#F47920',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    hoverBackgroundColor: '#D86312'
+                }]
+            },
+            options: Object.assign({}, commonOptions, {
+                indexAxis: 'x',
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#E5E7EB' },
+                        ticks: { font: { family: "'JetBrains Mono', monospace", size: 9 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { family: "'Sora', sans-serif", size: 9 },
                             maxRotation: 30,
                             minRotation: 30
                         }

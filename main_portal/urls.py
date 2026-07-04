@@ -12,6 +12,7 @@ urlpatterns = [
     path('capa/', include('capa.urls', namespace='capa')),
     path('safety/', include('Safety.urls', namespace='safety')),
     path('hod-kpi/', include('hod_kpi.urls', namespace='hod_kpi')),
+    path('quality/', include('quality.urls', namespace='quality')),
     path('admin/', admin.site.urls),
 ]
 

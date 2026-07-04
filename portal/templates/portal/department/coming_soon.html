@@ -28,19 +28,7 @@
       </a>
     </div>
 
-    {% if request.user.is_admin %}
-    <div style="margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px; background: var(--jspl-gray); border-radius: var(--radius-md); border: 1px solid var(--jspl-border);">
-      <label for="coming-dept-select" style="font-size: 0.85rem; font-weight: 700; color: var(--jspl-navy); white-space: nowrap;">🏢 Change Department:</label>
-      <select id="coming-dept-select" style="padding: 6px 12px; border: 1px solid var(--jspl-border); border-radius: var(--radius-sm); outline: none; font-family: inherit; font-size: 0.85rem; cursor: pointer;" onchange="window.location.href=(this.value == '0' ? '/department/0/coming-soon/{{ module.key }}/' : '/department/' + this.value + '/coming-soon/{{ module.key }}/')">
-        <option value="0" {% if department.id == 0 %}selected{% endif %}>Overall Plant</option>
-        {% for d in sidebar_departments %}
-          <option value="{{ d.id }}" {% if d.id == department.id %}selected{% endif %}>
-            {{ d.name }} ({{ d.code }})
-          </option>
-        {% endfor %}
-      </select>
-    </div>
-    {% endif %}
+
   </div>
 </div>
 {% endblock %}

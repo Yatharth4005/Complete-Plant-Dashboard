@@ -9,7 +9,7 @@ from django.db.models import Q, Sum, Avg
 from django.utils import timezone
 from datetime import date
 from tpm.models import Department
-from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification
+from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification, EquipmentShutdownSetting
 from delays.forms import DelayRecordForm
 from delays.utils.parser import parse_excel_file, normalize_agency_name
 from portal.utils.access import user_can_access_module, user_can_edit_module
@@ -84,8 +84,36 @@ def dept_overview(request, dept_id):
     Main overview and dashboard for department delays.
     Displays metrics, charts, upload features, and logs tables.
     """
+    tab = request.GET.get('tab', 'dashboard').strip()
+    if tab in ['summary', 'pareto', 'mttr_mtbf', 'capa_summary']:
+        active_tab = tab
+    else:
+        active_tab = 'dashboard'
     date_start = request.GET.get('date_start', '').strip()
     date_end = request.GET.get('date_end', '').strip()
+
+    # Set default date range if not specified
+    today = timezone.localtime(timezone.now()).date()
+    if not date_start:
+        # Financial Year start (April 1st of the previous calendar year to include last year and current date)
+        # If we are in July 2026, this is April 1, 2025.
+        if today.month >= 4:
+            date_start = date(today.year - 1, 4, 1).strftime('%Y-%m-%d')
+        else:
+            date_start = date(today.year - 2, 4, 1).strftime('%Y-%m-%d')
+    
+    if not date_end:
+        date_end = today.strftime('%Y-%m-%d')
+
+    days_span = 0
+    if date_start and date_end:
+        try:
+            from datetime import datetime
+            d1 = datetime.strptime(date_start, '%Y-%m-%d').date()
+            d2 = datetime.strptime(date_end, '%Y-%m-%d').date()
+            days_span = (d2 - d1).days
+        except Exception:
+            pass
 
     if int(dept_id) == 0:
         class DummyDept:
@@ -217,8 +245,8 @@ def dept_overview(request, dept_id):
                 }
     else:
         # For a specific department
-        if date_start or date_end:
-            # If a date range is selected, show DAILY trend
+        if days_span <= 60:
+            # If date range is 60 days or less, show DAILY trend
             daily_breakdown = list(all_records.values('date').annotate(total=Sum('duration_mins')).order_by('date'))
             daily_active_dates = [x['date'] for x in daily_breakdown]
             daily_labels = [d.strftime('%d-%b-%Y') for d in daily_active_dates]
@@ -335,7 +363,7 @@ def dept_overview(request, dept_id):
  
     # Pareto Calculation by Equipment
     all_equip_breakdown = all_records.exclude(
-        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')  # type: ignore
+        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='NIL')  # type: ignore
     ).values('equipment').annotate(total=Sum('duration_mins'))
     
     py_eq_totals_pareto = {}
@@ -347,6 +375,26 @@ def dept_overview(request, dept_id):
     sorted_py_eqs_pareto = sorted(py_eq_totals_pareto.items(), key=lambda x: x[1], reverse=True)
     total_equip_mins = sum(x[1] for x in sorted_py_eqs_pareto)
     
+    group_by_field = 'equipment'
+    is_description = False
+    
+    # Fallback to description if no equipment data is available (like in SMS3 or Overall plant view)
+    if total_equip_mins == 0:
+        all_desc_breakdown = all_records.exclude(
+            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')  # type: ignore
+        ).values('description').annotate(total=Sum('duration_mins'))
+        
+        py_desc_totals = {}
+        for db in all_desc_breakdown:
+            cleaned = (db['description'] or '').strip()
+            if cleaned:
+                py_desc_totals[cleaned] = py_desc_totals.get(cleaned, 0.0) + (db['total'] or 0.0)
+                
+        sorted_py_eqs_pareto = sorted(py_desc_totals.items(), key=lambda x: x[1], reverse=True)
+        total_equip_mins = sum(x[1] for x in sorted_py_eqs_pareto)
+        group_by_field = 'description'
+        is_description = True
+
     equip_pareto = []
     running_equip_mins = 0
     for idx, (eq, total) in enumerate(sorted_py_eqs_pareto):
@@ -360,7 +408,64 @@ def dept_overview(request, dept_id):
             'rank': idx + 1,
             'is_vital': cum_percent <= 85.0 or idx == 0
         })
- 
+
+    # Internal Agency Bottlenecks
+    internal_recs = all_records.filter(agency_type='Internal')
+    internal_eqs = (
+        internal_recs.exclude(Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA'))
+        .values('equipment')
+        .annotate(total=Sum('duration_mins'))
+        .order_by('-total')
+    )
+    from collections import defaultdict
+    internal_grouped = defaultdict(float)
+    for eq in internal_eqs:
+        cleaned = clean_equipment_name(eq['equipment']) or "General"
+        internal_grouped[cleaned] += (eq['total'] or 0.0)
+    sorted_internal = sorted(internal_grouped.items(), key=lambda x: x[1], reverse=True)[:5]
+    internal_list = [{'name': name, 'mins': round(mins, 1)} for name, mins in sorted_internal]
+
+    internal_summaries = []
+    for item in internal_list[:3]:
+        recs = internal_recs.filter(equipment__icontains=item['name']).exclude(description__isnull=True).exclude(description='').order_by('-duration_mins')[:2]
+        reasons = [r.description for r in recs if r.description]
+        if reasons:
+            internal_summaries.append({
+                'equipment': item['name'],
+                'reasons': reasons
+            })
+
+    # External Agency Bottlenecks
+    external_recs = all_records.filter(agency_type='External')
+    external_ags = (
+        external_recs.exclude(Q(agency__isnull=True) | Q(agency='') | Q(agency='-') | Q(agency='NA'))
+        .values('agency')
+        .annotate(total=Sum('duration_mins'))
+        .order_by('-total')
+    )
+    external_grouped = defaultdict(float)
+    for ag in external_ags:
+        cleaned = ag['agency'] or "Other External"
+        external_grouped[cleaned] += (ag['total'] or 0.0)
+    sorted_external = sorted(external_grouped.items(), key=lambda x: x[1], reverse=True)[:5]
+    external_list = [{'name': name, 'mins': round(mins, 1)} for name, mins in sorted_external]
+
+    external_summaries = []
+    for item in external_list[:3]:
+        recs = external_recs.filter(agency__icontains=item['name']).exclude(description__isnull=True).exclude(description='').order_by('-duration_mins')[:2]
+        reasons = [r.description for r in recs if r.description]
+        if reasons:
+            external_summaries.append({
+                'agency': item['name'],
+                'reasons': reasons
+            })
+
+    import json
+    internal_labels_json = json.dumps([x['name'] for x in internal_list])
+    internal_data_json = json.dumps([x['mins'] for x in internal_list])
+    external_labels_json = json.dumps([x['name'] for x in external_list])
+    external_data_json = json.dumps([x['mins'] for x in external_list])
+
     # Mitigation recommendations & keyword frequency
     keyword_counts = {
         'Motor / Drive Issues': 0,
@@ -497,11 +602,125 @@ def dept_overview(request, dept_id):
         external_departments = Department.objects.exclude(id=department.id).order_by('name')
     unread_notifications_count = notifications.filter(is_read=False).count()
 
+    # MTTR/MTBF calculations
+    from django.db.models import Min, Max, Count
+    import datetime
+    d1 = None
+    d2 = None
+    try:
+        if date_start:
+            d1 = datetime.datetime.strptime(date_start, '%Y-%m-%d').date()
+        if date_end:
+            d2 = datetime.datetime.strptime(date_end, '%Y-%m-%d').date()
+    except Exception:
+        pass
+        
+    if not d1 or not d2:
+        if all_records.exists():
+            d1 = all_records.aggregate(Min('date'))['date__min'] or datetime.date.today().replace(day=1)
+            d2 = all_records.aggregate(Max('date'))['date__max'] or datetime.date.today()
+        else:
+            d1 = datetime.date.today().replace(day=1)
+            d2 = datetime.date.today()
+            
+    total_days = max((d2 - d1).days + 1, 1)
+    total_calendar_hrs = total_days * 24.0
+
+    from collections import defaultdict
+    reliability_data = defaultdict(lambda: {
+        'total_downtime_mins': 0.0,
+        'total_shutdown_mins': 0.0,
+        'failures_count': 0,
+        'total_count': 0,
+    })
+    
+    for r in all_records:
+        key = (r.sub_agency or 'N/A', r.equipment or 'N/A')
+        duration = r.duration_mins or 0.0
+        agency_clean = (r.agency or '').strip().lower()
+        is_planned = 'planned' in agency_clean or 'shutdown' in agency_clean
+        
+        reliability_data[key]['total_count'] += 1
+        if is_planned:
+            reliability_data[key]['total_shutdown_mins'] += duration
+        else:
+            reliability_data[key]['total_downtime_mins'] += duration
+            reliability_data[key]['failures_count'] += 1
+
+    # Fetch manual shutdown settings for the department
+    if department.id == 0:
+        shutdown_settings = {
+            (s.sub_area, s.equipment): s.shutdown_hrs
+            for s in EquipmentShutdownSetting.objects.all()
+        }
+    else:
+        shutdown_settings = {
+            (s.sub_area, s.equipment): s.shutdown_hrs
+            for s in EquipmentShutdownSetting.objects.filter(department=department)
+        }
+
+    mttr_mtbf_list = []
+    for (area, equip), stats in reliability_data.items():
+        # Use manual shutdown hours if exists, otherwise aggregate from delays logs
+        shutdown_hrs = shutdown_settings.get((area or 'N/A', equip or 'N/A'), stats['total_shutdown_mins'] / 60.0)
+        downtime_hrs = stats['total_downtime_mins'] / 60.0
+        failures = stats['failures_count']
+        total_events = stats['total_count']
+        
+        # MTTR (Hrs)
+        mttr = downtime_hrs / failures if failures > 0 else 0.0
+        
+        # MTBF (Hrs)
+        op_time_hrs = max(total_calendar_hrs - downtime_hrs - shutdown_hrs, 0.0)
+        mtbf = op_time_hrs / failures if failures > 0 else total_calendar_hrs
+        
+        # Availability %
+        divisor = max(total_calendar_hrs - shutdown_hrs, 0.1)
+        availability = (op_time_hrs / divisor) * 100.0
+        if availability > 100.0:
+            availability = 100.0
+            
+        mttr_mtbf_list.append({
+            'area': area,
+            'equipment': equip,
+            'shutdown_hrs': round(shutdown_hrs, 1),
+            'downtime_hrs': round(downtime_hrs, 1),
+            'failures': failures,
+            'repeatability': total_events,
+            'mttr': round(mttr, 1),
+            'mtbf': round(mtbf, 1),
+            'availability': round(availability, 2)
+        })
+        
+    mttr_mtbf_list.sort(key=lambda x: x['downtime_hrs'], reverse=True)
+
+    # Fetch CAPA reports
+    from tpm.models import CAPAReport
+    if department.id == 0:
+        capa_reports = CAPAReport.objects.all().order_by('-id')
+    else:
+        capa_reports = CAPAReport.objects.filter(department=department).order_by('-id')
+
     context = {
         'department': department,
+        'active_tab': active_tab,
+        'is_description': is_description,
+        'is_monthly_trend': days_span > 60,
         'departments': departments,
         'date_start': date_start,
         'date_end': date_end,
+        'total_calendar_hrs': total_calendar_hrs,
+        'mttr_mtbf_list': mttr_mtbf_list,
+        'mttr_mtbf_list_json': json.dumps(mttr_mtbf_list),
+        'capa_reports': capa_reports,
+        'internal_list': internal_list,
+        'internal_summaries': internal_summaries,
+        'external_list': external_list,
+        'external_summaries': external_summaries,
+        'internal_labels_json': internal_labels_json,
+        'internal_data_json': internal_data_json,
+        'external_labels_json': external_labels_json,
+        'external_data_json': external_data_json,
         'dept_summaries': dept_summaries,
         'can_edit': can_edit,
         'is_admin': is_admin,
@@ -780,6 +999,7 @@ def new_record(request, dept_id):
     context = {
         'form': form,
         'department': department,
+        'active_tab': 'entry',
         'is_edit': False,
         'can_edit': True,
         'agencies': agencies,
@@ -838,6 +1058,7 @@ def edit_record(request, dept_id, record_id):
     context = {
         'form': form,
         'department': department,
+        'active_tab': 'entry',
         'record': record,
         'is_edit': True,
         'can_edit': True,
@@ -1165,19 +1386,29 @@ def manage_options(request, dept_id):
     if not user_can_edit_module(request.user, department, 'Delays'):
         messages.error(request, "You do not have permission to manage dropdown options.")
         return redirect('delays:dept_overview', dept_id=dept_id)
+    def capitalize_first_letters(s):
+        if not s:
+            return s
+        return ' '.join(word[0].upper() + word[1:] if word else '' for word in s.split(' '))
 
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'add':
             category = request.POST.get('category', '').strip()
-            value = request.POST.get('value', '').strip()
-            parent_value = request.POST.get('parent_value', '').strip() or None
+            value = capitalize_first_letters(request.POST.get('value', '').strip())
+            raw_parent = request.POST.get('parent_value', '').strip() or None
             
             if category and value:
                 if category == 'Shift Incharge':
-                    role = request.POST.get('role', '').strip()
+                    role = capitalize_first_letters(request.POST.get('role', '').strip())
                     phone = request.POST.get('phone', '').strip()
                     parent_value = f"{role}|{phone}"
+                else:
+                    if category == 'Equipment' and raw_parent:
+                        parent_value = raw_parent.upper()
+                    else:
+                        parent_value = capitalize_first_letters(raw_parent)
+                
                 value_clean = normalize_agency_name(value) if category.lower() == 'agency' else value
                 option, created = DelayDropdownOption.objects.get_or_create(
                     department=department,
@@ -1199,6 +1430,35 @@ def manage_options(request, dept_id):
             cat = option.category
             option.delete()
             messages.success(request, f"Option '{val}' removed from '{cat}'.")
+            
+        elif action == 'edit':
+            option_id = request.POST.get('option_id')
+            option = get_object_or_404(DelayDropdownOption, id=option_id, department=department)
+            new_value = capitalize_first_letters(request.POST.get('value', '').strip())
+            cat = option.category
+            
+            if new_value:
+                old_val = option.value
+                if cat == 'Shift Incharge':
+                    role = capitalize_first_letters(request.POST.get('role', '').strip())
+                    phone = request.POST.get('phone', '').strip()
+                    parent_value = f"{role}|{phone}"
+                else:
+                    raw_parent = request.POST.get('parent_value', '').strip() or None
+                    if cat == 'Equipment' and raw_parent:
+                        parent_value = raw_parent.upper()
+                    else:
+                        parent_value = capitalize_first_letters(raw_parent)
+                
+                option.value = normalize_agency_name(new_value) if cat.lower() == 'agency' else new_value
+                option.parent_value = parent_value
+                try:
+                    option.save()
+                    messages.success(request, f"Option '{old_val}' updated to '{option.value}' successfully.")
+                except Exception as e:
+                    messages.error(request, f"Error saving option: {str(e)}")
+            else:
+                messages.error(request, "Value cannot be empty.")
             
         # Determine which tab category to redirect to so that Alpine.js opens the same tab
         from django.urls import reverse
@@ -1262,7 +1522,7 @@ def manage_options(request, dept_id):
     options = DelayDropdownOption.objects.filter(department=department).order_by('category', 'value')
     
     # Predefined suggested categories
-    suggested_categories = ['Agency', 'Sub-Agency', 'Equipment', 'Sub-Equipment', 'Shift Incharge']
+    suggested_categories = ['Agency', 'Sub-Agency', 'Sub-Area', 'Equipment', 'Sub-Equipment', 'Shift Incharge']
     db_categories = list(options.values_list('category', flat=True).distinct())
     for cat in db_categories:
         if cat not in suggested_categories:
@@ -1279,6 +1539,7 @@ def manage_options(request, dept_id):
 
     context = {
         'department': department,
+        'active_tab': 'options',
         'options': options,
         'suggested_categories': suggested_categories,
         'active_dept_id': department.id,
@@ -1450,3 +1711,28 @@ def submit_reason(request, dept_id, notification_id):
             
         messages.success(request, f"Delay reason successfully submitted to {notification.from_department.name}.")
     return redirect('delays:dept_overview', dept_id=dept_id)
+
+
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+def save_shutdown(request, dept_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            sub_area = data.get('sub_area') or 'N/A'
+            equipment = data.get('equipment') or 'N/A'
+            shutdown_hrs = float(data.get('shutdown_hrs', 0.0))
+            
+            department = get_object_or_404(Department, id=dept_id)
+            
+            setting, created = EquipmentShutdownSetting.objects.update_or_create(
+                department=department,
+                sub_area=sub_area,
+                equipment=equipment,
+                defaults={'shutdown_hrs': shutdown_hrs}
+            )
+            return JsonResponse({'status': 'success', 'shutdown_hrs': setting.shutdown_hrs})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)

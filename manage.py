@@ -15,6 +15,11 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
+       
+    # If no arguments are provided, default to starting the server on 0.0.0.0:4321
+    if len(sys.argv) == 1:
+        sys.argv.extend(['runserver', '172.17.18.13:4321'])
+        
     execute_from_command_line(sys.argv)
 
 

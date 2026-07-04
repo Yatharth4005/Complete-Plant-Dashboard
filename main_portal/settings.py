@@ -1,4 +1,3 @@
-
 import os
 import sys
 from pathlib import Path
@@ -16,7 +15,7 @@ sys.path.append(str(BASE_DIR / 'EFMEA'))
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-jspl-tpm-portal-secret-key-1029384756')
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['172.17.18.13', '127.0.0.1', 'localhost','0.0.0.0']
 
 # Application definition
 INSTALLED_APPS = [
@@ -37,6 +36,7 @@ INSTALLED_APPS = [
     'capa',
     'Safety',
     'hod_kpi',
+    'quality',
 ]
 
 MIDDLEWARE = [

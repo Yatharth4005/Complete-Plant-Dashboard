@@ -100,10 +100,12 @@ def coming_soon(request, dept_id, module_key):
         department = DummyDept()
     else:
         department = get_object_or_404(Department, id=dept_id)
-        # Verify access first dynamically using module_key parameter
+        # Case-insensitive module check
         access_map = get_user_module_access_map(request.user, department)
-        if module_key not in access_map:
+        matched_key = next((k for k in access_map.keys() if k.upper() == module_key.upper()), None)
+        if not matched_key:
             return redirect('portal:dept_hub', dept_id=dept_id)
+        module_key = matched_key
     
     context = {
         'department': department,
@@ -114,5 +116,7 @@ def coming_soon(request, dept_id, module_key):
     
     if module_key.upper() == 'SAFETY':
         return render(request, 'portal/department/safety_dashboard.html', context)
+    elif module_key.upper() == 'AVAILABILITY':
+        return render(request, 'portal/department/availability_dashboard.html', context)
         
     return render(request, 'portal/department/coming_soon.html', context)

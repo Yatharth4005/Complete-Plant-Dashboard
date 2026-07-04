@@ -8,10 +8,11 @@
   </span>
 {% endblock %}
 
-{% block delays_header_right %}{% endblock %}
+{% block delays_header_right %}
+{% endblock %}
 
 {% block delays_content %}
-<div class="log-entry-container" style="max-width: 900px; margin: 0 auto;">
+<div class="log-entry-container" style="max-width: 1200px; margin: 0 auto;">
   <div style="margin-bottom: 24px;">
     <h3 style="color: var(--jspl-navy); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
       📝 {% if is_edit %}Modify Delay Log Record{% else %}New Delay Log Entry{% endif %}
@@ -21,10 +22,18 @@
     </p>
   </div>
 
+  <style>
+    #id_description {
+      height: 140px !important;
+      min-height: 140px !important;
+      resize: vertical;
+    }
+  </style>
+
   <form method="POST" class="log-entry-form" style="background: white; padding: 28px; border-radius: var(--radius-lg); border: 1px solid var(--delays-border); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
     {% csrf_token %}
     
-    <div class="form-columns-grid">
+    <div class="form-columns-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
       <!-- Column 1: Time & Duration Details -->
       <div class="form-column">
         <h4 class="form-sec-title">🕒 Time & Duration Details</h4>
@@ -112,7 +121,6 @@
           {% endif %}
         </div>
         
-
         <div class="form-field-group internal-only-field">
           <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Equipment</label>
           {{ form.equipment }}
@@ -137,38 +145,38 @@
           {% endif %}
         </div>
       </div>
-    </div>
-    
-    <!-- Section 3: Analysis & Breakdown Descriptions -->
-    <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 24px;">
-      <h4 class="form-sec-title">📝 Analysis & Breakdown</h4>
-      
-      <div class="form-field-group">
-        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Complete Description of Breakdown/Delay</label>
-        {{ form.description }}
-        {% if form.description.errors %}
-          <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.description.errors }}</div>
-        {% endif %}
-      </div>
-      
-      <div class="form-field-group">
-        <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">CAPA Analysis</label>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          {{ form.why }}
-          {% if is_edit %}
-            <a id="why-btn-edit" 
-               href="{% if record.why == 'CAPA' %}/capa/department/{{ department.id }}/identification/?delay_record_id={{ record.id }}{% else %}#{% endif %}" 
-               class="btn-fill-sheet" 
-               onclick="{% if record.why == 'NO' or not record.why %}return false;{% endif %}"
-               style="{% if record.why == 'CAPA' %}display: inline-flex;{% else %}display: none;{% endif %} text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap;"
-               target="_blank">
-               Fill CAPA
-            </a>
+
+      <!-- Column 3: Analysis & Breakdown Descriptions -->
+      <div class="form-column">
+        <h4 class="form-sec-title">📝 Analysis & Breakdown</h4>
+        
+        <div class="form-field-group">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Complete Description of Breakdown/Delay</label>
+          {{ form.description }}
+          {% if form.description.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.description.errors }}</div>
           {% endif %}
         </div>
-        {% if form.why.errors %}
-          <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.why.errors }}</div>
-        {% endif %}
+        
+        <div class="form-field-group" style="margin-top: auto;">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">CAPA Analysis</label>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            {{ form.why }}
+            {% if is_edit %}
+              <a id="why-btn-edit" 
+                 href="{% if record.why == 'CAPA' %}/capa/department/{{ department.id }}/identification/?delay_record_id={{ record.id }}{% else %}#{% endif %}" 
+                 class="btn-fill-sheet" 
+                 onclick="{% if record.why == 'NO' or not record.why %}return false;{% endif %}"
+                 style="{% if record.why == 'CAPA' %}display: inline-flex;{% else %}display: none;{% endif %} text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap;"
+                 target="_blank">
+                 Fill CAPA
+              </a>
+            {% endif %}
+          </div>
+          {% if form.why.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.why.errors }}</div>
+          {% endif %}
+        </div>
       </div>
     </div>
 

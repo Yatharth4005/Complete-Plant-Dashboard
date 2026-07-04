@@ -7,7 +7,7 @@
   <span class="breadcrumb-current">CAPA Dashboard</span>
 {% endblock %}
 
-{% block content %}
+{% block capa_content %}
 <div class="page-container">
 
   <!-- Header Row Banner -->
@@ -16,17 +16,7 @@
       <h2 style="margin: 0 0 6px 0; color: #FFFFFF; font-weight: 700; font-size: 1.6rem; letter-spacing: -0.5px;">📊 CAPA Dashboard</h2>
       <span style="font-size: 0.9rem; opacity: 0.85;">Comparative CAPA analytics &amp; action tracking overview for <b>{{ active_dept.name }}</b></span>
     </div>
-    {% if request.user.is_admin %}
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <label for="capa-dept-select" style="font-size: 0.85rem; font-weight: 600; opacity: 0.9;">🏢 Change Department:</label>
-      <select id="capa-dept-select" style="background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.2); color: #FFFFFF; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; outline: none; transition: all 0.25s;" onchange="window.location.href='/capa/department/' + this.value + '/'">
-        <option value="0" {% if active_dept.id == 0 %}selected{% endif %} style="color: #1F2937; background: #FFFFFF;">Overall Plant</option>
-        {% for d in sidebar_departments %}
-          <option value="{{ d.id }}" {% if d.id == active_dept.id %}selected{% endif %} style="color: #1F2937; background: #FFFFFF;">{{ d.name }} ({{ d.code }})</option>
-        {% endfor %}
-      </select>
-    </div>
-    {% endif %}
+    {% include 'portal/partials/_fy_filter.html' %}
   </div>
 
   <!-- Metric Summary Cards Grid -->
@@ -357,7 +347,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block capa_extra_js %}
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     // 1. Comparative Bar Chart

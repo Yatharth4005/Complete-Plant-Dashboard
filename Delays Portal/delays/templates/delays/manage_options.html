@@ -54,20 +54,20 @@
             <input type="hidden" name="category" value="{{ cat }}">
             
             <div style="font-weight: 700; color: var(--delays-primary); font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
-              <span>➕</span> Add {% if cat == 'Sub-Agency' %}Area{% else %}{{ cat }}{% endif %}:
+              <span>➕</span> Add {% if cat == 'Sub-Agency' %}Area{% elif cat == 'Sub-Area' %}Sub-Area{% else %}{{ cat }}{% endif %}:
             </div>
             
             <!-- Value input -->
             <div style="flex: 1.5; min-width: 200px;">
               <input type="text" name="value" placeholder="{% if cat == 'Shift Incharge' %}Enter Incharge Name...{% else %}Enter option name...{% endif %}" required 
-                     class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px;">
+                     class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px; text-transform: capitalize;">
             </div>
             
-            <!-- Parent Value input (if cat is Sub-Agency or Sub-Equipment) -->
-            {% if cat == 'Sub-Agency' or cat == 'Sub-Equipment' %}
+            <!-- Parent Value input (if cat is Sub-Agency, Sub-Area or Sub-Equipment) -->
+            {% if cat == 'Sub-Agency' or cat == 'Sub-Area' or cat == 'Sub-Equipment' %}
             <div style="flex: 1; min-width: 200px;">
-              <input type="text" name="parent_value" placeholder="Parent {% if cat == 'Sub-Agency' %}Agency{% else %}Equipment{% endif %} (Optional)" 
-                     class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px;">
+              <input type="text" name="parent_value" placeholder="Parent {% if cat == 'Sub-Agency' %}Agency{% elif cat == 'Sub-Area' %}Area{% else %}Equipment{% endif %} (Optional)" 
+                     class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px; text-transform: capitalize;">
             </div>
             {% elif cat == 'Equipment' %}
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -81,7 +81,7 @@
             {% elif cat == 'Shift Incharge' %}
             <div style="flex: 1; min-width: 150px;">
               <input type="text" name="role" placeholder="Role (e.g. AM, DM)..." required 
-                     class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px;">
+                     class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px; text-transform: capitalize;">
             </div>
             <div style="flex: 1; min-width: 150px;">
               <input type="text" name="phone" placeholder="Phone Number..." required 
@@ -108,37 +108,131 @@
                 {% else %}
                   <th>Value</th>
                 {% endif %}
-                <th style="width: 100px; text-align: center;">Actions</th>
+                <th style="width: 120px; text-align: center;">Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for opt in options %}
                 {% if opt.category == cat %}
-                  <tr x-show="!searchText || '{{ opt.value|escapejs }}'.toLowerCase().includes(searchText.toLowerCase()) || '{{ opt.parent_value|default:''|escapejs }}'.toLowerCase().includes(searchText.toLowerCase())">
-                    {% if cat == 'Shift Incharge' %}
-                      <td style="font-weight: 600; color: var(--delays-primary);">{{ opt.value }}</td>
-                      <td>{{ opt.role }}</td>
-                      <td>{{ opt.phone }}</td>
-                    {% else %}
-                      <td style="font-weight: 600; color: var(--delays-primary);">
-                        {{ opt.value }}
-                        {% if opt.category == 'Equipment' and opt.parent_value %}
-                          <span class="agency-badge" style="background: rgba(244,121,32,0.08); color: var(--delays-accent); border-color: rgba(244,121,32,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Category {{ opt.parent_value }}</span>
-                        {% endif %}
+                  {% if cat == 'Shift Incharge' %}
+                    <tr x-data="{ editing: false, editValue: '{{ opt.value|escapejs }}', editRole: '{{ opt.role|escapejs }}', editPhone: '{{ opt.phone|escapejs }}' }"
+                        x-show="!searchText || '{{ opt.value|escapejs }}'.toLowerCase().includes(searchText.toLowerCase()) || '{{ opt.role|escapejs }}'.toLowerCase().includes(searchText.toLowerCase()) || '{{ opt.phone|escapejs }}'.toLowerCase().includes(searchText.toLowerCase())">
+                      <td>
+                        <span x-show="!editing" style="font-weight: 600; color: var(--delays-primary);">{{ opt.value }}</span>
+                        <input x-show="editing" type="text" x-model="editValue" class="filter-input input-mono" style="height: 32px; padding: 4px 8px; font-size: 0.82rem; width: 100%; box-sizing: border-box; text-transform: capitalize;">
                       </td>
-                    {% endif %}
-                    <td style="text-align: center;">
-                      <form id="delete-option-form-{{ opt.id }}" action="{% url 'delays:manage_options' department.id %}" method="POST" style="margin: 0; display: inline;">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="option_id" value="{{ opt.id }}">
-                        <button type="button" class="btn-action-delete" style="background: none; border: none; padding: 4px; cursor: pointer; color: #dc2626;" title="Delete Option"
-                                onclick="window.showConfirm('Delete Option', 'Are you sure you want to delete this option?', function(confirmed) { if (confirmed) { document.getElementById('delete-option-form-{{ opt.id }}').submit(); } })">
-                          🗑️
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
+                      <td>
+                        <span x-show="!editing">{{ opt.role }}</span>
+                        <input x-show="editing" type="text" x-model="editRole" class="filter-input input-mono" style="height: 32px; padding: 4px 8px; font-size: 0.82rem; width: 100%; box-sizing: border-box; text-transform: capitalize;">
+                      </td>
+                      <td>
+                        <span x-show="!editing">{{ opt.phone }}</span>
+                        <input x-show="editing" type="text" x-model="editPhone" class="filter-input input-mono" style="height: 32px; padding: 4px 8px; font-size: 0.82rem; width: 100%; box-sizing: border-box;">
+                      </td>
+                      <td style="text-align: center; vertical-align: middle; white-space: nowrap;">
+                        <div x-show="!editing" style="display: inline-flex !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 12px !important; white-space: nowrap !important;">
+                          <button type="button" @click="editing = true" class="btn-action-edit" style="background: none; border: none; padding: 4px; cursor: pointer; color: var(--jspl-blue); font-size: 1.1rem; line-height: 1; display: inline-flex !important; align-items: center; justify-content: center; margin: 0;" title="Edit Option">
+                            ✏️
+                          </button>
+                          <form id="delete-option-form-{{ opt.id }}" action="{% url 'delays:manage_options' department.id %}" method="POST" style="margin: 0 !important; display: inline-flex !important; align-items: center !important;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="option_id" value="{{ opt.id }}">
+                            <button type="button" class="btn-action-delete" style="background: none; border: none; padding: 4px; cursor: pointer; color: #dc2626; font-size: 1.1rem; line-height: 1; display: inline-flex !important; align-items: center; justify-content: center; margin: 0;" title="Delete Option"
+                                    onclick="window.showConfirm('Delete Option', 'Are you sure you want to delete this option?', function(confirmed) { if (confirmed) { document.getElementById('delete-option-form-{{ opt.id }}').submit(); } })">
+                              🗑️
+                            </button>
+                          </form>
+                        </div>
+                        <div x-show="editing" style="display: inline-flex !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 12px !important; white-space: nowrap !important;">
+                          <form action="{% url 'delays:manage_options' department.id %}" method="POST" style="margin: 0 !important; display: inline-flex !important; align-items: center !important;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="edit">
+                            <input type="hidden" name="option_id" value="{{ opt.id }}">
+                            <input type="hidden" name="category" value="{{ cat }}">
+                            <input type="hidden" name="value" :value="editValue">
+                            <input type="hidden" name="role" :value="editRole">
+                            <input type="hidden" name="phone" :value="editPhone">
+                            <button type="submit" style="background: none; border: none; padding: 4px; cursor: pointer; color: var(--status-green); font-size: 1.2rem; line-height: 1; display: inline-flex !important; align-items: center; justify-content: center; margin: 0;" title="Save Changes">
+                              ✔️
+                            </button>
+                          </form>
+                          <button type="button" @click="editing = false; editValue = '{{ opt.value|escapejs }}'; editRole = '{{ opt.role|escapejs }}'; editPhone = '{{ opt.phone|escapejs }}'" style="background: none; border: none; padding: 4px; cursor: pointer; color: #64748b; font-size: 1.1rem; line-height: 1; display: inline-flex !important; align-items: center; justify-content: center; margin: 0;" title="Cancel">
+                            ❌
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  {% else %}
+                    <tr x-data="{ editing: false, editValue: '{{ opt.value|escapejs }}', editParentValue: '{{ opt.parent_value|default:''|escapejs }}' }"
+                        x-show="!searchText || '{{ opt.value|escapejs }}'.toLowerCase().includes(searchText.toLowerCase()) || '{{ opt.parent_value|default:''|escapejs }}'.toLowerCase().includes(searchText.toLowerCase())">
+                      <td>
+                        <div x-show="!editing" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                          <span style="font-weight: 600; color: var(--delays-primary);">
+                            {{ opt.value }}
+                            {% if opt.category == 'Equipment' and opt.parent_value %}
+                              <span class="agency-badge" style="background: rgba(244,121,32,0.08); color: var(--delays-accent); border-color: rgba(244,121,32,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Category {{ opt.parent_value }}</span>
+                            {% elif opt.category == 'Sub-Agency' and opt.parent_value %}
+                              <span class="agency-badge" style="background: rgba(0,87,168,0.08); color: var(--jspl-blue); border-color: rgba(0,87,168,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Parent: {{ opt.parent_value }}</span>
+                            {% elif opt.category == 'Sub-Area' and opt.parent_value %}
+                              <span class="agency-badge" style="background: rgba(0,87,168,0.08); color: var(--jspl-blue); border-color: rgba(0,87,168,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Parent: {{ opt.parent_value }}</span>
+                            {% elif opt.category == 'Sub-Equipment' and opt.parent_value %}
+                              <span class="agency-badge" style="background: rgba(0,87,168,0.08); color: var(--jspl-blue); border-color: rgba(0,87,168,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Parent: {{ opt.parent_value }}</span>
+                            {% endif %}
+                          </span>
+                        </div>
+                        <div x-show="editing" style="display: flex; gap: 10px; align-items: center; width: 100%;">
+                          <input type="text" x-model="editValue" class="filter-input input-mono" style="height: 32px; padding: 4px 8px; font-size: 0.82rem; flex: 1.5; box-sizing: border-box; text-transform: capitalize;">
+                          {% if cat == 'Sub-Agency' or cat == 'Sub-Area' or cat == 'Sub-Equipment' %}
+                            <input type="text" x-model="editParentValue" placeholder="Parent Value" class="filter-input input-mono" style="height: 32px; padding: 4px 8px; font-size: 0.82rem; flex: 1; box-sizing: border-box; text-transform: capitalize;">
+                          {% elif cat == 'Equipment' %}
+                            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                              <span style="font-size: 0.8rem; font-weight: bold; color: var(--delays-primary);">Category:</span>
+                              <select x-model="editParentValue" class="filter-input input-mono" style="height: 32px; padding: 4px; font-size: 0.8rem; width: 60px; box-sizing: border-box;">
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                              </select>
+                            </div>
+                          {% endif %}
+                        </div>
+                      </td>
+                      <td style="text-align: center; vertical-align: middle; white-space: nowrap;">
+                        <div x-show="!editing" style="display: inline-flex !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 12px !important; white-space: nowrap !important;">
+                          <button type="button" @click="editing = true" class="btn-action-edit" style="background: none; border: none; padding: 4px; cursor: pointer; color: var(--jspl-blue); font-size: 1.1rem; line-height: 1; display: inline-flex !important; align-items: center; justify-content: center; margin: 0;" title="Edit Option">
+                            ✏️
+                          </button>
+                          <form id="delete-option-form-{{ opt.id }}" action="{% url 'delays:manage_options' department.id %}" method="POST" style="margin: 0 !important; display: inline-flex !important; align-items: center !important;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="option_id" value="{{ opt.id }}">
+                            <button type="button" class="btn-action-delete" style="background: none; border: none; padding: 4px; cursor: pointer; color: #dc2626; font-size: 1.1rem; line-height: 1; display: inline-flex !important; align-items: center; justify-content: center; margin: 0;" title="Delete Option"
+                                    onclick="window.showConfirm('Delete Option', 'Are you sure you want to delete this option?', function(confirmed) { if (confirmed) { document.getElementById('delete-option-form-{{ opt.id }}').submit(); } })">
+                              🗑️
+                            </button>
+                          </form>
+                        </div>
+                        <div x-show="editing" style="display: inline-flex !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 12px !important; white-space: nowrap !important;">
+                          <form action="{% url 'delays:manage_options' department.id %}" method="POST" style="margin: 0 !important; display: inline-flex !important; align-items: center !important;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="edit">
+                            <input type="hidden" name="option_id" value="{{ opt.id }}">
+                            <input type="hidden" name="category" value="{{ cat }}">
+                            <input type="hidden" name="value" :value="editValue">
+                            {% if cat == 'Sub-Agency' or cat == 'Sub-Area' or cat == 'Sub-Equipment' or cat == 'Equipment' %}
+                              <input type="hidden" name="parent_value" :value="editParentValue">
+                            {% endif %}
+                            <button type="submit" style="background: none; border: none; padding: 4px; cursor: pointer; color: var(--status-green); font-size: 1.2rem; line-height: 1; display: inline-flex !important; align-items: center; justify-content: center; margin: 0;" title="Save Changes">
+                              ✔️
+                            </button>
+                          </form>
+                          <button type="button" @click="editing = false; editValue = '{{ opt.value|escapejs }}'; editParentValue = '{{ opt.parent_value|default:''|escapejs }}'" style="background: none; border: none; padding: 4px; cursor: pointer; color: #64748b; font-size: 1.1rem; line-height: 1; display: inline-flex !important; align-items: center; justify-content: center; margin: 0;" title="Cancel">
+                            ❌
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endif %}
                 {% endif %}
               {% endfor %}
             </tbody>

@@ -2,7 +2,7 @@
 
 {% block title %}Master FMEA Report — {{ active_dept.name }}{% endblock %}
 
-{% block content %}
+{% block fmea_content %}
 <div class="page-container" x-data="{
   keyContact: '{{ sheet_metadata.key_contact|escapejs }}',
   coreTeam: '{{ sheet_metadata.core_team|escapejs }}',

@@ -4,17 +4,7 @@
     <h2 style="margin: 0 0 6px 0; color: #FFFFFF; font-weight: 700; font-size: 1.6rem; letter-spacing: -0.5px;">🏭 Plant-Wide TPM Dashboard</h2>
     <span style="font-size: 0.9rem; opacity: 0.85;">Period: <b>{{ period_label }}</b></span>
   </div>
-  {% if request.user.is_admin %}
-  <div style="display: flex; align-items: center; gap: 12px;">
-    <label for="tpm-dept-select" style="font-size: 0.85rem; font-weight: 600; opacity: 0.9;">🏢 Change Department:</label>
-    <select id="tpm-dept-select" style="background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.2); color: #FFFFFF; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; outline: none; transition: all 0.25s;" onchange="window.location.href=(this.value == '0' ? '/tpm/dashboard/' : '/tpm/department/' + this.value + '/')">
-      <option value="0" selected style="color: #1F2937; background: #FFFFFF;">Overall Plant</option>
-      {% for d in sidebar_departments %}
-        <option value="{{ d.id }}" style="color: #1F2937; background: #FFFFFF;">{{ d.name }} ({{ d.code }})</option>
-      {% endfor %}
-    </select>
-  </div>
-  {% endif %}
+  {% include 'portal/partials/_fy_filter.html' %}
 </div>
 
 <!-- Reusable Filter Ribbon -->

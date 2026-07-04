@@ -2,7 +2,7 @@
 
 {% block title %}FMEA Register — {{ active_dept.name }}{% endblock %}
 
-{% block content %}
+{% block fmea_content %}
 <div class="page-container" x-data="riskRegister()">
 
   <!-- Toast Toast Notification -->
@@ -338,7 +338,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block fmea_extra_js %}
 <script>
   function riskRegister() {
     return {

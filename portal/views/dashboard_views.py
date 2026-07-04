@@ -96,14 +96,7 @@ def overall_plant_dashboard(request):
             'color_class': 'module-iso',
             'url': '/department/0/coming-soon/ISO/',
         },
-        {
-            'key': 'Delays',
-            'label': 'Delay Logs & Tracking',
-            'description': 'Production line downtime, log summaries, and breakdown analysis',
-            'icon': 'clock',
-            'color_class': 'module-delays',
-            'url': '/delays/department/0/',
-        },
+
         {
             'key': 'OEE',
             'label': 'Overall Equipment Effectiveness',

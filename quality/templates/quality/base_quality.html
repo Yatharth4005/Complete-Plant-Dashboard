@@ -1,0 +1,151 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block title %}Quality Management Portal — {{ department.name }} — Operations Portal{% endblock %}
+
+{% block breadcrumb_items %}
+  <span class="breadcrumb-sep">›</span>
+  <a href="{% url 'portal:dept_hub' department.id %}">{{ department.name }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current" style="color: var(--jspl-orange); font-weight: 600;">Quality Portal</span>
+{% endblock %}
+
+{% block module_badge %}
+  <span class="badge badge-muted" style="background: rgba(22, 163, 74, 0.1); color: var(--status-green); border: 1px solid rgba(22, 163, 74, 0.3);">
+    ✔️ Quality Module
+  </span>
+{% endblock %}
+
+{% block extra_css %}
+  <!-- Add custom Quality styles -->
+  <style>
+    :root {
+      --quality-primary: #003478; /* Navy Blue */
+      --quality-secondary: #f47920; /* Orange */
+      --quality-light: #f8fafc;
+      --quality-border: #e2e8f0;
+      --quality-success: #16a34a;
+      --quality-warning: #ea580c;
+      --quality-danger: #dc2626;
+    }
+    
+    .quality-container {
+      padding: 12px 0;
+    }
+    
+    .quality-card {
+      background: white;
+      border: 1px solid var(--quality-border);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 52, 120, 0.02);
+      transition: all 0.2s ease;
+      margin-bottom: 24px;
+    }
+    
+    .quality-card:hover {
+      box-shadow: 0 6px 18px rgba(0, 52, 120, 0.05);
+    }
+    
+    .btn-quality {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+    
+    .btn-quality-primary {
+      background: var(--quality-primary);
+      color: white;
+    }
+    .btn-quality-primary:hover {
+      background: #00224f;
+    }
+    
+    .btn-quality-secondary {
+      background: white;
+      border: 1px solid var(--quality-border);
+      color: var(--quality-primary);
+    }
+    .btn-quality-secondary:hover {
+      background: var(--quality-light);
+    }
+    
+    /* Tabs navigation */
+    .quality-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--quality-border);
+      margin-bottom: 24px;
+      padding-bottom: 8px;
+    }
+    
+    .quality-tab-btn {
+      background: none;
+      border: none;
+      padding: 8px 16px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #64748b;
+      cursor: pointer;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    
+    .quality-tab-btn:hover {
+      background: rgba(0, 52, 120, 0.04);
+      color: var(--quality-primary);
+    }
+    
+    .quality-tab-btn.active {
+      background: rgba(0, 52, 120, 0.08);
+      color: var(--quality-primary);
+    }
+  </style>
+  {% block quality_extra_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="quality-container">
+  
+  <!-- Quality Top Portal Header Banner -->
+  <div class="quality-card" style="background: linear-gradient(135deg, #003478 0%, #00224f 100%); color: white; padding: 24px; border: none; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,52,120,0.12);">
+    <div>
+      <h2 style="margin: 0; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 10px; letter-spacing: -0.5px;">
+        🛡️ QUALITY MANAGEMENT PORTAL
+      </h2>
+      <p style="margin: 6px 0 0 0; opacity: 0.85; font-size: 0.88rem; font-weight: 500;">
+        Department Operations Workspace — Operational Zone: <span style="font-weight: 700; color: #f47920;">{{ department.name }}</span>
+      </p>
+    </div>
+    <div style="background: rgba(255,255,255,0.12); backdrop-filter: blur(4px); padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.18); display: flex; align-items: center; gap: 8px;">
+      📅 Shift Date: {% now "d-m-Y" %}
+    </div>
+  </div>
+
+  <!-- Quality Sub-modules navigation tabs -->
+  <div class="quality-tabs">
+    <a href="{% url 'quality:quality_dashboard' department.id %}" class="quality-tab-btn {% if active_tab == 'dashboard' %}active{% endif %}">
+      📊 Dashboard Overview
+    </a>
+    <a href="{% url 'quality:quality_entry' department.id %}" class="quality-tab-btn {% if active_tab == 'entry' %}active{% endif %}">
+      📝 New Data Entry
+    </a>
+    <a href="{% url 'quality:quality_summary_report' department.id %}" class="quality-tab-btn {% if active_tab == 'summary_report' %}active{% endif %}">
+      📋 Summary Report
+    </a>
+  </div>
+
+  {% block quality_content %}{% endblock %}
+</div>
+{% endblock %}

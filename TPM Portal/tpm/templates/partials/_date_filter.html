@@ -39,17 +39,7 @@
       </div>
     </div>
 
-    {% if pillar_id == 'PM' %}
-      <div style="display: flex; flex-direction: column;">
-        <label style="font-size: 0.75rem; font-weight: bold; color: var(--jspl-muted); margin-bottom: 4px;">Equipment</label>
-        <select name="selected_equipment" class="input-mono" style="width: 220px; max-width: 220px; height: 36px; padding: 6px 12px; border: 1px solid var(--jspl-border); border-radius: 4px;" onchange="submitPeriodFilter()">
-          <option value="">-- All Equipments --</option>
-          {% for eq in equipments %}
-            <option value="{{ eq }}" {% if eq == selected_equipment %}selected{% endif %}>{{ eq }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    {% endif %}
+
 
     {% if pillar_id %}
       <div x-show="activeTab === 'analytics'" style="display: flex; flex-direction: column;">

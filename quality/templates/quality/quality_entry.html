@@ -1,0 +1,526 @@
+{% extends 'quality/base_quality.html' %}
+{% load static %}
+
+{% block quality_extra_css %}
+<style>
+  .entry-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  
+  @media (max-width: 1024px) {
+    .entry-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (max-width: 768px) {
+    .entry-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--quality-primary);
+    border-bottom: 1px solid var(--quality-border);
+    padding-bottom: 10px;
+    margin-top: 0;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .form-group-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  
+  .form-control-custom {
+    width: 100%;
+    height: 38px;
+    border: 1px solid var(--quality-border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: var(--jspl-navy);
+    background-color: white;
+    outline: none;
+    transition: all 0.2s;
+  }
+  
+  .form-control-custom:focus {
+    border-color: var(--quality-primary);
+    box-shadow: 0 0 0 3px rgba(0, 52, 120, 0.08);
+  }
+  
+  .form-control-custom[readonly] {
+    background-color: #f1f5f9;
+    cursor: not-allowed;
+  }
+  
+  .control-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 6px;
+  }
+  
+  .control-label.required::after {
+    content: " *";
+    color: var(--quality-danger);
+  }
+  
+  .dynamic-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--quality-border);
+  }
+  
+  .dynamic-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--quality-border);
+  }
+</style>
+{% endblock %}
+
+{% block quality_content %}
+<form method="POST" enctype="multipart/form-data" 
+      x-data="{
+        inspected_qty: {{ entry.inspected_qty|default:0.0 }},
+        ftr_qty: {{ entry.ftr_qty|default:0.0 }},
+        accepted_qty: {{ entry.accepted_qty|default:0.0 }},
+        reasons: [
+          {% if entry.non_ftr_reasons.exists %}
+            {% for r in entry.non_ftr_reasons.all %}
+              { reason: '{{ r.reason|escapejs }}', qty: {{ r.qty }} },
+            {% endfor %}
+          {% else %}
+            { reason: '', qty: 0.0 }
+          {% endif %}
+        ],
+        
+        get computed_ftr_percent() {
+          if (this.inspected_qty <= 0) return '0.00%';
+          return ((this.ftr_qty / this.inspected_qty) * 100).toFixed(2) + '%';
+        },
+        
+        addReason() {
+          this.reasons.push({ reason: '', qty: 0.0 });
+        },
+        removeReason(index) {
+          this.reasons.splice(index, 1);
+        }
+      }">
+  {% csrf_token %}
+
+  <!-- Top Metadata Bar -->
+  <div class="quality-card" style="padding: 16px 20px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; background: #f8fafc;">
+    <div style="flex: 1; min-width: 150px;">
+      <label class="control-label">Department</label>
+      <input type="text" value="{{ department.name }}" class="form-control-custom" readonly>
+    </div>
+    
+    <div style="flex: 1; min-width: 150px;">
+      <label class="control-label">Entry No.</label>
+      <input type="text" name="entry_no" value="{{ entry_no }}" class="form-control-custom" readonly>
+    </div>
+    
+    <div style="flex: 1; min-width: 150px;">
+      <label class="control-label required">Date</label>
+      <input type="date" name="date" value="{{ entry.date|date:'Y-m-d'|default:today_str }}" class="form-control-custom" required>
+    </div>
+  </div>
+
+  <!-- Form Grid -->
+  <div class="entry-grid">
+    
+    <!-- 1. Heat & Product Details -->
+    <div class="quality-card" style="padding: 20px;">
+      <h3 class="card-title">🔥 Heat & Product Details</h3>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">Caster Type</label>
+          <select name="caster_type" class="form-control-custom">
+            <option value="">Select</option>
+            <option value="Combi Caster" {% if entry.caster_type == 'Combi Caster' %}selected{% endif %}>Combi Caster</option>
+            <option value="Billet Caster" {% if entry.caster_type == 'Billet Caster' %}selected{% endif %}>Billet Caster</option>
+            <option value="Slab Caster" {% if entry.caster_type == 'Slab Caster' %}selected{% endif %}>Slab Caster</option>
+          </select>
+        </div>
+        <div>
+          <label class="control-label required">Product Type</label>
+          <select name="product" id="product_select" class="form-control-custom" required>
+            <option value="">Select</option>
+            <option value="Round" {% if entry.product_type == 'Round' %}selected{% endif %}>Round</option>
+            <option value="Beam Blank" {% if entry.product_type == 'Beam Blank' %}selected{% endif %}>Beam Blank</option>
+            <option value="Billet" {% if entry.product_type == 'Billet' %}selected{% endif %}>Square</option>
+            <option value="Slab" {% if entry.product_type == 'Slab' %}selected{% endif %}>Rectangular</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">Section Type</label>
+          <select id="section_type_select" class="form-control-custom" onchange="document.getElementById('section_type_input').value = this.value">
+            <option value="">Select</option>
+            <option value="130*130" {% if entry.section_type == '130*130' %}selected{% endif %}>130*130 mm</option>
+            <option value="165*165" {% if entry.section_type == '165*165' %}selected{% endif %}>165*165 mm</option>
+            <option value="200*200" {% if entry.section_type == '200*200' %}selected{% endif %}>200*200 mm</option>
+            <option value="250*250" {% if entry.section_type == '250*250' %}selected{% endif %}>250*250 mm</option>
+            <option value="285*390" {% if entry.section_type == '285*390' %}selected{% endif %}>285*390 mm</option>
+            <option value="RD 162" {% if entry.section_type == 'RD 162' %}selected{% endif %}>RD 162 mm</option>
+            <option value="RD 180" {% if entry.section_type == 'RD 180' %}selected{% endif %}>RD 180 mm</option>
+            <option value="RD 200" {% if entry.section_type == 'RD 200' %}selected{% endif %}>RD 200 mm</option>
+            <option value="RD 220" {% if entry.section_type == 'RD 220' %}selected{% endif %}>RD 220 mm</option>
+            <option value="RD 255" {% if entry.section_type == 'RD 255' %}selected{% endif %}>RD 255 mm</option>
+            <option value="RD 280" {% if entry.section_type == 'RD 280' %}selected{% endif %}>RD 280 mm</option>
+            <option value="355*280*90" {% if entry.section_type == '355*280*90' %}selected{% endif %}>355*280*90 mm</option>
+          </select>
+        </div>
+        <div>
+          <label class="control-label">Section Type (Input)</label>
+          <input type="text" name="section_type" id="section_type_input" value="{{ entry.section_type|default:'' }}" class="form-control-custom" placeholder="Or enter manual section type">
+        </div>
+      </div>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">Grade</label>
+          <input type="text" name="grade" value="{{ entry.grade|default:'' }}" class="form-control-custom" placeholder="Enter Grade">
+        </div>
+        <div>
+          <label class="control-label">Heat Number</label>
+          <input type="text" name="heat_number" value="{{ entry.heat_number|default:'' }}" class="form-control-custom" placeholder="Enter Heat Number">
+        </div>
+      </div>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label required">Inspected Qty. (T)</label>
+          <input type="number" step="any" name="inspected_qty" x-model.number="inspected_qty" class="form-control-custom" required>
+        </div>
+        <div>
+          <label class="control-label required">FTR Qty. (T)</label>
+          <input type="number" step="any" name="ftr_qty" x-model.number="ftr_qty" class="form-control-custom" required>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 2. Defect Details -->
+    <div class="quality-card" style="padding: 20px;">
+      <h3 class="card-title">⚠️ Defect Details</h3>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">Type of Defect</label>
+          <select name="defect_type" class="form-control-custom">
+            <option value="">Select Defect</option>
+            <option value="Surface Crack" {% if entry.defect_type == 'Surface Crack' %}selected{% endif %}>Surface Crack</option>
+            <option value="Internal Void" {% if entry.defect_type == 'Internal Void' %}selected{% endif %}>Internal Void</option>
+            <option value="Rhomboidity" {% if entry.defect_type == 'Rhomboidity' %}selected{% endif %}>Rhomboidity</option>
+            <option value="Pinholes" {% if entry.defect_type == 'Pinholes' %}selected{% endif %}>Pinholes</option>
+          </select>
+        </div>
+        <div>
+          <label class="control-label">Defect Category</label>
+          <select name="defect_category" class="form-control-custom">
+            <option value="">Select Category</option>
+            <option value="Casting" {% if entry.defect_category == 'Casting' %}selected{% endif %}>Casting</option>
+            <option value="Mechanical" {% if entry.defect_category == 'Mechanical' %}selected{% endif %}>Mechanical</option>
+            <option value="Metallurgical" {% if entry.defect_category == 'Metallurgical' %}selected{% endif %}>Metallurgical</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">Defect Severity</label>
+          <select name="defect_severity" class="form-control-custom">
+            <option value="">Select Severity</option>
+            <option value="Minor" {% if entry.defect_severity == 'Minor' %}selected{% endif %}>Minor</option>
+            <option value="Major" {% if entry.defect_severity == 'Major' %}selected{% endif %}>Major</option>
+            <option value="Critical" {% if entry.defect_severity == 'Critical' %}selected{% endif %}>Critical</option>
+          </select>
+        </div>
+        <div>
+          <label class="control-label">Defect Qty. (T)</label>
+          <input type="number" step="any" name="defect_qty" value="{{ entry.defect_qty|default:0.0 }}" class="form-control-custom">
+        </div>
+      </div>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">Rejected Qty. (T)</label>
+          <input type="number" step="any" name="rejected_qty" value="{{ entry.rejected_qty|default:0.0 }}" class="form-control-custom">
+        </div>
+        <div>
+          <label class="control-label">Reason of Defect</label>
+          <input type="text" name="reason_of_defect" value="{{ entry.reason_of_defect|default:'' }}" class="form-control-custom" placeholder="Describe defect...">
+        </div>
+      </div>
+    </div>
+    
+    <!-- 3. Rework Details -->
+    <div class="quality-card" style="padding: 20px;">
+      <h3 class="card-title">🔄 Rework Details</h3>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">Type of Rework</label>
+          <select name="rework_type" class="form-control-custom">
+            <option value="">Select Rework</option>
+            <option value="Grinding" {% if entry.rework_type == 'Grinding' %}selected{% endif %}>Grinding</option>
+            <option value="Cutting" {% if entry.rework_type == 'Cutting' %}selected{% endif %}>Cutting</option>
+            <option value="Welding" {% if entry.rework_type == 'Welding' %}selected{% endif %}>Welding</option>
+          </select>
+        </div>
+        <div>
+          <label class="control-label">Rework Qty. (T)</label>
+          <input type="number" step="any" name="rework_qty" value="{{ entry.rework_qty|default:0.0 }}" class="form-control-custom">
+        </div>
+      </div>
+      
+      <div style="margin-top: 14px;">
+        <label class="control-label">Reason for Rework</label>
+        <textarea name="reason_for_rework" rows="3" class="form-control-custom" style="height: auto; resize: none;" placeholder="Describe rework reason...">{{ entry.reason_for_rework|default:'' }}</textarea>
+      </div>
+    </div>
+    
+    <!-- 4. Diversion Details -->
+    <div class="quality-card" style="padding: 20px;">
+      <h3 class="card-title">↪️ Diversion Details</h3>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">Diversion Type</label>
+          <select name="diversion_type" class="form-control-custom">
+            <option value="">Select Diversion</option>
+            <option value="Grade Downgrade" {% if entry.diversion_type == 'Grade Downgrade' %}selected{% endif %}>Grade Downgrade</option>
+            <option value="Customer Re-allocation" {% if entry.diversion_type == 'Customer Re-allocation' %}selected{% endif %}>Customer Re-allocation</option>
+          </select>
+        </div>
+        <div>
+          <label class="control-label">Diversion Qty. (T)</label>
+          <input type="number" step="any" name="diversion_qty" value="{{ entry.diversion_qty|default:0.0 }}" class="form-control-custom">
+        </div>
+      </div>
+      
+      <div style="margin-top: 14px;">
+        <label class="control-label">Reason for Diversion</label>
+        <textarea name="reason_for_diversion" rows="3" class="form-control-custom" style="height: auto; resize: none;" placeholder="Describe diversion reason...">{{ entry.reason_for_diversion|default:'' }}</textarea>
+      </div>
+    </div>
+    
+    <!-- 5. Mix Grade Details -->
+    <div class="quality-card" style="padding: 20px;">
+      <h3 class="card-title">🔀 Mix Grade Details</h3>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">Mix Grade</label>
+          <input type="text" name="mix_grade" value="{{ entry.mix_grade|default:'' }}" class="form-control-custom" placeholder="Enter Mix Grade">
+        </div>
+        <div>
+          <label class="control-label">Mix Qty. (T)</label>
+          <input type="number" step="any" name="mix_qty" value="{{ entry.mix_qty|default:0.0 }}" class="form-control-custom">
+        </div>
+      </div>
+      
+      <div style="margin-top: 14px;">
+        <label class="control-label">Reason for Mix Grade</label>
+        <textarea name="reason_for_mix_grade" rows="3" class="form-control-custom" style="height: auto; resize: none;" placeholder="Describe mix grade reason...">{{ entry.reason_for_mix_grade|default:'' }}</textarea>
+      </div>
+    </div>
+    
+    <!-- 6. POR (Proof of Rework) -->
+    <div class="quality-card" style="padding: 20px;">
+      <h3 class="card-title">🛡️ POR (Proof of Rework)</h3>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">POR Type</label>
+          <select name="por_type" class="form-control-custom">
+            <option value="">Select POR Type</option>
+            <option value="Visual inspection" {% if entry.por_type == 'Visual inspection' %}selected{% endif %}>Visual inspection</option>
+            <option value="Ultrasonic Testing" {% if entry.por_type == 'Ultrasonic Testing' %}selected{% endif %}>Ultrasonic Testing</option>
+            <option value="Dye Penetrant" {% if entry.por_type == 'Dye Penetrant' %}selected{% endif %}>Dye Penetrant</option>
+          </select>
+        </div>
+        <div>
+          <label class="control-label">POR Qty. (T)</label>
+          <input type="number" step="any" name="por_qty" value="{{ entry.por_qty|default:0.0 }}" class="form-control-custom">
+        </div>
+      </div>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">POR Document / Ref No.</label>
+          <input type="text" name="por_doc_ref" value="{{ entry.por_doc_ref|default:'' }}" class="form-control-custom" placeholder="Enter Ref No.">
+        </div>
+        <div>
+          <label class="control-label">Remarks</label>
+          <input type="text" name="por_remarks" value="{{ entry.por_remarks|default:'' }}" class="form-control-custom" placeholder="POR Remarks">
+        </div>
+      </div>
+    </div>
+    
+    <!-- 7. FTR Details (Calculated Dashboard Card) -->
+    <div class="quality-card" style="padding: 20px; background: #faf5ff; border-color: #d8b4fe;">
+      <h3 class="card-title" style="color: #7c3aed; border-bottom-color: #e9d5ff;">📊 FTR Details</h3>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label" style="color: #6b21a8;">Inspected Qty. (T)</label>
+          <div class="form-control-custom" readonly style="font-weight: 700; color: #7c3aed; background: #f3e8ff;" x-text="inspected_qty.toFixed(2)"></div>
+        </div>
+        <div>
+          <label class="control-label" style="color: #6b21a8;">Accepted Qty. (T)</label>
+          <input type="number" step="any" name="accepted_qty" x-model.number="accepted_qty" class="form-control-custom" style="border-color: #c084fc;">
+        </div>
+      </div>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label" style="color: #6b21a8;">FTR Qty. (T)</label>
+          <div class="form-control-custom" readonly style="font-weight: 700; color: #7c3aed; background: #f3e8ff;" x-text="ftr_qty.toFixed(2)"></div>
+        </div>
+        <div>
+          <label class="control-label" style="color: #6b21a8;">FTR %</label>
+          <div class="form-control-custom" readonly style="font-weight: 700; color: #16a34a; background: #f3e8ff;" x-text="computed_ftr_percent"></div>
+          <input type="hidden" name="ftr_percent" :value="parseFloat(computed_ftr_percent)">
+        </div>
+      </div>
+      
+      <div style="margin-top: 14px;">
+        <label class="control-label" style="color: #6b21a8;">Inspection Status</label>
+        <select name="inspection_status" class="form-control-custom" style="border-color: #c084fc;">
+          <option value="Passed" {% if entry.inspection_status == 'Passed' %}selected{% endif %}>Passed</option>
+          <option value="Conditionally Passed" {% if entry.inspection_status == 'Conditionally Passed' %}selected{% endif %}>Conditionally Passed</option>
+          <option value="Failed" {% if entry.inspection_status == 'Failed' %}selected{% endif %}>Failed</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- 8. PSFS Details -->
+    <div class="quality-card" style="padding: 20px;">
+      <h3 class="card-title">📋 PSFS Details</h3>
+      
+      <div class="form-group-row">
+        <div>
+          <label class="control-label">PSFS Type</label>
+          <select name="psfs_type" class="form-control-custom">
+            <option value="">Select PSFS</option>
+            <option value="Coil defect" {% if entry.psfs_type == 'Coil defect' %}selected{% endif %}>Coil defect</option>
+            <option value="Slab defect" {% if entry.psfs_type == 'Slab defect' %}selected{% endif %}>Slab defect</option>
+          </select>
+        </div>
+        <div>
+          <label class="control-label">PSFS Qty. (T)</label>
+          <input type="number" step="any" name="psfs_qty" value="{{ entry.psfs_qty|default:0.0 }}" class="form-control-custom">
+        </div>
+      </div>
+      
+      <div style="margin-top: 14px;">
+        <label class="control-label">Reason for PSFS</label>
+        <textarea name="reason_for_psfs" rows="3" class="form-control-custom" style="height: auto; resize: none;" placeholder="Describe PSFS reason...">{{ entry.reason_for_psfs|default:'' }}</textarea>
+      </div>
+    </div>
+    
+    <!-- 9. Non-FTR Reasons Dynamic Grid -->
+    <div class="quality-card" style="padding: 20px; grid-column: span 1;">
+      <h3 class="card-title">🏷️ Non-FTR Reasons</h3>
+      
+      <table class="dynamic-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th style="width: 60%; text-align: left;">Reason</th>
+            <th style="width: 30%; text-align: right;">Qty. (T)</th>
+            <th style="width: 10%; text-align: center;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(item, index) in reasons" :key="index">
+            <tr>
+              <td>
+                <select name="non_ftr_reason[]" x-model="item.reason" class="form-control-custom" required>
+                  <option value="">Select Reason</option>
+                  <option value="Process Deviation">Process Deviation</option>
+                  <option value="Grinding">Grinding</option>
+                  <option value="PSL">PSL</option>
+                  <option value="Face Cut">Face Cut</option>
+                </select>
+              </td>
+              <td>
+                <input type="number" step="any" name="non_ftr_qty[]" x-model.number="item.qty" class="form-control-custom" style="text-align: right;" required>
+              </td>
+              <td style="text-align: center;">
+                <button type="button" @click="removeReason(index)" style="background: none; border: none; color: var(--quality-danger); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      
+      <button type="button" @click="addReason()" class="btn-quality btn-quality-secondary" style="margin-top: 14px; width: 100%; justify-content: center;">
+        ➕ Add Reason
+      </button>
+    </div>
+    
+  </div>
+
+  <!-- Remarks & Attachments Row -->
+  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px;">
+    <div class="quality-card" style="padding: 20px;">
+      <h3 class="card-title">💬 Remarks</h3>
+      <textarea name="remarks" rows="4" class="form-control-custom" style="height: auto; resize: none;" placeholder="Enter additional quality observations...">{{ entry.remarks|default:'' }}</textarea>
+    </div>
+    
+    <div class="quality-card" style="padding: 20px;">
+      <h3 class="card-title">📎 Attachments</h3>
+      <div style="border: 2px dashed var(--quality-border); border-radius: 8px; padding: 24px; text-align: center; background: #f8fafc;">
+        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">📁</span>
+        <label style="cursor: pointer; color: var(--quality-primary); font-weight: 600; font-size: 0.85rem;">
+          Choose File
+          <input type="file" name="attachment" style="display: none;">
+        </label>
+        <span style="display: block; font-size: 0.72rem; color: var(--jspl-muted); margin-top: 4px;">Max size 10MB (PDF, JPG, PNG, XLSX)</span>
+        {% if entry.attachment %}
+          <div style="margin-top: 10px; font-size: 0.8rem; color: var(--quality-success); font-weight: 600;">
+            Current: <a href="{{ entry.attachment.url }}" target="_blank">View File</a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Form Actions Bar -->
+  <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 50px;">
+    <a href="{% url 'quality:quality_dashboard' department.id %}" class="btn-quality btn-quality-secondary" style="height: 40px; padding: 0 24px; display: inline-flex; align-items: center;">
+      Cancel
+    </a>
+    <button type="submit" name="action" value="draft" class="btn-quality btn-quality-secondary" style="height: 40px; padding: 0 24px;">
+      Save Draft
+    </button>
+    <button type="submit" name="action" value="submit" class="btn-quality btn-quality-primary" style="height: 40px; padding: 0 24px;">
+      Submit Record
+    </button>
+  </div>
+
+</form>
+{% endblock %}
