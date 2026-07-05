@@ -48,6 +48,7 @@ class DelayRecord(models.Model):
     agency_type = models.CharField(max_length=50, default='Internal', choices=[('Internal', 'Internal'), ('External', 'External')])
     agency = models.CharField(max_length=150, help_text="Responsible agency, e.g. 'Planned Delay', 'Mechanical'")
     sub_agency = models.CharField(max_length=150, blank=True, null=True, help_text="Sub-agency, e.g. 'Length change'")
+    sub_area = models.CharField(max_length=150, blank=True, null=True, help_text="Sub-area")
     section = models.CharField(max_length=150, blank=True, null=True, help_text="Rolled section, e.g. 'UC 254X254'")
     
     # Asset Details

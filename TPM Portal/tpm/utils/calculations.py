@@ -62,46 +62,28 @@ def parse_period(request):
       - 'label': string representation of the period (e.g. "Jun 2026" or "Jun 2026 - Dec 2026")
     """
     today = datetime.date.today()
-    filter_type = request.GET.get('filter_type', 'single')
     
-    if filter_type == 'range':
-        # Defaults
-        from_month = today.month
-        from_year = today.year
-        to_month = today.month
-        to_year = today.year
-        
-        from_period_month = request.GET.get('from_period_month')
-        if from_period_month and '-' in from_period_month:
-            try:
-                from_year_str, from_month_str = from_period_month.split('-')
-                from_year = int(from_year_str)
-                from_month = int(from_month_str)
-            except ValueError:
-                pass
-        else:
-            try:
-                from_month = int(request.GET.get('from_month', from_month))
-                from_year = int(request.GET.get('from_year', from_year))
-            except ValueError:
-                pass
-                
-        to_period_month = request.GET.get('to_period_month')
-        if to_period_month and '-' in to_period_month:
-            try:
-                to_year_str, to_month_str = to_period_month.split('-')
-                to_year = int(to_year_str)
-                to_month = int(to_month_str)
-            except ValueError:
-                pass
-        else:
-            try:
-                to_month = int(request.GET.get('to_month', to_month))
-                to_year = int(request.GET.get('to_year', to_year))
-            except ValueError:
-                pass
-        
-        # Ensure start date is not after end date
+    date_start = request.GET.get('date_start')
+    date_end = request.GET.get('date_end')
+    
+    if date_start and date_end:
+        filter_type = 'range'
+        try:
+            start_parts = date_start.strip().split('-')
+            from_year = int(start_parts[0])
+            from_month = int(start_parts[1])
+        except (ValueError, IndexError):
+            from_year = today.year
+            from_month = today.month
+            
+        try:
+            end_parts = date_end.strip().split('-')
+            to_year = int(end_parts[0])
+            to_month = int(end_parts[1])
+        except (ValueError, IndexError):
+            to_year = today.year
+            to_month = today.month
+            
         if from_year > to_year or (from_year == to_year and from_month > to_month):
             from_month, to_month = to_month, from_month
             from_year, to_year = to_year, from_year
@@ -109,27 +91,74 @@ def parse_period(request):
         month = from_month
         year = from_year
     else:
-        filter_type = 'single'
-        month = today.month
-        year = today.year
+        filter_type = request.GET.get('filter_type', 'single')
         
-        period_month = request.GET.get('period_month')
-        if period_month and '-' in period_month:
-            try:
-                year_str, month_str = period_month.split('-')
-                year = int(year_str)
-                month = int(month_str)
-            except ValueError:
-                pass
-        else:
-            try:
-                month = int(request.GET.get('month', month))
-                year = int(request.GET.get('year', year))
-            except ValueError:
-                pass
+        if filter_type == 'range':
+            # Defaults
+            from_month = today.month
+            from_year = today.year
+            to_month = today.month
+            to_year = today.year
+            
+            from_period_month = request.GET.get('from_period_month')
+            if from_period_month and '-' in from_period_month:
+                try:
+                    from_year_str, from_month_str = from_period_month.split('-')
+                    from_year = int(from_year_str)
+                    from_month = int(from_month_str)
+                except ValueError:
+                    pass
+            else:
+                try:
+                    from_month = int(request.GET.get('from_month', from_month))
+                    from_year = int(request.GET.get('from_year', from_year))
+                except ValueError:
+                    pass
+                    
+            to_period_month = request.GET.get('to_period_month')
+            if to_period_month and '-' in to_period_month:
+                try:
+                    to_year_str, to_month_str = to_period_month.split('-')
+                    to_year = int(to_year_str)
+                    to_month = int(to_month_str)
+                except ValueError:
+                    pass
+            else:
+                try:
+                    to_month = int(request.GET.get('to_month', to_month))
+                    to_year = int(request.GET.get('to_year', to_year))
+                except ValueError:
+                    pass
+            
+            # Ensure start date is not after end date
+            if from_year > to_year or (from_year == to_year and from_month > to_month):
+                from_month, to_month = to_month, from_month
+                from_year, to_year = to_year, from_year
                 
-        from_month = to_month = month
-        from_year = to_year = year
+            month = from_month
+            year = from_year
+        else:
+            filter_type = 'single'
+            month = today.month
+            year = today.year
+            
+            period_month = request.GET.get('period_month')
+            if period_month and '-' in period_month:
+                try:
+                    year_str, month_str = period_month.split('-')
+                    year = int(year_str)
+                    month = int(month_str)
+                except ValueError:
+                    pass
+            else:
+                try:
+                    month = int(request.GET.get('month', month))
+                    year = int(request.GET.get('year', year))
+                except ValueError:
+                    pass
+                    
+            from_month = to_month = month
+            from_year = to_year = year
         
     months_map = dict([
         (1, 'Jan'), (2, 'Feb'), (3, 'Mar'), (4, 'Apr'),

@@ -279,7 +279,7 @@ def _get_plant_dashboard_context(request):
             'month': m,
             'year': selected_year,
             'label': months_labels[m-1]
-        } for m in range(1, 13)]
+        } for m in range(1, selected_month + 1)]
 
     PRODUCTION_trend_actuals = []
     PRODUCTION_trend_targets = []

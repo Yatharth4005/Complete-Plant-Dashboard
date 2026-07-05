@@ -590,6 +590,8 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
         'subagency': 'sub_agency',
         'subdept': 'sub_agency',
         'area': 'sub_agency',
+        'subarea': 'sub_area',
+        'sub_area': 'sub_area',
         'why': 'why',
         'capa': 'why',
         'rootcause': 'why',
@@ -641,6 +643,8 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
                 temp_mapping['sub_equipment'] = c
             elif 'sub_agency' not in temp_mapping and any(kw in val_str for kw in ['sub-agency', 'subagency', 'sub agency', 'area', 'sub-dept', 'subdept']):
                 temp_mapping['sub_agency'] = c
+            elif 'sub_area' not in temp_mapping and any(kw in val_str for kw in ['sub-area', 'subarea', 'sub area']):
+                temp_mapping['sub_area'] = c
             elif 'equipment' not in temp_mapping and any(kw in val_str for kw in ['equipment', 'equip', 'asset', 'machine']) and 'sub' not in val_str:
                 temp_mapping['equipment'] = c
             elif 'agency' not in temp_mapping and any(kw in val_str for kw in ['agency', 'responsibility']) and 'sub' not in val_str and 'catg' not in val_str and 'category' not in val_str:
@@ -846,6 +850,12 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
         if sub_agency_idx is not None and sub_agency_idx < len(row) and row[sub_agency_idx]:
             sub_agency = str(row[sub_agency_idx])
             
+        sub_area = ""
+        sub_area_idx = col_mapping.get('sub_area', None)
+        if sub_area_idx is not None and sub_area_idx < len(row) and row[sub_area_idx]:
+            sub_area = str(row[sub_area_idx])
+        sub_area = sub_area.strip() if sub_area else None
+            
         why = ""
         why_idx = col_mapping.get('why', None)
         if why_idx is not None and why_idx < len(row) and row[why_idx]:
@@ -893,6 +903,7 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             duration_mins=duration,
             agency=agency,
             sub_agency=sub_agency,
+            sub_area=sub_area,
             section=None,
             equipment=equipment,
             sub_equipment=sub_equipment,

@@ -116,7 +116,7 @@ def ws_kpi_page(request, dept_id):
                     'month': m,
                     'year': year,
                     'label': months_labels_short[m-1]
-                } for m in range(1, 13)]
+                } for m in range(1, month + 1)]
 
             chart_labels = [rm['label'] for rm in range_months]
             ws_trends = {}

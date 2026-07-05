@@ -149,6 +149,16 @@
           </div>
 
           <div class="filter-group">
+            <label class="filter-label">Sub Area</label>
+            <select name="sub_area" class="filter-input input-mono">
+              <option value="">All Sub Areas</option>
+              {% for sa in sub_areas %}
+                <option value="{{ sa }}">{{ sa }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="filter-group">
             <label class="filter-label">Equipment</label>
             <select name="equipment" class="filter-input input-mono">
               <option value="">All Equipments</option>

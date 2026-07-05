@@ -122,6 +122,14 @@
         </div>
         
         <div class="form-field-group internal-only-field">
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Sub Area</label>
+          {{ form.sub_area }}
+          {% if form.sub_area.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.sub_area.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="form-field-group internal-only-field">
           <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Equipment</label>
           {{ form.equipment }}
           {% if form.equipment.errors %}

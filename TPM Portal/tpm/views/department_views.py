@@ -142,7 +142,7 @@ def dept_overview(request, dept_id):
             'month': m,
             'year': selected_year,
             'label': months_labels[m-1]
-        } for m in range(1, 13)]
+        } for m in range(1, selected_month + 1)]
 
     chart_labels = []
     for rm in range_months:

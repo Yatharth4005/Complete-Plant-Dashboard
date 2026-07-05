@@ -53,6 +53,10 @@ def get_department_autocompletes(department, records):
     sub_agencies_set.update(records.exclude(sub_agency__isnull=True).exclude(sub_agency='').values_list('sub_agency', flat=True).distinct())
     sub_agencies = sorted([x for x in sub_agencies_set if x])
     
+    sub_areas_set = set(custom_options.filter(category__iexact='Sub-Area').values_list('value', flat=True).distinct())
+    sub_areas_set.update(records.exclude(sub_area__isnull=True).exclude(sub_area='').values_list('sub_area', flat=True).distinct())
+    sub_areas = sorted([x for x in sub_areas_set if x])
+    
     sections_set = set(records.order_by('section').values_list('section', flat=True).distinct().exclude(section=''))
     sections = sorted([x for x in sections_set if x])
     
@@ -72,6 +76,7 @@ def get_department_autocompletes(department, records):
     return {
         'agencies': agencies,
         'sub_agencies': sub_agencies,
+        'sub_areas': sub_areas,
         'sections': sections,
         'equipments': equipments,
         'sub_equipments': sub_equipments,
@@ -341,6 +346,7 @@ def dept_overview(request, dept_id):
     autocompletes = get_department_autocompletes(department, all_records)
     agencies = autocompletes['agencies']
     sub_agencies = autocompletes['sub_agencies']
+    sub_areas = autocompletes['sub_areas']
     sections = autocompletes['sections']
     equipments = autocompletes['equipments']
     sub_equipments = autocompletes['sub_equipments']
@@ -567,6 +573,7 @@ def dept_overview(request, dept_id):
             'equipments': equipments,
             'equipments_list': equipments_list,
             'sub_agencies': sub_agencies,
+            'sub_areas': sub_areas,
             'sub_equipments': sub_equipments,
         })
     
@@ -768,6 +775,7 @@ def dept_overview(request, dept_id):
         'agencies': agencies,
         'table_agencies': sorted(list(set(agencies + list(Department.objects.all().values_list('name', flat=True))))),
         'sub_agencies': sub_agencies,
+        'sub_areas': sub_areas,
         'sections': sections,
         'equipments': equipments,
         'equipments_list': equipments_list,
@@ -866,6 +874,7 @@ def records_table(request, dept_id):
     agency_type_filter = request.GET.get('agency_type', '').strip()
     agency_filter = request.GET.get('agency', '').strip()
     sub_agency_filter = request.GET.get('sub_agency', '').strip()
+    sub_area_filter = request.GET.get('sub_area', '').strip()
     equipment_filter = request.GET.get('equipment', '').strip()
     sub_equipment_filter = request.GET.get('sub_equipment', '').strip()
     sheet_filter = request.GET.get('sheet', '').strip()
@@ -890,6 +899,9 @@ def records_table(request, dept_id):
         
     if sub_agency_filter:
         records = records.filter(sub_agency=sub_agency_filter)
+        
+    if sub_area_filter:
+        records = records.filter(sub_area=sub_area_filter)
         
     if equipment_filter:
         eq_filter = get_equipment_filter_q(equipment_filter)
@@ -926,6 +938,7 @@ def records_table(request, dept_id):
     agencies = autocompletes['agencies']
     equipments = autocompletes['equipments']
     sub_agencies = autocompletes['sub_agencies']
+    sub_areas = autocompletes['sub_areas']
     sub_equipments = autocompletes['sub_equipments']
 
     table_agencies = sorted(list(set(agencies + list(Department.objects.all().values_list('name', flat=True)))))
@@ -959,6 +972,7 @@ def records_table(request, dept_id):
         'equipments': equipments,
         'equipments_list': equipments_list,
         'sub_agencies': sub_agencies,
+        'sub_areas': sub_areas,
         'sub_equipments': sub_equipments,
     })
 
@@ -991,6 +1005,7 @@ def new_record(request, dept_id):
     autocompletes = get_department_autocompletes(department, records)
     agencies = autocompletes['agencies']
     sub_agencies = autocompletes['sub_agencies']
+    sub_areas = autocompletes['sub_areas']
     sections = autocompletes['sections']
     equipments = autocompletes['equipments']
     sub_equipments = autocompletes['sub_equipments']
@@ -1004,6 +1019,7 @@ def new_record(request, dept_id):
         'can_edit': True,
         'agencies': agencies,
         'sub_agencies': sub_agencies,
+        'sub_areas': sub_areas,
         'sections': sections,
         'equipments': equipments,
         'sub_equipments': sub_equipments,
@@ -1050,6 +1066,7 @@ def edit_record(request, dept_id, record_id):
     autocompletes = get_department_autocompletes(department, records)
     agencies = autocompletes['agencies']
     sub_agencies = autocompletes['sub_agencies']
+    sub_areas = autocompletes['sub_areas']
     sections = autocompletes['sections']
     equipments = autocompletes['equipments']
     sub_equipments = autocompletes['sub_equipments']
@@ -1065,6 +1082,7 @@ def edit_record(request, dept_id, record_id):
         'is_admin': request.user.is_admin(),
         'agencies': agencies,
         'sub_agencies': sub_agencies,
+        'sub_areas': sub_areas,
         'sections': sections,
         'equipments': equipments,
         'sub_equipments': sub_equipments,
@@ -1492,6 +1510,14 @@ def manage_options(request, dept_id):
             DelayDropdownOption.objects.get_or_create(
                 department=department,
                 category='Sub-Agency',
+                value=val
+            )
+            
+        db_sub_areas = records.values_list('sub_area', flat=True).distinct().exclude(sub_area='')
+        for val in db_sub_areas:
+            DelayDropdownOption.objects.get_or_create(
+                department=department,
+                category='Sub-Area',
                 value=val
             )
             
