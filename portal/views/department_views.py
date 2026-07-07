@@ -72,7 +72,12 @@ def enter_module(request, dept_id, module_key):
     )
     
     # Interpolate redirect URL template (e.g. replacing {dept_id})
-    target_url = module.redirect_url_template.format(dept_id=dept_id)
+    if module.key.upper() == 'AVAILABILITY':
+        target_url = '/delays/department/{dept_id}/'.format(dept_id=dept_id)
+    elif module.key.upper() == 'CHECKLIST':
+        target_url = '/delays/department/{dept_id}/?tab=checklist_summary'.format(dept_id=dept_id)
+    else:
+        target_url = module.redirect_url_template.format(dept_id=dept_id)
     
     # Dynamic host adjustment to ensure cookies are shared correctly
     request_host = request.get_host().split(':')[0] # e.g. 'localhost' or '127.0.0.1'
@@ -117,6 +122,6 @@ def coming_soon(request, dept_id, module_key):
     if module_key.upper() == 'SAFETY':
         return render(request, 'portal/department/safety_dashboard.html', context)
     elif module_key.upper() == 'AVAILABILITY':
-        return render(request, 'portal/department/availability_dashboard.html', context)
+        return redirect('delays:dept_overview', dept_id=department.id)
         
     return render(request, 'portal/department/coming_soon.html', context)

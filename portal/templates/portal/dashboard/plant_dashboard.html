@@ -47,7 +47,7 @@
             {% include "portal/partials/_module_icon.html" with key=item.module.key %}
           </span>
           <div class="module-btn-text">
-            <span class="module-btn-name">{{ item.module.key }}</span>
+            <span class="module-btn-name">{% if item.module.key == 'HOD_KPI' %}HOD KPI{% else %}{{ item.module.key }}{% endif %}</span>
             <span class="module-btn-desc">{{ item.module.label }}</span>
           </div>
           <span class="module-btn-badge {{ item.access_level|lower }}">{% if item.access_level == 'EDIT' %}View + Edit{% else %}View Only{% endif %}</span>
@@ -57,7 +57,7 @@
         <div class="dept-hub-module-btn locked" title="{{ item.module.label }} (Access Restricted)">
           <span class="module-btn-icon">🔒</span>
           <div class="module-btn-text">
-            <span class="module-btn-name">{{ item.module.key }}</span>
+            <span class="module-btn-name">{% if item.module.key == 'HOD_KPI' %}HOD KPI{% else %}{{ item.module.key }}{% endif %}</span>
             <span class="module-btn-desc" style="color: rgba(255, 255, 255, 0.35);">{{ item.module.label }}</span>
           </div>
           <span class="module-btn-badge locked">LOCKED</span>

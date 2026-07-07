@@ -63,21 +63,18 @@
                      class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px; text-transform: capitalize;">
             </div>
             
-            <!-- Parent Value input (if cat is Sub-Agency, Sub-Area or Sub-Equipment) -->
-            {% if cat == 'Sub-Agency' or cat == 'Sub-Area' or cat == 'Sub-Equipment' %}
-            <div style="flex: 1; min-width: 200px;">
-              <input type="text" name="parent_value" placeholder="Parent {% if cat == 'Sub-Agency' %}Agency{% elif cat == 'Sub-Area' %}Area{% else %}Equipment{% endif %} (Optional)" 
-                     class="filter-input input-mono" style="width: 100%; height: 38px; box-sizing: border-box; padding: 6px 12px; text-transform: capitalize;">
-            </div>
-            {% elif cat == 'Equipment' %}
+            <!-- Parent Value input -->
+            {% if cat == 'Equipment' %}
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 0.82rem; font-weight: bold; color: var(--delays-primary);">Category:</span>
-              <select name="parent_value" class="filter-input input-mono" style="height: 38px; padding: 6px 12px; cursor: pointer; min-width: 80px; box-sizing: border-box;">
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
+              <select name="parent_value" class="filter-input input-mono" style="height: 38px; padding: 6px 12px; cursor: pointer; min-width: 150px; box-sizing: border-box;">
+                <option value="">-- Select Category --</option>
+                <option value="A">Category A</option>
+                <option value="B">Category B</option>
+                <option value="C">Category C</option>
               </select>
             </div>
+
             {% elif cat == 'Shift Incharge' %}
             <div style="flex: 1; min-width: 150px;">
               <input type="text" name="role" placeholder="Role (e.g. AM, DM)..." required 
@@ -171,29 +168,27 @@
                           <span style="font-weight: 600; color: var(--delays-primary);">
                             {{ opt.value }}
                             {% if opt.category == 'Equipment' and opt.parent_value %}
-                              <span class="agency-badge" style="background: rgba(244,121,32,0.08); color: var(--delays-accent); border-color: rgba(244,121,32,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Category {{ opt.parent_value }}</span>
-                            {% elif opt.category == 'Sub-Agency' and opt.parent_value %}
-                              <span class="agency-badge" style="background: rgba(0,87,168,0.08); color: var(--jspl-blue); border-color: rgba(0,87,168,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Parent: {{ opt.parent_value }}</span>
-                            {% elif opt.category == 'Sub-Area' and opt.parent_value %}
-                              <span class="agency-badge" style="background: rgba(0,87,168,0.08); color: var(--jspl-blue); border-color: rgba(0,87,168,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Parent: {{ opt.parent_value }}</span>
-                            {% elif opt.category == 'Sub-Equipment' and opt.parent_value %}
-                              <span class="agency-badge" style="background: rgba(0,87,168,0.08); color: var(--jspl-blue); border-color: rgba(0,87,168,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">Parent: {{ opt.parent_value }}</span>
+                              <span class="agency-badge" style="background: rgba(244,121,32,0.08); color: var(--delays-accent); border-color: rgba(244,121,32,0.2); margin-left: 8px; font-size: 0.72rem; padding: 2px 6px;">
+                                {% if opt.parent_value == 'A' or opt.parent_value == 'B' or opt.parent_value == 'C' %}Category {% endif %}{{ opt.parent_value }}
+                              </span>
+
                             {% endif %}
                           </span>
                         </div>
                         <div x-show="editing" style="display: flex; gap: 10px; align-items: center; width: 100%;">
                           <input type="text" x-model="editValue" class="filter-input input-mono" style="height: 32px; padding: 4px 8px; font-size: 0.82rem; flex: 1.5; box-sizing: border-box; text-transform: capitalize;">
-                          {% if cat == 'Sub-Agency' or cat == 'Sub-Area' or cat == 'Sub-Equipment' %}
-                            <input type="text" x-model="editParentValue" placeholder="Parent Value" class="filter-input input-mono" style="height: 32px; padding: 4px 8px; font-size: 0.82rem; flex: 1; box-sizing: border-box; text-transform: capitalize;">
-                          {% elif cat == 'Equipment' %}
+
+                          {% if cat == 'Equipment' %}
                             <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
                               <span style="font-size: 0.8rem; font-weight: bold; color: var(--delays-primary);">Category:</span>
-                              <select x-model="editParentValue" class="filter-input input-mono" style="height: 32px; padding: 4px; font-size: 0.8rem; width: 60px; box-sizing: border-box;">
-                                <option value="A">A</option>
-                                <option value="B">B</option>
-                                <option value="C">C</option>
+                              <select x-model="editParentValue" class="filter-input input-mono" style="height: 32px; padding: 4px; font-size: 0.8rem; min-width: 120px; box-sizing: border-box;">
+                                <option value="">-- None --</option>
+                                <option value="A">Category A</option>
+                                <option value="B">Category B</option>
+                                <option value="C">Category C</option>
                               </select>
                             </div>
+
                           {% endif %}
                         </div>
                       </td>
@@ -219,7 +214,7 @@
                             <input type="hidden" name="option_id" value="{{ opt.id }}">
                             <input type="hidden" name="category" value="{{ cat }}">
                             <input type="hidden" name="value" :value="editValue">
-                            {% if cat == 'Sub-Agency' or cat == 'Sub-Area' or cat == 'Sub-Equipment' or cat == 'Equipment' %}
+                            {% if cat == 'Equipment' or cat == 'Action' %}
                               <input type="hidden" name="parent_value" :value="editParentValue">
                             {% endif %}
                             <button type="submit" style="background: none; border: none; padding: 4px; cursor: pointer; color: var(--status-green); font-size: 1.2rem; line-height: 1; display: inline-flex !important; align-items: center; justify-content: center; margin: 0;" title="Save Changes">

@@ -34,6 +34,24 @@ def get_user_module_access_map(user, department) -> dict:
     for r in records:
         access_map[r.module.key] = r.access_level
         
+    # Ensure Delays, Availability, and Checklist share the maximum of their access levels
+    delays_access = access_map.get('Delays')
+    avail_access = access_map.get('Availability')
+    checklist_access = access_map.get('Checklist')
+    
+    max_access = None
+    for acc in [delays_access, avail_access, checklist_access]:
+        if acc == 'EDIT':
+            max_access = 'EDIT'
+            break
+        elif acc == 'VIEW':
+            max_access = 'VIEW'
+            
+    if max_access:
+        access_map['Delays'] = max_access
+        access_map['Availability'] = max_access
+        access_map['Checklist'] = max_access
+        
     return access_map
 
 def user_can_access_module(user, department, module_key) -> bool:

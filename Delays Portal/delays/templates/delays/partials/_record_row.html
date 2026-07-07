@@ -2,82 +2,45 @@
   {% if department.id == 0 %}
     <td style="font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--delays-primary);">{{ r.department.code }}</td>
   {% endif %}
-  <!-- Date input -->
+  <!-- Date text -->
   <td class="td-date">
-    <input type="date" name="date" value="{{ r.date|date:'Y-m-d' }}" class="table-input-date" {% if is_admin or can_edit and not r.is_locked %}{% else %}disabled{% endif %}>
+    {{ r.date|date:'d-m-Y' }}
   </td>
   
-  <!-- Duration input -->
+  <!-- Duration text -->
   <td class="td-duration">
-    <input type="number" step="any" name="duration_mins" value="{{ r.duration_mins }}" class="table-input-duration" {% if is_admin or can_edit and not r.is_locked %}{% else %}disabled{% endif %}>
+    {{ r.duration_mins }}
   </td>
   
-  <!-- Agency dropdown -->
+  <!-- Production Loss text -->
+  <td class="td-production-loss" style="font-weight: 600;">
+    {{ r.production_loss|default:0.0 }}
+  </td>
+  
+  <!-- Agency text -->
   <td class="td-agency">
-    {% if is_admin or can_edit and not r.is_locked %}
-      <select name="agency" class="table-select-agency">
-        {% if r.agency and r.agency not in table_agencies %}
-          <option value="{{ r.agency }}" selected>{{ r.agency }}</option>
-        {% endif %}
-        {% for a in table_agencies %}
-          <option value="{{ a }}" {% if a == r.agency %}selected{% endif %}>{{ a }}</option>
-        {% endfor %}
-      </select>
-    {% else %}
-      <span class="agency-badge">{{ r.agency }}</span>
-    {% endif %}
+    <span class="agency-badge">{{ r.agency }}</span>
   </td>
   
-  <!-- Equipment dropdown -->
+  <!-- Equipment text -->
   <td class="td-equipment">
-    {% if is_admin or can_edit and not r.is_locked %}
-      <select name="equipment" class="table-select-equipment">
-        <option value="">NIL</option>
-        {% with req_upper=r.equipment|upper %}
-        {% if r.equipment and req_upper not in equipments %}
-          <option value="{{ r.equipment }}" selected>{{ r.equipment }}</option>
-        {% endif %}
-        {% endwith %}
-        {% for eq in equipments_list %}
-          <option value="{{ eq.value }}" {% if eq.value|upper == r.equipment|upper %}selected{% endif %}>{{ eq.display }}</option>
-        {% endfor %}
-      </select>
+    {% if r.equipment_category %}
+      {{ r.equipment }} <span style="display: inline-flex; align-items: center; justify-content: center; background: rgba(244,121,32,0.08); color: var(--delays-accent); border: 1px solid rgba(244,121,32,0.2); font-size: 0.72rem; padding: 1px 5px; border-radius: 4px; font-weight: 700; margin-left: 4px; line-height: 1;">{{ r.equipment_category }}</span>
     {% else %}
-      {% if r.equipment_category %}
-        {{ r.equipment }} <span style="display: inline-flex; align-items: center; justify-content: center; background: rgba(244,121,32,0.08); color: var(--delays-accent); border: 1px solid rgba(244,121,32,0.2); font-size: 0.72rem; padding: 1px 5px; border-radius: 4px; font-weight: 700; margin-left: 4px; line-height: 1;">{{ r.equipment_category }}</span>
-      {% else %}
-        {{ r.equipment|default:"NIL" }}
-      {% endif %}
+      {{ r.equipment|default:"NIL" }}
     {% endif %}
   </td>
   
-  <!-- WHY-WHY/CAPA dropdown -->
+  <!-- WHY-WHY/CAPA text -->
   <td class="td-why">
     <div style="display: flex; align-items: center; gap: 8px;">
-      {% if is_admin or can_edit and not r.is_locked %}
-        <select name="why" class="table-select-why" onchange="updateWhyButton(this, '{{ r.id }}')">
-          <option value="CAPA" {% if r.why == 'CAPA' %}selected{% endif %}>CAPA</option>
-          <option value="NO" {% if r.why == 'NO' or not r.why %}selected{% endif %}>NO</option>
-        </select>
-        
-        <!-- The button that appears dynamically -->
-        <a id="why-btn-{{ r.id }}" 
-           href="{% if r.why == 'CAPA' %}/capa/department/{{ r.department.id }}/identification/?delay_record_id={{ r.id }}{% else %}#{% endif %}" 
-           class="btn-fill-sheet" 
-           onclick="{% if r.why == 'NO' or not r.why %}return false;{% endif %}"
-           style="{% if r.why == 'CAPA' %}display: inline-flex;{% else %}display: none;{% endif %} text-decoration: none; padding: 4px 8px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap; align-items: center; justify-content: center;"
-           target="_blank">
-           Fill CAPA
+      <span class="status-badge {% if r.why == 'CAPA' %}warning{% else %}success{% endif %}">
+        {{ r.why|default:"NO" }}
+      </span>
+      {% if r.why == 'CAPA' %}
+        <a href="{% url 'capa:report' r.department.id %}?delay_record_id={{ r.id }}" class="btn-fill-sheet" style="text-decoration: none; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--delays-primary); background: transparent; color: var(--delays-primary);" target="_blank">
+          View CAPAs
         </a>
-      {% else %}
-        <span class="status-badge {% if r.why == 'CAPA' %}warning{% else %}success{% endif %}">
-          {{ r.why|default:"NO" }}
-        </span>
-        {% if r.why == 'CAPA' %}
-          <a href="/capa/department/{{ r.department.id }}/" class="btn-fill-sheet" style="text-decoration: none; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; border-radius: 4px; border: 1px solid var(--delays-primary); background: transparent; color: var(--delays-primary);" target="_blank">
-            View CAPAs
-          </a>
-        {% endif %}
       {% endif %}
     </div>
   </td>
@@ -86,20 +49,11 @@
     <td class="td-actions" style="text-align: center; white-space: nowrap;">
       {% if is_admin or not r.is_locked %}
         <!-- Edit Detail page button -->
-        <a href="{% url 'delays:edit_record' department.id r.id %}"
+        <a href="{% url 'delays:edit_record' department.id r.id %}?next={{ request.get_full_path|urlencode }}"
            class="btn-action-edit"
            title="Edit Detailed Record"
            style="text-decoration: none; margin-right: 4px;">📝</a>
-
-        <!-- Save button -->
-        <button class="btn-action-save"
-                hx-post="{% url 'delays:update_record_inline' department.id r.id %}"
-                hx-include="#record-row-{{ r.id }} input, #record-row-{{ r.id }} select"
-                hx-target="#record-row-{{ r.id }}"
-                hx-swap="outerHTML"
-                hx-confirm="Are you sure you want to save changes to this record?"
-                title="Save Changes">💾</button>
-        
+             
         <!-- Delete button -->
         <button class="btn-action-delete"
                 hx-delete="{% url 'delays:delete_record' department.id r.id %}"

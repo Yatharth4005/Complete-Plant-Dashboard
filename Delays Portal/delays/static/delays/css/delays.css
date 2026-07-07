@@ -476,6 +476,8 @@
 
 /* Action Buttons inside Table */
 .btn-action-edit,
+.btn-action-edit-inline,
+.btn-action-cancel,
 .btn-action-delete {
   background: transparent;
   border: none;
@@ -489,11 +491,13 @@
   line-height: 1;
 }
 
-.btn-action-edit:hover {
+.btn-action-edit:hover,
+.btn-action-edit-inline:hover {
   background: rgba(0, 40, 85, 0.05);
 }
 
-.btn-action-delete:hover {
+.btn-action-delete:hover,
+.btn-action-cancel:hover {
   background: rgba(239, 68, 68, 0.05);
 }
 

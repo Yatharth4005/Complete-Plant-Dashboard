@@ -869,6 +869,10 @@ a {
   border-top: 4px solid #10b981;
 }
 
+.module-card.module-checklist {
+  border-top: 4px solid #059669;
+}
+
 .module-card.module-fmea {
   border-top: 4px solid #e11d48;
 }
@@ -1316,6 +1320,10 @@ a {
   border-left: 4.5px solid #10b981;
 }
 
+.dept-hub-module-btn.module-checklist {
+  border-left: 4.5px solid #059669;
+}
+
 .dept-hub-module-btn.module-fmea {
   border-left: 4.5px solid #e11d48;
 }
@@ -1366,6 +1374,10 @@ a {
 
 .dept-hub-module-btn.accessible.module-availability:hover {
   border-color: #10b981;
+}
+
+.dept-hub-module-btn.accessible.module-checklist:hover {
+  border-color: #059669;
 }
 
 .dept-hub-module-btn.accessible.module-fmea:hover {

@@ -465,10 +465,54 @@ def capa_report(request, dept_id):
     uploads = CAPADocxUpload.objects.filter(department=active_dept).order_by('-uploaded_at')
     
     upload_id = request.GET.get('upload_id')
+    delay_record_id = request.GET.get('delay_record_id')
     selected_upload_id = 'new_file'
     selected_upload = None
     
-    if upload_id and upload_id != 'new_file':
+    if delay_record_id:
+        from delays.models import DelayRecord
+        try:
+            delay_rec = DelayRecord.objects.get(id=int(delay_record_id), department=active_dept)
+            date_str = delay_rec.date.strftime('%Y-%m-%d') if delay_rec.date else ''
+            
+            # Find CAPAReport matching date_incident and area_section
+            reports = CAPAReport.objects.filter(
+                department=active_dept,
+                date_incident=date_str,
+                area_section__iexact=(delay_rec.equipment or '').strip()
+            )
+            
+            # Fallback to date_incident and description search if no match
+            if not reports.exists() and delay_rec.description:
+                reports = CAPAReport.objects.filter(
+                    department=active_dept,
+                    date_incident=date_str,
+                    problem_what__icontains=delay_rec.description.strip()[:50]
+                )
+                
+            # If still not found, let's try just matching by problem_what containing the description
+            if not reports.exists() and delay_rec.description:
+                reports = CAPAReport.objects.filter(
+                    department=active_dept,
+                    problem_what__icontains=delay_rec.description.strip()[:30]
+                )
+                
+            # If still not found, redirect to create a new CAPA prefilled with this delay's data
+            if not reports.exists():
+                return redirect(reverse('capa:identification', args=[dept_id]) + f'?delay_record_id={delay_rec.id}')
+                
+            # Set the selected upload context so that UI highlights it correctly
+            first_report = reports.first()
+            if first_report and first_report.docx_upload:
+                selected_upload = first_report.docx_upload
+                selected_upload_id = selected_upload.id
+            else:
+                selected_upload_id = 'new_file'
+                selected_upload = None
+                
+        except Exception:
+            reports = CAPAReport.objects.filter(department=active_dept, docx_upload=None)
+    elif upload_id and upload_id != 'new_file':
         try:
             selected_upload_id = int(upload_id)
             if selected_upload_id == 0:
@@ -502,7 +546,7 @@ def capa_report(request, dept_id):
         whys_list = [w for w in whys_list if w]
         while len(whys_list) < 3:
             whys_list.append('')
-
+ 
         # Build structure for rowspan logic if needed, or simply flat display of actions
         reports_data.append({
             'record': r,
@@ -528,6 +572,7 @@ def capa_report(request, dept_id):
         'selected_upload_id': selected_upload_id,
         'selected_upload': selected_upload,
         'can_edit': True,
+        'delay_record_id': delay_record_id,
     }
     context.update(dropdown_res)
     return render(request, 'capa/report.html', context)

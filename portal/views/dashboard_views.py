@@ -111,7 +111,15 @@ def overall_plant_dashboard(request):
             'description': 'Uptime monitoring, machine availability logs, and maintenance alerts',
             'icon': 'activity',
             'color_class': 'module-availability',
-            'url': '/department/0/coming-soon/Availability/',
+            'url': '/delays/department/0/',
+        },
+        {
+            'key': 'Checklist',
+            'label': 'Checklist',
+            'description': 'Manage department shift checklists, inspections, and actions',
+            'icon': 'clipboard-list',
+            'color_class': 'module-checklist',
+            'url': '/delays/department/0/?tab=checklist_summary',
         },
         {
             'key': 'FMEA',

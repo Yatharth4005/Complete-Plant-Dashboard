@@ -5,11 +5,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db import models
-from django.db.models import Q, Sum, Avg
+from django.db.models import Q, Sum, Avg, Count
 from django.utils import timezone
 from datetime import date
 from tpm.models import Department
-from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification, EquipmentShutdownSetting
+from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification, EquipmentShutdownSetting, MaintenanceChecklist, MaintenanceChecklistItem
 from delays.forms import DelayRecordForm
 from delays.utils.parser import parse_excel_file, normalize_agency_name
 from portal.utils.access import user_can_access_module, user_can_edit_module
@@ -73,6 +73,17 @@ def get_department_autocompletes(department, records):
     incharges_set.update(records.order_by('shift_incharge').values_list('shift_incharge', flat=True).distinct().exclude(shift_incharge=''))
     incharges = sorted([x for x in incharges_set if x])
     
+    actions_set = set(custom_options.filter(category__iexact='Action').values_list('value', flat=True).distinct())
+    if not actions_set:
+        actions_set.update([
+            "Check motor body temperature and vibration levels",
+            "Inspect belt tension, pulley alignment, and look for tear/slip",
+            "Verify oil level in gearboxes and check for hydraulic leaks",
+            "Inspect mechanical coupling, spindles, and foundation bolts tightness",
+            "Verify limit switches operation and cable connection health"
+        ])
+    actions = sorted(list(actions_set))
+    
     return {
         'agencies': agencies,
         'sub_agencies': sub_agencies,
@@ -80,7 +91,8 @@ def get_department_autocompletes(department, records):
         'sections': sections,
         'equipments': equipments,
         'sub_equipments': sub_equipments,
-        'incharges': incharges
+        'incharges': incharges,
+        'actions': actions
     }
 
 @login_required
@@ -90,7 +102,7 @@ def dept_overview(request, dept_id):
     Displays metrics, charts, upload features, and logs tables.
     """
     tab = request.GET.get('tab', 'dashboard').strip()
-    if tab in ['summary', 'pareto', 'mttr_mtbf', 'capa_summary']:
+    if tab in ['summary', 'pareto', 'mttr_mtbf', 'capa_summary', 'checklist_summary', 'manual_checklist']:
         active_tab = tab
     else:
         active_tab = 'dashboard'
@@ -100,12 +112,11 @@ def dept_overview(request, dept_id):
     # Set default date range if not specified
     today = timezone.localtime(timezone.now()).date()
     if not date_start:
-        # Financial Year start (April 1st of the previous calendar year to include last year and current date)
-        # If we are in July 2026, this is April 1, 2025.
+        # Current Financial Year start (April 1st of the current financial year)
         if today.month >= 4:
-            date_start = date(today.year - 1, 4, 1).strftime('%Y-%m-%d')
+            date_start = date(today.year, 4, 1).strftime('%Y-%m-%d')
         else:
-            date_start = date(today.year - 2, 4, 1).strftime('%Y-%m-%d')
+            date_start = date(today.year - 1, 4, 1).strftime('%Y-%m-%d')
     
     if not date_end:
         date_end = today.strftime('%Y-%m-%d')
@@ -140,6 +151,75 @@ def dept_overview(request, dept_id):
         can_edit = user_can_edit_module(request.user, department, 'Delays')
         is_admin = request.user.is_admin()
         all_records = DelayRecord.objects.filter(department=department)
+
+        # Ensure default Crane options exist for E&I / SMS-II EOT Cranes if EOT or Crane is mentioned
+        if int(dept_id) != 0:
+            crane_exists = DelayDropdownOption.objects.filter(department=department, category='Sub-Agency', value__iexact='Crane').exists()
+            if not crane_exists:
+                # Seed Area 'Crane'
+                DelayDropdownOption.objects.get_or_create(
+                    department=department,
+                    category='Sub-Agency',
+                    value='Crane'
+                )
+                # Seed Equipment 'MAIN HOIST -1' with parent_value='Crane'
+                DelayDropdownOption.objects.get_or_create(
+                    department=department,
+                    category='Equipment',
+                    value='MAIN HOIST -1',
+                    parent_value='Crane'
+                )
+                # Seed Equipment 'MAIN HOIST -2' with parent_value='Crane'
+                DelayDropdownOption.objects.get_or_create(
+                    department=department,
+                    category='Equipment',
+                    value='MAIN HOIST -2',
+                    parent_value='Crane'
+                )
+                # Seed Actions for MAIN HOIST -1
+                hoist_1_actions = [
+                    "CHECK CONTACTOR AND ITS KIT",
+                    "CHECK TIGHTNESS MAIN INCOMING MCCB",
+                    "CHECK TIGHTNESS OF ALL CARDS & ITS POWER TERMINALS ASTAT DRIVE POWER MODULE",
+                    "CHECK TIGHTNESS OF ALL CARDS & ITS POWER TERMINALS ASTAT DRIVE CONTROL MODULE",
+                    "CHECK TIGHTNESS ALL CONTROL & POWER CONTACTORS AND ITS KITS",
+                    "CHECK TIGHTNESS ALL CONTROL & POWER CONNECTIONS",
+                    "CHECK TIGHTNESS ALL CONNECTION OF RESISTANCE BOX",
+                    "CHECK TIGHTNESS GRAVITY LIMIT SWITCH OPERATING MECHANISM",
+                    "CHECK TIGHTNESS RORATY LIMIT SWITCH OPERATING MECHANISM",
+                    "CHECK TIGHTNESS TACHO CONNECTION & MOUNTING",
+                    "CHECK TIGHTNESS ELECTROMAGNETIC BRAKE CONNECTION",
+                    "ENSURE LIMIT SWITCH / BRAKE / TACHO OPERATION",
+                    "CHECK TIGHTNESS OF MOTOR TERMINAL, CARBON BRUSH & SLIP RING",
+                    "PROPER ARRANGEMENT TO COVER THE DRIVE PANELS AGAINST DUST",
+                    "ENSURE THE HEAT EXCHANGER/DRIVE FAN IS HEALTHY OR NOT",
+                    "CHECK PANEL COVER, RESISTANCE BOX COVER."
+                ]
+                for act in hoist_1_actions:
+                    DelayDropdownOption.objects.get_or_create(
+                        department=department,
+                        category='Action',
+                        value=act,
+                        parent_value='MAIN HOIST -1'
+                    )
+                
+                # Seed Actions for MAIN HOIST -2
+                hoist_2_actions = [
+                    "CHECK CONTACTOR AND ITS KIT",
+                    "CHECK TIGHTNESS MAIN INCOMING MCCB",
+                    "CHECK TIGHTNESS OF ALL CARDS & ITS POWER TERMINALS ASTAT DRIVE POWER MODULE",
+                    "CHECK TIGHTNESS OF ALL CARDS & ITS POWER TERMINALS ASTAT DRIVE CONTROL MODULE",
+                    "CHECK TIGHTNESS ALL CONTROL & POWER CONTACTORS AND ITS KITS",
+                    "CHECK TIGHTNESS ALL CONTROL & POWER CONNECTIONS",
+                    "CHECK TIGHTNESS ALL CONNECTION OF RESISTANCE BOX"
+                ]
+                for act in hoist_2_actions:
+                    DelayDropdownOption.objects.get_or_create(
+                        department=department,
+                        category='Action',
+                        value=act,
+                        parent_value='MAIN HOIST -2'
+                    )
     
     if date_start:
         all_records = all_records.filter(date__gte=date_start)
@@ -351,6 +431,7 @@ def dept_overview(request, dept_id):
     equipments = autocompletes['equipments']
     sub_equipments = autocompletes['sub_equipments']
     incharges = autocompletes['incharges']
+    actions = autocompletes['actions']
  
     # Pareto Calculation by Agency
     agency_pareto = []
@@ -410,6 +491,72 @@ def dept_overview(request, dept_id):
             'equipment': eq or "N/A",
             'mins': round(total, 1),
             'percent': round((total / total_equip_mins * 100) if total_equip_mins > 0 else 0.0, 1),
+            'cum_percent': round(cum_percent, 1),
+            'rank': idx + 1,
+            'is_vital': cum_percent <= 85.0 or idx == 0
+        })
+
+    # Pareto Frequency Calculation by Agency
+    agency_counts = {}
+    for r in all_records:
+        ag = (r.agency or '').strip()
+        if ag:
+            agency_counts[ag] = agency_counts.get(ag, 0) + 1
+    agency_frequency_sorted = sorted(agency_counts.items(), key=lambda x: x[1], reverse=True)
+    top_agency_freq = agency_frequency_sorted[0][0] if agency_frequency_sorted else "N/A"
+    top_agency_freq_count = agency_frequency_sorted[0][1] if agency_frequency_sorted else 0
+    
+    agency_pareto_freq = []
+    running_counts = 0
+    for idx, (ag, count) in enumerate(agency_frequency_sorted):
+        running_counts += count
+        cum_percent = (running_counts / total_events * 100) if total_events > 0 else 0.0
+        agency_pareto_freq.append({
+            'agency': ag,
+            'count': count,
+            'percent': round((count / total_events * 100) if total_events > 0 else 0.0, 1),
+            'cum_percent': round(cum_percent, 1),
+            'rank': idx + 1,
+            'is_vital': cum_percent <= 85.0 or idx == 0
+        })
+
+    # Pareto Frequency Calculation by Equipment
+    all_equip_counts = all_records.exclude(
+        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='NIL')
+    ).values('equipment').annotate(total=Count('id'))
+    
+    py_eq_counts_pareto = {}
+    for eb in all_equip_counts:
+        cleaned = clean_equipment_name(eb['equipment'])
+        if cleaned:
+            py_eq_counts_pareto[cleaned] = py_eq_counts_pareto.get(cleaned, 0) + eb['total']
+            
+    sorted_py_eqs_counts = sorted(py_eq_counts_pareto.items(), key=lambda x: x[1], reverse=True)
+    total_equip_counts = sum(x[1] for x in sorted_py_eqs_counts)
+    
+    if total_equip_counts == 0:
+        all_desc_counts = all_records.exclude(
+            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')
+        ).values('description').annotate(total=Count('id'))
+        
+        py_desc_counts = {}
+        for db in all_desc_counts:
+            cleaned = (db['description'] or '').strip()
+            if cleaned:
+                py_desc_counts[cleaned] = py_desc_counts.get(cleaned, 0) + db['total']
+                
+        sorted_py_eqs_counts = sorted(py_desc_counts.items(), key=lambda x: x[1], reverse=True)
+        total_equip_counts = sum(x[1] for x in sorted_py_eqs_counts)
+
+    equip_pareto_freq = []
+    running_equip_counts = 0
+    for idx, (eq, count) in enumerate(sorted_py_eqs_counts):
+        running_equip_counts += count
+        cum_percent = (running_equip_counts / total_equip_counts * 100) if total_equip_counts > 0 else 0.0
+        equip_pareto_freq.append({
+            'equipment': eq or "N/A",
+            'count': count,
+            'percent': round((count / total_equip_counts * 100) if total_equip_counts > 0 else 0.0, 1),
             'cum_percent': round(cum_percent, 1),
             'rank': idx + 1,
             'is_vital': cum_percent <= 85.0 or idx == 0
@@ -514,9 +661,10 @@ def dept_overview(request, dept_id):
     for r in all_records:
         desc = (r.description or '').lower()
         why = (r.why or '').lower()
+        act_val = (r.action or '').lower()
         matched = set()
         for kw, category in keywords_map.items():
-            if kw in desc or kw in why:
+            if kw in desc or kw in why or kw in act_val:
                 matched.add(category)
         for category in matched:
             keyword_counts[category] += 1
@@ -610,7 +758,7 @@ def dept_overview(request, dept_id):
     unread_notifications_count = notifications.filter(is_read=False).count()
 
     # MTTR/MTBF calculations
-    from django.db.models import Min, Max, Count
+    from django.db.models import Min, Max
     import datetime
     d1 = None
     d2 = None
@@ -758,6 +906,11 @@ def dept_overview(request, dept_id):
         'pareto_mins_json': json.dumps([x['mins'] for x in agency_pareto]),
         'pareto_cum_json': json.dumps([x['cum_percent'] for x in agency_pareto]),
         
+        # Pareto Frequency JSONs
+        'pareto_freq_labels_json': json.dumps([x['agency'] for x in agency_pareto_freq]),
+        'pareto_freq_count_json': json.dumps([x['count'] for x in agency_pareto_freq]),
+        'pareto_freq_cum_json': json.dumps([x['cum_percent'] for x in agency_pareto_freq]),
+        
         # Lists
         'records': records_list, # Limit initially
         'sheets_parsed': sheets_parsed,
@@ -766,6 +919,10 @@ def dept_overview(request, dept_id):
         # Pareto Context Lists
         'agency_pareto': agency_pareto,
         'equip_pareto': equip_pareto[:10], # Top 10 for display
+        'agency_pareto_freq': agency_pareto_freq,
+        'equip_pareto_freq': equip_pareto_freq[:10],
+        'top_agency_freq': top_agency_freq,
+        'top_agency_freq_count': top_agency_freq_count,
         
         # Mitigation
         'mitigation_categories': sorted_keywords,
@@ -781,12 +938,30 @@ def dept_overview(request, dept_id):
         'equipments_list': equipments_list,
         'sub_equipments': sub_equipments,
         'incharges': incharges,
+        'actions': actions,
         
+        # Fetch Checklist items from manual entry
+        'checklist_items': MaintenanceChecklistItem.objects.select_related('checklist', 'checklist__department').order_by('-checklist__date', '-checklist__id', 'id') if department.id == 0 else MaintenanceChecklistItem.objects.filter(
+            checklist__department=department
+        ).select_related('checklist').order_by('-checklist__date', '-checklist__id', 'id'),
+
         # Sidebar/Layout settings
         'active_dept_id': department.id,
         'active_module': 'Delays',
         'active_section': 'department_module',
     }
+    
+    # Serialize dropdown options for Alpine.js hierarchy
+    dropdown_options_list = []
+    if department.id != 0:
+        for opt in DelayDropdownOption.objects.filter(department=department):
+            dropdown_options_list.append({
+                'category': opt.category,
+                'value': opt.value,
+                'parent_value': opt.parent_value or '',
+            })
+    context['dropdown_options_json'] = json.dumps(dropdown_options_list)
+    
     return render(request, 'delays/dashboard.html', context)
 
 
@@ -887,7 +1062,8 @@ def records_table(request, dept_id):
             Q(equipment__icontains=query) |
             Q(sub_equipment__icontains=query) |
             Q(shift_incharge__icontains=query) |
-            Q(why__icontains=query)  # type: ignore
+            Q(why__icontains=query) |
+            Q(action__icontains=query)  # type: ignore
         )
         
     if agency_type_filter:
@@ -984,9 +1160,23 @@ def new_record(request, dept_id):
     """
     department = get_object_or_404(Department, id=dept_id)
     
+    # Get safe next redirect url
+    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER')
+    if next_url:
+        from urllib.parse import urlparse
+        parsed = urlparse(next_url)
+        if parsed.netloc and parsed.netloc != request.get_host():
+            next_url = None
+        else:
+            next_url = parsed.path
+            if parsed.query:
+                next_url += f"?{parsed.query}"
+    if not next_url or '/records/' in next_url:
+        next_url = f"/delays/department/{dept_id}/?tab=summary"
+    
     if not user_can_edit_module(request.user, department, 'Delays'):
         messages.error(request, "You do not have editing permissions to log manual entries.")
-        return redirect('delays:dept_overview', dept_id=dept_id)
+        return redirect(next_url)
         
     if request.method == 'POST':
         form = DelayRecordForm(request.POST, department=department)
@@ -996,7 +1186,7 @@ def new_record(request, dept_id):
             record.sheet_name = 'Manual Entry'
             record.save()
             messages.success(request, f"Manual delay entry on {record.date} successfully logged.")
-            return redirect('delays:dept_overview', dept_id=dept_id)
+            return redirect(next_url)
     else:
         form = DelayRecordForm(department=department)
         
@@ -1017,6 +1207,7 @@ def new_record(request, dept_id):
         'active_tab': 'entry',
         'is_edit': False,
         'can_edit': True,
+        'next_url': next_url,
         'agencies': agencies,
         'sub_agencies': sub_agencies,
         'sub_areas': sub_areas,
@@ -1043,21 +1234,35 @@ def edit_record(request, dept_id, record_id):
     department = get_object_or_404(Department, id=dept_id)
     record = get_object_or_404(DelayRecord, id=record_id, department=department)
     
+    # Get safe next redirect url
+    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER')
+    if next_url:
+        from urllib.parse import urlparse
+        parsed = urlparse(next_url)
+        if parsed.netloc and parsed.netloc != request.get_host():
+            next_url = None
+        else:
+            next_url = parsed.path
+            if parsed.query:
+                next_url += f"?{parsed.query}"
+    if not next_url or '/records/' in next_url:
+        next_url = f"/delays/department/{dept_id}/?tab=summary"
+        
     if not user_can_edit_module(request.user, department, 'Delays'):
         messages.error(request, "You do not have permissions to edit records.")
-        return redirect('delays:dept_overview', dept_id=dept_id)
+        return redirect(next_url)
         
     # Check if locked and verify admin permission
     if record.is_locked and not request.user.is_admin():
         messages.error(request, "This record is locked and can only be edited by an Admin.")
-        return redirect('delays:dept_overview', dept_id=dept_id)
+        return redirect(next_url)
         
     if request.method == 'POST':
         form = DelayRecordForm(request.POST, instance=record, department=department)
         if form.is_valid():
             form.save()
             messages.success(request, "Delay record updated successfully.")
-            return redirect('delays:dept_overview', dept_id=dept_id)
+            return redirect(next_url)
     else:
         form = DelayRecordForm(instance=record, department=department)
         
@@ -1079,6 +1284,7 @@ def edit_record(request, dept_id, record_id):
         'record': record,
         'is_edit': True,
         'can_edit': True,
+        'next_url': next_url,
         'is_admin': request.user.is_admin(),
         'agencies': agencies,
         'sub_agencies': sub_agencies,
@@ -1207,10 +1413,10 @@ def update_record_inline(request, dept_id, record_id):
             'table_agencies': table_agencies,
             'equipments': equipments,
             'equipments_list': equipments_list,
+            'is_editing': False,
         })
         
     return HttpResponse('Method Not Allowed', status=405)
-
 
 @login_required
 def download_pdf_report(request, dept_id):
@@ -1245,6 +1451,8 @@ def pareto_overall(request, dept_id):
     """
     Returns the overall Pareto Analysis content (HTMX endpoint).
     """
+    pareto_type = request.GET.get('pareto_type', 'time').strip()
+    
     if int(dept_id) == 0:
         class DummyDept:
             id = 0
@@ -1256,9 +1464,18 @@ def pareto_overall(request, dept_id):
         department = get_object_or_404(Department, id=dept_id)
         records = DelayRecord.objects.filter(department=department)
     
+    # Apply date filters if present in parameters
+    date_start = request.GET.get('date_start', '').strip()
+    date_end = request.GET.get('date_end', '').strip()
+    if date_start:
+        records = records.filter(date__gte=date_start)
+    if date_end:
+        records = records.filter(date__lte=date_end)
+        
     total_mins = records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
+    total_events = records.count()
     
-    # Pareto Calculation by Agency
+    # --- Time-based Agency Pareto ---
     agency_breakdown = records.values('agency').annotate(total=Sum('duration_mins')).order_by('-total')
     agency_pareto = []
     running_mins = 0
@@ -1274,39 +1491,120 @@ def pareto_overall(request, dept_id):
             'is_vital': cum_percent <= 85.0 or idx == 0
         })
 
-    # Pareto Calculation by Equipment
+    # --- Time-based Equipment Pareto ---
     all_equip_breakdown = records.exclude(
-        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA')  # type: ignore
+        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='NIL')
     ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')
     
-    total_equip_mins = sum(x['total'] for x in all_equip_breakdown)
+    py_eq_totals_pareto = {}
+    for eb in all_equip_breakdown:
+        cleaned = clean_equipment_name(eb['equipment'])
+        if cleaned:
+            py_eq_totals_pareto[cleaned] = py_eq_totals_pareto.get(cleaned, 0.0) + (eb['total'] or 0.0)
+            
+    sorted_py_eqs_pareto = sorted(py_eq_totals_pareto.items(), key=lambda x: x[1], reverse=True)
+    total_equip_mins = sum(x[1] for x in sorted_py_eqs_pareto)
+    
     group_by_field = 'equipment'
     is_description = False
     
-    # Fallback to description if no equipment data is available (like in SMS3 daily sheets)
+    # Fallback to description if no equipment data is available
     if total_equip_mins == 0:
-        all_equip_breakdown = records.exclude(
-            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')  # type: ignore
+        all_desc_breakdown = records.exclude(
+            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')
         ).values('description').annotate(total=Sum('duration_mins')).order_by('-total')
-        total_equip_mins = sum(x['total'] for x in all_equip_breakdown)
+        
+        py_desc_totals = {}
+        for db in all_desc_breakdown:
+            cleaned = (db['description'] or '').strip()
+            if cleaned:
+                py_desc_totals[cleaned] = py_desc_totals.get(cleaned, 0.0) + (db['total'] or 0.0)
+                
+        sorted_py_eqs_pareto = sorted(py_desc_totals.items(), key=lambda x: x[1], reverse=True)
+        total_equip_mins = sum(x[1] for x in sorted_py_eqs_pareto)
         group_by_field = 'description'
         is_description = True
 
     equip_pareto = []
     running_equip_mins = 0
-    for idx, eb in enumerate(all_equip_breakdown):
-        running_equip_mins += eb['total']
+    for idx, (eq, total) in enumerate(sorted_py_eqs_pareto):
+        running_equip_mins += total
         cum_percent = (running_equip_mins / total_equip_mins * 100) if total_equip_mins > 0 else 0.0
-        label_val = eb[group_by_field] or "N/A"
         equip_pareto.append({
-            'equipment': label_val,
-            'mins': round(eb['total'], 1),
-            'percent': round((eb['total'] / total_equip_mins * 100) if total_equip_mins > 0 else 0.0, 1),
+            'equipment': eq or "N/A",
+            'mins': round(total, 1),
+            'percent': round((total / total_equip_mins * 100) if total_equip_mins > 0 else 0.0, 1),
             'cum_percent': round(cum_percent, 1),
             'rank': idx + 1,
             'is_vital': cum_percent <= 85.0 or idx == 0
         })
+
+    # --- Frequency-based Agency Pareto ---
+    agency_counts = {}
+    for r in records:
+        ag = (r.agency or '').strip()
+        if ag:
+            agency_counts[ag] = agency_counts.get(ag, 0) + 1
+    agency_frequency_sorted = sorted(agency_counts.items(), key=lambda x: x[1], reverse=True)
+    top_agency_freq = agency_frequency_sorted[0][0] if agency_frequency_sorted else "N/A"
+    top_agency_freq_count = agency_frequency_sorted[0][1] if agency_frequency_sorted else 0
+    
+    agency_pareto_freq = []
+    running_counts = 0
+    for idx, (ag, count) in enumerate(agency_frequency_sorted):
+        running_counts += count
+        cum_percent = (running_counts / total_events * 100) if total_events > 0 else 0.0
+        agency_pareto_freq.append({
+            'agency': ag,
+            'count': count,
+            'percent': round((count / total_events * 100) if total_events > 0 else 0.0, 1),
+            'cum_percent': round(cum_percent, 1),
+            'rank': idx + 1,
+            'is_vital': cum_percent <= 85.0 or idx == 0
+        })
+
+    # --- Frequency-based Equipment Pareto ---
+    all_equip_counts = records.exclude(
+        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='NIL')
+    ).values('equipment').annotate(total=Count('id'))
+    
+    py_eq_counts_pareto = {}
+    for eb in all_equip_counts:
+        cleaned = clean_equipment_name(eb['equipment'])
+        if cleaned:
+            py_eq_counts_pareto[cleaned] = py_eq_counts_pareto.get(cleaned, 0) + eb['total']
+            
+    sorted_py_eqs_counts = sorted(py_eq_counts_pareto.items(), key=lambda x: x[1], reverse=True)
+    total_equip_counts = sum(x[1] for x in sorted_py_eqs_counts)
+    
+    if total_equip_counts == 0:
+        all_desc_counts = records.exclude(
+            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')
+        ).values('description').annotate(total=Count('id'))
         
+        py_desc_counts = {}
+        for db in all_desc_counts:
+            cleaned = (db['description'] or '').strip()
+            if cleaned:
+                py_desc_counts[cleaned] = py_desc_counts.get(cleaned, 0) + db['total']
+                
+        sorted_py_eqs_counts = sorted(py_desc_counts.items(), key=lambda x: x[1], reverse=True)
+        total_equip_counts = sum(x[1] for x in sorted_py_eqs_counts)
+
+    equip_pareto_freq = []
+    running_equip_counts = 0
+    for idx, (eq, count) in enumerate(sorted_py_eqs_counts):
+        running_equip_counts += count
+        cum_percent = (running_equip_counts / total_equip_counts * 100) if total_equip_counts > 0 else 0.0
+        equip_pareto_freq.append({
+            'equipment': eq or "N/A",
+            'count': count,
+            'percent': round((count / total_equip_counts * 100) if total_equip_counts > 0 else 0.0, 1),
+            'cum_percent': round(cum_percent, 1),
+            'rank': idx + 1,
+            'is_vital': cum_percent <= 85.0 or idx == 0
+        })
+
     top_agency = agency_pareto[0]['agency'] if agency_pareto else "N/A"
     top_agency_mins = agency_pareto[0]['mins'] if agency_pareto else 0.0
 
@@ -1314,12 +1612,22 @@ def pareto_overall(request, dept_id):
         'department': department,
         'agency_pareto': agency_pareto,
         'equip_pareto': equip_pareto[:10],
+        'agency_pareto_freq': agency_pareto_freq,
+        'equip_pareto_freq': equip_pareto_freq[:10],
         'top_agency': top_agency,
         'top_agency_mins': top_agency_mins,
+        'top_agency_freq': top_agency_freq,
+        'top_agency_freq_count': top_agency_freq_count,
         'is_description': is_description,
+        'pareto_type': pareto_type,
+        
+        # Safe JSONs
         'pareto_labels_json': json.dumps([x['agency'] for x in agency_pareto]),
         'pareto_mins_json': json.dumps([x['mins'] for x in agency_pareto]),
         'pareto_cum_json': json.dumps([x['cum_percent'] for x in agency_pareto]),
+        'pareto_freq_labels_json': json.dumps([x['agency'] for x in agency_pareto_freq]),
+        'pareto_freq_count_json': json.dumps([x['count'] for x in agency_pareto_freq]),
+        'pareto_freq_cum_json': json.dumps([x['cum_percent'] for x in agency_pareto_freq]),
     }
     return render(request, 'delays/partials/_pareto_content.html', context)
 
@@ -1330,6 +1638,8 @@ def pareto_agency(request, dept_id):
     Returns the equipment Pareto Analysis for a specific agency (HTMX endpoint).
     """
     agency_name = request.GET.get('agency', '')
+    pareto_type = request.GET.get('pareto_type', 'time').strip()
+    
     if int(dept_id) == 0:
         class DummyDept:
             id = 0
@@ -1340,56 +1650,101 @@ def pareto_agency(request, dept_id):
     else:
         department = get_object_or_404(Department, id=dept_id)
         records = DelayRecord.objects.filter(department=department, agency=agency_name)
+        
+    # Apply date filters if present in parameters
+    date_start = request.GET.get('date_start', '').strip()
+    date_end = request.GET.get('date_end', '').strip()
+    if date_start:
+        records = records.filter(date__gte=date_start)
+    if date_end:
+        records = records.filter(date__lte=date_end)
+
     total_agency_mins = records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
+    total_agency_events = records.count()
     
-    # Pareto Calculation by Equipment *within* that agency
-    equip_breakdown = records.exclude(
-        Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='None')  # type: ignore
-    ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')
-    
-    total_mins = sum(x['total'] for x in equip_breakdown)
     group_by_field = 'equipment'
     is_description = False
     
-    # Fallback to description if no equipment data is available (like in SMS3 daily sheets)
-    if total_mins == 0:
+    if pareto_type == 'frequency':
+        # Pareto Calculation by Equipment *within* that agency (as per frequency)
         equip_breakdown = records.exclude(
-            Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')  # type: ignore
-        ).values('description').annotate(total=Sum('duration_mins')).order_by('-total')
-        total_mins = sum(x['total'] for x in equip_breakdown)
-        group_by_field = 'description'
-        is_description = True
+            Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='None') | Q(equipment='NIL')
+        ).values('equipment').annotate(total=Count('id')).order_by('-total')
         
-    equip_pareto = []
-    running_mins = 0
-    for idx, eb in enumerate(equip_breakdown):
-        running_mins += eb['total']
-        cum_percent = (running_mins / total_mins * 100) if total_mins > 0 else 0.0
+        total_units = sum(x['total'] for x in equip_breakdown)
         
-        label_val = eb[group_by_field] or "N/A"
+        if total_units == 0:
+            equip_breakdown = records.exclude(
+                Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')
+            ).values('description').annotate(total=Count('id')).order_by('-total')
+            total_units = sum(x['total'] for x in equip_breakdown)
+            group_by_field = 'description'
+            is_description = True
+            
+        equip_pareto = []
+        running_units = 0
+        for idx, eb in enumerate(equip_breakdown):
+            running_units += eb['total']
+            cum_percent = (running_units / total_units * 100) if total_units > 0 else 0.0
+            label_val = eb[group_by_field] or "N/A"
+            equip_pareto.append({
+                'label': label_val,
+                'count': eb['total'],
+                'percent': round((eb['total'] / total_units * 100) if total_units > 0 else 0.0, 1),
+                'cum_percent': round(cum_percent, 1),
+                'rank': idx + 1,
+                'is_vital': cum_percent <= 85.0 or idx == 0
+            })
+            
+        top_equipment = equip_pareto[0]['label'] if equip_pareto else "N/A"
+        top_equipment_val = f"{equip_pareto[0]['count']} events" if equip_pareto else "0 events"
+    else:
+        # Pareto Calculation by Equipment *within* that agency (as per downtime mins)
+        equip_breakdown = records.exclude(
+            Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='None') | Q(equipment='NIL')
+        ).values('equipment').annotate(total=Sum('duration_mins')).order_by('-total')
         
-        equip_pareto.append({
-            'label': label_val,
-            'mins': round(eb['total'], 1),
-            'percent': round((eb['total'] / total_mins * 100) if total_mins > 0 else 0.0, 1),
-            'cum_percent': round(cum_percent, 1),
-            'rank': idx + 1,
-            'is_vital': cum_percent <= 85.0 or idx == 0
-        })
+        total_units = sum(x['total'] for x in equip_breakdown)
         
-    top_equipment = equip_pareto[0]['label'] if equip_pareto else "N/A"
-    top_equipment_mins = equip_pareto[0]['mins'] if equip_pareto else 0.0
+        if total_units == 0:
+            equip_breakdown = records.exclude(
+                Q(description__isnull=True) | Q(description='') | Q(description='-') | Q(description='NA')
+            ).values('description').annotate(total=Sum('duration_mins')).order_by('-total')
+            total_units = sum(x['total'] for x in equip_breakdown)
+            group_by_field = 'description'
+            is_description = True
+            
+        equip_pareto = []
+        running_units = 0
+        for idx, eb in enumerate(equip_breakdown):
+            running_units += eb['total']
+            cum_percent = (running_units / total_units * 100) if total_units > 0 else 0.0
+            label_val = eb[group_by_field] or "N/A"
+            equip_pareto.append({
+                'label': label_val,
+                'mins': round(eb['total'], 1),
+                'percent': round((eb['total'] / total_units * 100) if total_units > 0 else 0.0, 1),
+                'cum_percent': round(cum_percent, 1),
+                'rank': idx + 1,
+                'is_vital': cum_percent <= 85.0 or idx == 0
+            })
+            
+        top_equipment = equip_pareto[0]['label'] if equip_pareto else "N/A"
+        top_equipment_val = f"{equip_pareto[0]['mins']} mins" if equip_pareto else "0 mins"
 
     context = {
         'department': department,
         'agency_name': agency_name,
         'equip_pareto': equip_pareto,
         'total_mins': round(total_agency_mins, 1),
+        'total_events': total_agency_events,
         'top_equipment': top_equipment,
-        'top_equipment_mins': top_equipment_mins,
+        'top_equipment_val': top_equipment_val,
         'is_description': is_description,
+        'pareto_type': pareto_type,
+        
         'pareto_labels_json': json.dumps([x['label'] for x in equip_pareto[:15]]),
-        'pareto_mins_json': json.dumps([x['mins'] for x in equip_pareto[:15]]),
+        'pareto_values_json': json.dumps([x['count'] if pareto_type == 'frequency' else x['mins'] for x in equip_pareto[:15]]),
         'pareto_cum_json': json.dumps([x['cum_percent'] for x in equip_pareto[:15]]),
     }
     return render(request, 'delays/partials/_pareto_agency_content.html', context)
@@ -1423,7 +1778,12 @@ def manage_options(request, dept_id):
                     parent_value = f"{role}|{phone}"
                 else:
                     if category == 'Equipment' and raw_parent:
-                        parent_value = raw_parent.upper()
+                        if raw_parent.upper() in ['A', 'B', 'C']:
+                            parent_value = raw_parent.upper()
+                        else:
+                            parent_value = raw_parent
+                    elif category == 'Action' and raw_parent:
+                        parent_value = raw_parent
                     else:
                         parent_value = capitalize_first_letters(raw_parent)
                 
@@ -1464,7 +1824,12 @@ def manage_options(request, dept_id):
                 else:
                     raw_parent = request.POST.get('parent_value', '').strip() or None
                     if cat == 'Equipment' and raw_parent:
-                        parent_value = raw_parent.upper()
+                        if raw_parent.upper() in ['A', 'B', 'C']:
+                            parent_value = raw_parent.upper()
+                        else:
+                            parent_value = raw_parent
+                    elif cat == 'Action' and raw_parent:
+                        parent_value = raw_parent
                     else:
                         parent_value = capitalize_first_letters(raw_parent)
                 
@@ -1548,7 +1913,7 @@ def manage_options(request, dept_id):
     options = DelayDropdownOption.objects.filter(department=department).order_by('category', 'value')
     
     # Predefined suggested categories
-    suggested_categories = ['Agency', 'Sub-Agency', 'Sub-Area', 'Equipment', 'Sub-Equipment', 'Shift Incharge']
+    suggested_categories = ['Agency', 'Sub-Agency', 'Sub-Area', 'Equipment', 'Sub-Equipment', 'Shift Incharge', 'Action']
     db_categories = list(options.values_list('category', flat=True).distinct())
     for cat in db_categories:
         if cat not in suggested_categories:
@@ -1563,6 +1928,9 @@ def manage_options(request, dept_id):
             opt.role = ''
             opt.phone = ''
 
+    areas = sorted(list(set(options.filter(category='Sub-Agency').values_list('value', flat=True))))
+    equipments = sorted(list(set(options.filter(category='Equipment').values_list('value', flat=True))))
+
     context = {
         'department': department,
         'active_tab': 'options',
@@ -1574,6 +1942,8 @@ def manage_options(request, dept_id):
         'is_manage_options_page': True,
         'can_edit': True,
         'active_tab': request.GET.get('tab', 'Agency'),
+        'areas': areas,
+        'equipments': equipments,
     }
     return render(request, 'delays/manage_options.html', context)
 
@@ -1762,3 +2132,109 @@ def save_shutdown(request, dept_id):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+
+@login_required
+def create_checklist(request, dept_id):
+    if request.method == 'POST':
+        try:
+            department = get_object_or_404(Department, id=dept_id)
+            data = json.loads(request.body)
+            
+            agency_type = data.get('agency_type', 'Internal')
+            responsible_agency = data.get('responsible_agency', '')
+            area = data.get('area', '')
+            sub_area = data.get('sub_area', '')
+            equipment = data.get('equipment', '')
+            sub_equipment = data.get('sub_equipment', '')
+            shift_incharge = data.get('shift_incharge', '')
+            items_data = data.get('items', [])
+            
+            if not responsible_agency:
+                return JsonResponse({'status': 'error', 'message': 'Responsible agency is required.'}, status=400)
+            
+            # Group items by equipment
+            from collections import defaultdict
+            items_by_eq = defaultdict(list)
+            
+            for item in items_data:
+                eq_name = item.get('equipment', equipment) or ''
+                items_by_eq[eq_name].append(item)
+                
+            if not items_by_eq:
+                # Fallback if items list is empty
+                checklist = MaintenanceChecklist.objects.create(
+                    department=department,
+                    agency_type=agency_type,
+                    responsible_agency=responsible_agency,
+                    area=area,
+                    sub_area=sub_area,
+                    equipment=equipment,
+                    sub_equipment=sub_equipment,
+                    shift_incharge=shift_incharge,
+                    created_by=request.user
+                )
+                return JsonResponse({'status': 'success', 'checklist_id': checklist.id})
+                
+            last_checklist_id = None
+            for eq_name, group in items_by_eq.items():
+                checklist = MaintenanceChecklist.objects.create(
+                    department=department,
+                    agency_type=agency_type,
+                    responsible_agency=responsible_agency,
+                    area=area,
+                    sub_area=sub_area,
+                    equipment=eq_name,
+                    sub_equipment=sub_equipment if eq_name == equipment else '',
+                    shift_incharge=shift_incharge,
+                    created_by=request.user
+                )
+                last_checklist_id = checklist.id
+                
+                for item in group:
+                    action_item = item.get('action_item', '')
+                    status = item.get('status', 'OK')
+                    remarks = item.get('remarks', '')
+                    if action_item:
+                        MaintenanceChecklistItem.objects.create(
+                            checklist=checklist,
+                            action_item=action_item,
+                            status=status,
+                            remarks=remarks
+                        )
+            return JsonResponse({'status': 'success', 'checklist_id': checklist.id})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+
+@login_required
+def delete_checklist_item(request, dept_id, item_id):
+    if int(dept_id) == 0:
+        department = get_object_or_404(Department, id=0) if Department.objects.filter(id=0).exists() else None
+        can_edit = request.user.is_admin()
+    else:
+        department = get_object_or_404(Department, id=dept_id)
+        can_edit = user_can_edit_module(request.user, department, 'Delays')
+        
+    if not can_edit:
+        messages.error(request, "You do not have permission to delete checklist items.")
+        return redirect('delays:dept_overview', dept_id=dept_id)
+        
+    item = get_object_or_404(MaintenanceChecklistItem, id=item_id)
+    checklist = item.checklist
+    
+    # If not department 0 (overall), check department of the checklist matches
+    if int(dept_id) != 0 and checklist.department != department:
+        messages.error(request, "Permission denied.")
+        return redirect('delays:dept_overview', dept_id=dept_id)
+        
+    item.delete()
+    
+    # If no items left under this checklist, delete checklist as well
+    if not checklist.items.exists():
+        checklist.delete()
+        
+    messages.success(request, "Checklist item deleted successfully.")
+    return redirect(f"/delays/department/{dept_id}/?tab=checklist_summary")
+

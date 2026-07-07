@@ -3,11 +3,11 @@
     <div>
       <h3 style="color: var(--delays-primary); margin: 0 0 6px 0;">📊 Pareto Analysis for Agency: <span style="color: var(--delays-accent);">{{ agency_name }}</span></h3>
       <p style="color: var(--delays-muted); font-size: 0.85rem; margin: 0;">
-        Showing {% if is_description %}delay reason{% else %}equipment-level{% endif %} bottlenecks within the agency <b>{{ agency_name }}</b> (Total Downtime: <b>{{ total_mins }} mins</b>).
+        Showing {% if is_description %}delay reason{% else %}equipment-level{% endif %} bottlenecks within the agency <b>{{ agency_name }}</b> (Total: <b>{% if pareto_type == 'frequency' %}{{ total_events }} events{% else %}{{ total_mins }} mins{% endif %}</b>).
       </p>
     </div>
     <button class="btn btn-secondary"
-            hx-get="{% url 'delays:pareto_overall' department.id %}"
+            hx-get="{% url 'delays:pareto_overall' department.id %}?pareto_type={{ pareto_type }}&date_start={{ date_start }}&date_end={{ date_end }}"
             hx-target="#pareto-tab-container"
             hx-swap="innerHTML"
             style="background: white; border: 1px solid var(--delays-border); padding: 8px 16px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; color: var(--delays-primary); display: flex; align-items: center; gap: 6px;">
@@ -36,7 +36,7 @@
       <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top {% if is_description %}Delay Reason{% else %}Equipment{% endif %} Bottleneck</h5>
       <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; overflow: hidden;">
         <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_equipment }}</span>
-        <span style="white-space: nowrap; flex-shrink: 0;">{{ top_equipment_mins }} mins</span>
+        <span style="white-space: nowrap; flex-shrink: 0;">{{ top_equipment_val }}</span>
       </div>
 
       <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">{% if is_description %}Delay Reason{% else %}Equipment{% endif %} Vital Few List</h5>
@@ -64,7 +64,7 @@
           <tr>
             <th style="padding: 10px 14px;">Rank</th>
             <th style="padding: 10px 14px;">{% if is_description %}Delay Reason{% else %}Equipment{% endif %}</th>
-            <th style="padding: 10px 14px; text-align: right;">Downtime</th>
+            <th style="padding: 10px 14px; text-align: right;">{% if pareto_type == 'frequency' %}Events{% else %}Downtime{% endif %}</th>
             <th style="padding: 10px 14px; text-align: right;">Share %</th>
             <th style="padding: 10px 14px; text-align: right;">Cum %</th>
             <th style="padding: 10px 14px; text-align: center;">Status</th>
@@ -75,7 +75,9 @@
             <tr>
               <td class="font-mono" style="padding: 10px 14px;">{{ ep.rank }}</td>
               <td style="padding: 10px 14px; font-weight: 600;" class="font-mono">{{ ep.label }}</td>
-              <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ep.mins }}m</td>
+              <td class="font-mono" style="padding: 10px 14px; text-align: right;">
+                {% if pareto_type == 'frequency' %}{{ ep.count }}{% else %}{{ ep.mins }}m{% endif %}
+              </td>
               <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ep.percent }}%</td>
               <td class="font-mono" style="padding: 10px 14px; text-align: right; font-weight: bold;">{{ ep.cum_percent }}%</td>
               <td style="padding: 10px 14px; text-align: center;">
@@ -110,8 +112,8 @@
             datasets: [
               {
                 type: 'bar',
-                label: 'Downtime (Mins)',
-                data: {{ pareto_mins_json|safe }},
+                label: '{% if pareto_type == "frequency" %}Event Frequency (Counts){% else %}Downtime (Mins){% endif %}',
+                data: {{ pareto_values_json|safe }},
                 backgroundColor: 'rgba(10, 61, 98, 0.85)',
                 borderColor: '#0A3D62',
                 borderWidth: 1.5,
@@ -153,7 +155,7 @@
                 grid: { color: '#E5E7EB' },
                 title: {
                   display: true,
-                  text: 'Minutes',
+                  text: '{% if pareto_type == "frequency" %}Events{% else %}Minutes{% endif %}',
                   font: { family: "'Sora', sans-serif", weight: 'bold' }
                 },
                 ticks: { font: { family: "'JetBrains Mono', monospace" } }

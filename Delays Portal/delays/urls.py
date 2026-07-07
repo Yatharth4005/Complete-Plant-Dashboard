@@ -32,5 +32,7 @@ urlpatterns = [
     
     # Custom Option Management
     path('department/<int:dept_id>/manage-options/', views.manage_options, name='manage_options'),
+    path('department/<int:dept_id>/checklist/new/', views.create_checklist, name='create_checklist'),
+    path('department/<int:dept_id>/checklist/<int:item_id>/delete/', views.delete_checklist_item, name='delete_checklist_item'),
 ]
 

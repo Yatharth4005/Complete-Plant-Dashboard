@@ -282,7 +282,7 @@
         </div>
         <div x-show="userRole === 'USER'">
           <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Department</label>
-          <select name="department" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;" x-model="inviteUser.department_id">
+          <select name="departments" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;" x-model="inviteUser.department_id">
             <option value="">No Department</option>
             {% for d in departments %}
               <option value="{{ d.id }}">🏢 {{ d.name }}</option>
@@ -296,10 +296,58 @@
         <label style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy); margin-bottom: 6px;">Designation</label>
         <select name="designation" class="input-mono" style="width: 100%; height: 38px; padding: 6px 12px; cursor: pointer;" x-model="inviteUser.designation">
           <option value="">No Designation</option>
-          <option value="HOD">HOD</option>
-          <option value="SPOC">SPOC</option>
+          <option value="Apprentice">Apprentice</option>
+          <option value="Assistant">Assistant</option>
+          <option value="Assistant Associate">Assistant Associate</option>
+          <option value="Assistant Engineer">Assistant Engineer</option>
+          <option value="Assistant Foreman">Assistant Foreman</option>
+          <option value="Assistant Manager">Assistant Manager</option>
+          <option value="Assistant Operator">Assistant Operator</option>
+          <option value="Assistant Technician">Assistant Technician</option>
+          <option value="Asso Vice President">Asso Vice President</option>
+          <option value="Associate">Associate</option>
+          <option value="Associate Trainee">Associate Trainee</option>
+          <option value="Asst Engr Trainee">Asst Engr Trainee</option>
+          <option value="Asst Gen Manager">Asst Gen Manager</option>
+          <option value="Asst Mgmt Trainee">Asst Mgmt Trainee</option>
+          <option value="Chemist">Chemist</option>
+          <option value="Chemist Trainee">Chemist Trainee</option>
+          <option value="Deputy Manager">Deputy Manager</option>
+          <option value="Driver 1">Driver 1</option>
+          <option value="Driver 2">Driver 2</option>
+          <option value="Driver 3">Driver 3</option>
+          <option value="Dy General Manager">Dy General Manager</option>
           <option value="Engineer">Engineer</option>
+          <option value="Exec Vice President">Exec Vice President</option>
+          <option value="Executive Director">Executive Director</option>
+          <option value="Foreman">Foreman</option>
+          <option value="General Manager">General Manager</option>
+          <option value="Grad Engr Trainee">Grad Engr Trainee</option>
+          <option value="HOD">HOD</option>
+          <option value="Junior Associate">Junior Associate</option>
+          <option value="Junior Chemist">Junior Chemist</option>
+          <option value="Junior Engineer">Junior Engineer</option>
+          <option value="Junior Engr Trainee">Junior Engr Trainee</option>
+          <option value="Junior Executive">Junior Executive</option>
+          <option value="Junior Foreman">Junior Foreman</option>
+          <option value="Junior Officer">Junior Officer</option>
+          <option value="Junior Operator">Junior Operator</option>
+          <option value="Junior Technician">Junior Technician</option>
+          <option value="Manager">Manager</option>
+          <option value="Officer">Officer</option>
           <option value="Operator">Operator</option>
+          <option value="Senior Assistant">Senior Assistant</option>
+          <option value="Senior Associate">Senior Associate</option>
+          <option value="Senior Chemist">Senior Chemist</option>
+          <option value="Senior Foreman">Senior Foreman</option>
+          <option value="Senior Operator">Senior Operator</option>
+          <option value="Senior Technician">Senior Technician</option>
+          <option value="SPOC">SPOC</option>
+          <option value="Technician">Technician</option>
+          <option value="Technician Trainee">Technician Trainee</option>
+          <option value="Unskilled Grade 1">Unskilled Grade 1</option>
+          <option value="Unskilled Grade 2">Unskilled Grade 2</option>
+          <option value="Vice President">Vice President</option>
         </select>
       </div>
 

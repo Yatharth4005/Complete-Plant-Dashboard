@@ -167,22 +167,10 @@
         </div>
         
         <div class="form-field-group" style="margin-top: auto;">
-          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">CAPA Analysis</label>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            {{ form.why }}
-            {% if is_edit %}
-              <a id="why-btn-edit" 
-                 href="{% if record.why == 'CAPA' %}/capa/department/{{ department.id }}/identification/?delay_record_id={{ record.id }}{% else %}#{% endif %}" 
-                 class="btn-fill-sheet" 
-                 onclick="{% if record.why == 'NO' or not record.why %}return false;{% endif %}"
-                 style="{% if record.why == 'CAPA' %}display: inline-flex;{% else %}display: none;{% endif %} text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 6px; border: 1px solid var(--delays-accent); background: var(--delays-accent); color: white; white-space: nowrap;"
-                 target="_blank">
-                 Fill CAPA
-              </a>
-            {% endif %}
-          </div>
-          {% if form.why.errors %}
-            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.why.errors }}</div>
+          <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Action</label>
+          {{ form.action }}
+          {% if form.action.errors %}
+            <div style="color: #dc2626; font-size: 0.8rem; margin-top: 4px;">{{ form.action.errors }}</div>
           {% endif %}
         </div>
       </div>
@@ -190,7 +178,7 @@
 
     <!-- Action Buttons -->
     <div class="form-actions-panel" style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--delays-border); padding-top: 20px;">
-      <a href="{% url 'delays:dept_overview' department.id %}" class="btn btn-secondary" style="border: 1px solid var(--delays-border); padding: 8px 16px; border-radius: var(--radius-md); text-decoration: none; color: var(--jspl-navy); font-weight: 500;">Cancel</a>
+      <a href="{{ next_url }}" class="btn btn-secondary" style="border: 1px solid var(--delays-border); padding: 8px 16px; border-radius: var(--radius-md); text-decoration: none; color: var(--jspl-navy); font-weight: 500;">Cancel</a>
       <button type="submit" class="btn btn-primary-gradient" style="background: linear-gradient(90deg, #F47920 0%, #E05300 100%); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer;">
         {% if is_edit %}Update Log Entry{% else %}Submit Delay Log{% endif %}
       </button>
@@ -201,26 +189,6 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // Why button CAPA redirection (from existing code)
-    const selectEl = document.getElementById('id_why');
-    if (selectEl) {
-      selectEl.addEventListener('change', function() {
-        const btn = document.getElementById('why-btn-edit');
-        if (!btn) return;
-        const val = this.value;
-        const recordId = "{{ record.id }}";
-        if (val === 'CAPA') {
-            btn.href = '/capa/department/{{ department.id }}/identification/?delay_record_id=' + recordId;
-            btn.innerText = 'Fill CAPA';
-            btn.style.display = 'inline-flex';
-            btn.onclick = null;
-        } else {
-            btn.style.display = 'none';
-            btn.href = '#';
-            btn.onclick = function(e) { e.preventDefault(); return false; };
-        }
-      });
-    }
 
     // Dynamic internal/external agency toggle logic
     const agencyTypeSelect = document.getElementById('id_agency_type');

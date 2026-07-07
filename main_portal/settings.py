@@ -71,11 +71,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'main_portal.wsgi.application'
 
-# Shared Database with TPM Portal
+# Shared Database - PostgreSQL on Company Server
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'departments_dashboard',
+        'USER': 'dept_db_user',
+        'PASSWORD': 'TMPortal@4321',
+        'HOST': '172.17.0.20',
+        'PORT': '5432',
     }
 }
 

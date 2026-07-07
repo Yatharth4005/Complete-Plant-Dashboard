@@ -111,13 +111,22 @@ class Command(BaseCommand):
                 'sort_order': 6,
             },
             {
+                'key': 'Checklist',
+                'label': 'Checklist',
+                'description': 'Manage department shift checklists, inspections, and actions',
+                'icon': 'clipboard-list',
+                'color_class': 'module-checklist',
+                'redirect_url_template': '/delays/department/{dept_id}/?tab=checklist_summary',
+                'sort_order': 7,
+            },
+            {
                 'key': 'FMEA',
                 'label': 'FMEA',
                 'description': 'Failure Mode and Effects Analysis for risk identification and mitigation',
                 'icon': 'shield',
                 'color_class': 'module-fmea',
                 'redirect_url_template': '/fmea/department/{dept_id}/',
-                'sort_order': 7,
+                'sort_order': 8,
             },
             {
                 'key': 'CAPA',
@@ -126,7 +135,7 @@ class Command(BaseCommand):
                 'icon': 'clipboard',
                 'color_class': 'module-capa',
                 'redirect_url_template': '/capa/department/{dept_id}/',
-                'sort_order': 8,
+                'sort_order': 9,
             },
             {
                 'key': 'SAFETY',
@@ -135,7 +144,7 @@ class Command(BaseCommand):
                 'icon': 'life-buoy',
                 'color_class': 'module-safety',
                 'redirect_url_template': '/department/{dept_id}/coming-soon/SAFETY/',
-                'sort_order': 9,
+                'sort_order': 10,
             },
             {
                 'key': 'PRODUCTION',
@@ -144,7 +153,7 @@ class Command(BaseCommand):
                 'icon': 'layers',
                 'color_class': 'module-production',
                 'redirect_url_template': '/department/{dept_id}/coming-soon/PRODUCTION/',
-                'sort_order': 10,
+                'sort_order': 11,
             },
             {
                 'key': 'QUALITY',
@@ -153,7 +162,7 @@ class Command(BaseCommand):
                 'icon': 'check-square',
                 'color_class': 'module-quality',
                 'redirect_url_template': '/quality/department/{dept_id}/',
-                'sort_order': 11,
+                'sort_order': 12,
             },
             {
                 'key': 'SPARE',
@@ -162,7 +171,7 @@ class Command(BaseCommand):
                 'icon': 'archive',
                 'color_class': 'module-spare',
                 'redirect_url_template': '/department/{dept_id}/coming-soon/SPARE/',
-                'sort_order': 12,
+                'sort_order': 13,
             },
             {
                 'key': 'DAKSHATA',
@@ -171,7 +180,7 @@ class Command(BaseCommand):
                 'icon': 'trending-up',
                 'color_class': 'module-dakshata',
                 'redirect_url_template': '/department/{dept_id}/coming-soon/DAKSHATA/',
-                'sort_order': 13,
+                'sort_order': 14,
             },
         ]
         

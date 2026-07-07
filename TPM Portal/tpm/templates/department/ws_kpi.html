@@ -18,6 +18,11 @@
         <h2 style="color: var(--jspl-navy);">🔧 Workstation KPIs (9th Pillar)</h2>
         <span style="font-size: 0.85rem; color: var(--jspl-muted);">Department: <b>{{ dept.name }}</b></span>
       </div>
+      <div>
+        <a href="{% url 'dept_overview' dept.id %}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; border: 1px solid var(--jspl-border); color: var(--jspl-navy); background-color: var(--jspl-white); transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--jspl-light)'" onmouseout="this.style.backgroundColor='var(--jspl-white)'">
+          ← Back to Dashboard
+        </a>
+      </div>
     </div>
 
     <!-- Reusable Filter Ribbon -->

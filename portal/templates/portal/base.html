@@ -337,37 +337,42 @@
           <span class="sidebar-icon">🏭</span> Plant Overview
         </a>
 
-        <div class="sidebar-divider">Departments</div>
-
-        <div class="sidebar-accordion">
-          {% for d in sidebar_departments %}
-          <div class="sidebar-dept-group" x-data="{ open: {{ d.id }} == {{ active_dept_id|default:0 }} }">
-            <button class="sidebar-dept-btn {% if active_dept_id == d.id %}active{% endif %}"
-              @click="{{ d.id }} == {{ active_dept_id|default:0 }} ? (open = !open) : (window.location.href='{% url 'portal:dept_hub' d.id %}')">
-              <span class="dept-code">{{ d.code }}</span>
-              <span class="dept-name">{{ d.name }}</span>
-              <span class="sidebar-chevron" :class="{ 'rotated': open }">›</span>
-            </button>
-
-            <!-- If active department, show sub-modules links -->
-            {% if active_dept_id == d.id %}
-            <div class="sidebar-dept-modules" x-show="open" x-transition>
-              {% for m in sidebar_modules %}
-              {% if m.key != 'Delays' %}
-              <a href="{% url 'portal:enter_module' d.id m.key %}"
-                class="sidebar-module-link {% if active_module == m.key %}active{% elif m.key == 'Availability' and active_module == 'Delays' %}active{% endif %} {% if m.key not in user_modules_map %}locked{% endif %}">
-                {% if m.key in user_modules_map %}
-                {% include "portal/partials/_module_icon.html" with key=m.key %} {% if m.key == 'SPARE' %}Spare Management{% elif m.key == 'CAPA' %}CAPA Reports{% else %}{{ m.key }}{% endif %}
-                {% else %}
-                🔒 {% if m.key == 'SPARE' %}Spare Management{% elif m.key == 'CAPA' %}CAPA Reports{% else %}{{ m.key }}{% endif %}
-                {% endif %}
-              </a>
-              {% endif %}
-              {% endfor %}
-            </div>
-            {% endif %}
+        <div x-data="{ deptsOpen: localStorage.getItem('sidebar_depts_open') === null ? {% if active_dept_id and active_dept_id != 0 %}true{% else %}false{% endif %} : (localStorage.getItem('sidebar_depts_open') === 'true') }" x-init="$watch('deptsOpen', val => localStorage.setItem('sidebar_depts_open', val))">
+          <div class="sidebar-divider" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;" @click="deptsOpen = !deptsOpen">
+            <span>Departments</span>
+            <span class="sidebar-chevron" :class="{ 'rotated': deptsOpen }" style="font-size: 0.85rem; margin-right: 15px;">›</span>
           </div>
-          {% endfor %}
+
+          <div class="sidebar-accordion" x-show="deptsOpen" x-transition x-cloak>
+            {% for d in sidebar_departments %}
+            <div class="sidebar-dept-group" x-data="{ open: {{ d.id }} == {{ active_dept_id|default:0 }} }">
+              <button class="sidebar-dept-btn {% if active_dept_id == d.id %}active{% endif %}"
+                @click="{{ d.id }} == {{ active_dept_id|default:0 }} ? (open = !open) : (window.location.href='{% url 'portal:dept_hub' d.id %}')">
+                <span class="dept-code">{{ d.code }}</span>
+                <span class="dept-name">{{ d.name }}</span>
+                <span class="sidebar-chevron" :class="{ 'rotated': open }">›</span>
+              </button>
+
+              <!-- If active department, show sub-modules links -->
+              {% if active_dept_id == d.id %}
+              <div class="sidebar-dept-modules" x-show="open" x-transition>
+                {% for m in sidebar_modules %}
+                {% if m.key != 'Delays' %}
+                <a href="{% url 'portal:enter_module' d.id m.key %}"
+                  class="sidebar-module-link {% if active_module == m.key %}active{% elif m.key == 'Availability' and active_module == 'Delays' %}active{% endif %} {% if m.key not in user_modules_map %}locked{% endif %}">
+                  {% if m.key in user_modules_map %}
+                  {% include "portal/partials/_module_icon.html" with key=m.key %} {% if m.key == 'SPARE' %}Spare Management{% elif m.key == 'CAPA' %}CAPA Reports{% elif m.key == 'HOD_KPI' %}HOD KPI{% else %}{{ m.key }}{% endif %}
+                  {% else %}
+                  🔒 {% if m.key == 'SPARE' %}Spare Management{% elif m.key == 'CAPA' %}CAPA Reports{% elif m.key == 'HOD_KPI' %}HOD KPI{% else %}{{ m.key }}{% endif %}
+                  {% endif %}
+                </a>
+                {% endif %}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
         </div>
 
         {% if request.user.is_admin %}

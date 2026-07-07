@@ -19,7 +19,7 @@ class DelayRecordForm(forms.ModelForm):
     equipment = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
     sub_equipment = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
     shift_incharge = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
-    why = forms.ChoiceField(choices=[('CAPA', 'CAPA'), ('NO', 'NO')], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
+    action = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'input-mono', 'rows': 3, 'placeholder': 'Detailed description of the delay/breakdown'}))
     duration_mins = forms.FloatField(
         required=True,
@@ -45,7 +45,7 @@ class DelayRecordForm(forms.ModelForm):
         fields = [
             'date', 'end_date', 'start_time', 'end_time', 'duration_mins', 'production_loss',
             'agency_type', 'agency', 'sub_agency', 'sub_area', 'equipment', 'sub_equipment',
-            'shift_incharge', 'description', 'why'
+            'shift_incharge', 'description', 'action'
         ]
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'input-mono', 'id': 'id_date'}),
@@ -153,6 +153,22 @@ class DelayRecordForm(forms.ModelForm):
         self.fields['sub_equipment'].choices = [('', 'Select Sub Equipment')] + [(se, se) for se in sub_equip_list]
         self.fields['shift_incharge'].choices = [('', 'Select Shift Incharge')] + incharge_list
         
+        # Fetch Action dropdown options
+        action_opts = []
+        if department:
+            action_opts = sorted(list(set(DelayDropdownOption.objects.filter(
+                department=department, category__iexact='Action'
+            ).values_list('value', flat=True).distinct())))
+        if not action_opts:
+            action_opts = [
+                "Check motor body temperature and vibration levels",
+                "Inspect belt tension, pulley alignment, and look for tear/slip",
+                "Verify oil level in gearboxes and check for hydraulic leaks",
+                "Inspect mechanical coupling, spindles, and foundation bolts tightness",
+                "Verify limit switches operation and cable connection health"
+            ]
+        self.fields['action'].choices = [('', 'Select Action')] + [(act, act) for act in action_opts]
+        
         # If editing an existing instance, preserve values and set initial agency_type
         if self.instance and self.instance.pk:
             self.initial['agency_type'] = self.instance.agency_type or 'Internal'
@@ -168,6 +184,8 @@ class DelayRecordForm(forms.ModelForm):
                 self.fields['sub_equipment'].choices.append((self.instance.sub_equipment, self.instance.sub_equipment))
             if self.instance.shift_incharge and (self.instance.shift_incharge, self.instance.shift_incharge) not in self.fields['shift_incharge'].choices:
                 self.fields['shift_incharge'].choices.append((self.instance.shift_incharge, self.instance.shift_incharge))
+            if self.instance.action and (self.instance.action, self.instance.action) not in self.fields['action'].choices:
+                self.fields['action'].choices.append((self.instance.action, self.instance.action))
                 
     def clean(self):
         cleaned_data = super().clean()

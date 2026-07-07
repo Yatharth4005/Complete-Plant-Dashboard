@@ -1,4 +1,5 @@
-<div style="animation: fadeIn 0.3s ease-out;">
+<div style="animation: fadeIn 0.3s ease-out;" x-data="{ paretoType: '{{ pareto_type|default:"time" }}' }">
+
   <div style="margin-bottom: 20px;">
     <h3 style="color: var(--delays-primary); margin: 0 0 6px 0;">📊 Pareto Analysis (80/20 Rule)</h3>
     <p style="color: var(--delays-muted); font-size: 0.85rem; margin: 0;">
@@ -8,8 +9,20 @@
 
   <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: start; margin-bottom: 24px;">
     <!-- Pareto Chart -->
-    <div class="chart-card" style="box-shadow: none; border-color: var(--delays-border); flex: 3 1 500px; min-width: 300px; margin: 0;">
-      <h4 class="chart-title">📈 Agency Pareto Chart (Cumulative Downtime)</h4>
+    <div class="chart-card" style="box-shadow: none; border-color: var(--delays-border); flex: 3 1 500px; min-width: 300px; margin: 0; padding: 20px;">
+      
+      <!-- Flex Header containing Title and Select Dropdown -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--delays-border); padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <h4 style="font-size: 0.95rem; font-weight: bold; color: var(--delays-primary); margin: 0; padding: 0; display: flex; align-items: center; gap: 6px;">
+          📈 Agency Pareto Chart ( <span x-text="paretoType === 'time' ? 'Cumulative Downtime' : 'Event Frequency'">Cumulative Downtime</span> )
+        </h4>
+        
+        <select x-model="paretoType" @change="window.updateParetoChart(paretoType)" class="filter-input input-mono" style="height: 30px; padding: 2px 8px; font-size: 0.8rem; border-radius: 6px; width: 165px; cursor: pointer; border: 1px solid var(--delays-border); background: white; color: var(--delays-text); font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); outline: none;">
+          <option value="time">⏳ As per Time</option>
+          <option value="frequency">🔄 As per Frequency</option>
+        </select>
+      </div>
+
       <div style="position: relative; height: 320px;">
         <canvas id="paretoChart"></canvas>
       </div>
@@ -24,22 +37,46 @@
         The following agencies and {% if is_description %}delay reasons{% else %}equipment{% endif %} account for 80% of your plant delays. Directing engineering focus to these areas yields the highest reduction in downtime.
       </p>
       
-      <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Agency Bottleneck</h5>
-      <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden;" onclick="drillDownPareto('{{ top_agency|escapejs }}')" title="Drill down to {{ top_agency }}">
-        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_agency }}</span>
-        <span style="white-space: nowrap; flex-shrink: 0;">{{ top_agency_mins }} mins</span>
+      <!-- Time-based Priorities -->
+      <div x-show="paretoType === 'time'">
+        <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Agency Bottleneck</h5>
+        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden;" onclick="drillDownPareto('{{ top_agency|escapejs }}')" title="Drill down to {{ top_agency }}">
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_agency }}</span>
+          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_agency_mins }} mins</span>
+        </div>
+
+        <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top {% if is_description %}Delay Reason{% else %}Equipment{% endif %} Bottlenecks (Vital Few)</h5>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          {% for eq in equip_pareto %}
+            {% if eq.is_vital %}
+              <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #F47920; padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 500; overflow: hidden;">
+                <span class="font-mono" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ eq.equipment }}</span>
+                <span style="color: var(--delays-muted); white-space: nowrap; flex-shrink: 0; font-size: 0.8rem;">Rank #{{ eq.rank }} ({{ eq.cum_percent }}%)</span>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
       </div>
 
-      <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top {% if is_description %}Delay Reason{% else %}Equipment{% endif %} Bottlenecks (Vital Few)</h5>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        {% for eq in equip_pareto %}
-          {% if eq.is_vital %}
-            <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #F47920; padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 500; overflow: hidden;">
-              <span class="font-mono" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ eq.equipment }}</span>
-              <span style="color: var(--delays-muted); white-space: nowrap; flex-shrink: 0; font-size: 0.8rem;">Rank #{{ eq.rank }} ({{ eq.cum_percent }}%)</span>
-            </div>
-          {% endif %}
-        {% endfor %}
+      <!-- Frequency-based Priorities -->
+      <div x-show="paretoType === 'frequency'">
+        <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Agency by Frequency</h5>
+        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden;" onclick="drillDownPareto('{{ top_agency_freq|escapejs }}')" title="Drill down to {{ top_agency_freq }}">
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_agency_freq }}</span>
+          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_agency_freq_count }} events</span>
+        </div>
+
+        <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top {% if is_description %}Delay Reason{% else %}Equipment{% endif %} by Frequency (Vital Few)</h5>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          {% for eq in equip_pareto_freq %}
+            {% if eq.is_vital %}
+              <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #F47920; padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 500; overflow: hidden;">
+                <span class="font-mono" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ eq.equipment }}</span>
+                <span style="color: var(--delays-muted); white-space: nowrap; flex-shrink: 0; font-size: 0.8rem;">Rank #{{ eq.rank }} ({{ eq.cum_percent }}%)</span>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
       </div>
     </div>
   </div>
@@ -54,7 +91,9 @@
           <span style="font-size: 0.95rem; transition: transform 0.2s; display: inline-block;" :style="showAgencyTable ? 'transform: rotate(0deg);' : 'transform: rotate(-90deg);'">▼</span>
         </div>
       </div>
-      <div class="table-responsive" x-show="showAgencyTable" x-transition style="display: none;">
+
+      <!-- Time-based Table -->
+      <div class="table-responsive" x-show="showAgencyTable && paretoType === 'time'" x-transition>
         <table class="delays-table" style="font-size: 0.8rem;">
           <thead>
             <tr>
@@ -92,6 +131,46 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Frequency-based Table -->
+      <div class="table-responsive" x-show="showAgencyTable && paretoType === 'frequency'" x-transition>
+        <table class="delays-table" style="font-size: 0.8rem;">
+          <thead>
+            <tr>
+              <th style="padding: 10px 14px;">Rank</th>
+              <th style="padding: 10px 14px;">Agency</th>
+              <th style="padding: 10px 14px; text-align: right;">Events</th>
+              <th style="padding: 10px 14px; text-align: right;">Share %</th>
+              <th style="padding: 10px 14px; text-align: right;">Cum %</th>
+              <th style="padding: 10px 14px; text-align: center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ap in agency_pareto_freq %}
+              <tr style="cursor: pointer;" onclick="drillDownPareto('{{ ap.agency|escapejs }}')" title="Click to view details for {{ ap.agency }}" class="pareto-row">
+                <td class="font-mono" style="padding: 10px 14px;">{{ ap.rank }}</td>
+                <td style="padding: 10px 14px; font-weight: 600; color: var(--delays-secondary);">{{ ap.agency }}</td>
+                <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ap.count }}</td>
+                <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ ap.percent }}%</td>
+                <td class="font-mono" style="padding: 10px 14px; text-align: right; font-weight: bold;">{{ ap.cum_percent }}%</td>
+                <td style="padding: 10px 14px; text-align: center;">
+                  {% if ap.is_vital %}
+                    <span class="status-badge failed" style="font-size: 0.7rem; padding: 2px 6px;">Vital Few</span>
+                  {% else %}
+                    <span class="status-badge success" style="font-size: 0.7rem; padding: 2px 6px;">Useful Many</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--delays-muted); padding: 20px;">
+                  No agency delay records found.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Equipment/Reason Pareto Table -->
@@ -103,7 +182,9 @@
           <span style="font-size: 0.95rem; transition: transform 0.2s; display: inline-block;" :style="showEquipTable ? 'transform: rotate(0deg);' : 'transform: rotate(-90deg);'">▼</span>
         </div>
       </div>
-      <div class="table-responsive" x-show="showEquipTable" x-transition style="display: none;">
+
+      <!-- Time-based Table -->
+      <div class="table-responsive" x-show="showEquipTable && paretoType === 'time'" x-transition>
         <table class="delays-table" style="font-size: 0.8rem;">
           <thead>
             <tr>
@@ -141,6 +222,46 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Frequency-based Table -->
+      <div class="table-responsive" x-show="showEquipTable && paretoType === 'frequency'" x-transition>
+        <table class="delays-table" style="font-size: 0.8rem;">
+          <thead>
+            <tr>
+              <th style="padding: 10px 14px;">Rank</th>
+              <th style="padding: 10px 14px;">{% if is_description %}Delay Reason{% else %}Equipment{% endif %}</th>
+              <th style="padding: 10px 14px; text-align: right;">Events</th>
+              <th style="padding: 10px 14px; text-align: right;">Share %</th>
+              <th style="padding: 10px 14px; text-align: right;">Cum %</th>
+              <th style="padding: 10px 14px; text-align: center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for eq in equip_pareto_freq %}
+              <tr>
+                <td class="font-mono" style="padding: 10px 14px;">{{ eq.rank }}</td>
+                <td style="padding: 10px 14px; font-weight: 600;" class="font-mono">{{ eq.equipment }}</td>
+                <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ eq.count }}</td>
+                <td class="font-mono" style="padding: 10px 14px; text-align: right;">{{ eq.percent }}%</td>
+                <td class="font-mono" style="padding: 10px 14px; text-align: right; font-weight: bold;">{{ eq.cum_percent }}%</td>
+                <td style="padding: 10px 14px; text-align: center;">
+                  {% if eq.is_vital %}
+                    <span class="status-badge failed" style="font-size: 0.7rem; padding: 2px 6px;">Vital Few</span>
+                  {% else %}
+                    <span class="status-badge success" style="font-size: 0.7rem; padding: 2px 6px;">Useful Many</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--delays-muted); padding: 20px;">
+                  No equipment or delay reason records found.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -152,107 +273,153 @@
 
   <script>
     function drillDownPareto(agencyName) {
-      htmx.ajax('GET', "{% url 'delays:pareto_agency' department.id %}?agency=" + encodeURIComponent(agencyName), {
+      const selectEl = document.querySelector('select[x-model="paretoType"]');
+      const pType = selectEl ? selectEl.value : 'time';
+      
+      const params = new URLSearchParams(window.location.search);
+      const start = params.get('date_start') || '';
+      const end = params.get('date_end') || '';
+      
+      let url = "{% url 'delays:pareto_agency' department.id %}?agency=" + encodeURIComponent(agencyName) + "&pareto_type=" + pType;
+      if (start) url += "&date_start=" + encodeURIComponent(start);
+      if (end) url += "&date_end=" + encodeURIComponent(end);
+      
+      htmx.ajax('GET', url, {
         target: '#pareto-tab-container',
         swap: 'innerHTML'
       });
     }
+  </script>
+</div>
 
-    (function() {
-      const paretoCtx = document.getElementById('paretoChart');
-      if (paretoCtx) {
-        if (window.paretoChartInstance) {
-          window.paretoChartInstance.destroy();
-        }
-        window.paretoChartInstance = new Chart(paretoCtx, {
-          type: 'bar',
-          data: {
-            labels: {{ pareto_labels_json|safe }},
-            datasets: [
-              {
-                type: 'bar',
-                label: 'Downtime (Mins)',
-                data: {{ pareto_mins_json|safe }},
-                backgroundColor: 'rgba(244, 121, 32, 0.85)',
-                borderColor: '#F47920',
-                borderWidth: 1.5,
-                borderRadius: 4,
-                yAxisID: 'y'
-              },
-              {
-                type: 'line',
-                label: 'Cumulative %',
-                data: {{ pareto_cum_json|safe }},
-                borderColor: '#DC2626',
-                borderWidth: 3,
-                pointBackgroundColor: '#DC2626',
-                pointBorderColor: '#FFFFFF',
-                pointBorderWidth: 1.5,
-                pointRadius: 4,
-                tension: 0.1,
-                fill: false,
-                yAxisID: 'y1'
-              }
-            ]
+<script>
+  // Expose data globally
+  window.paretoData = {
+    time: {
+      labels: {{ pareto_labels_json|safe }},
+      values: {{ pareto_mins_json|safe }},
+      cum: {{ pareto_cum_json|safe }},
+      label: 'Downtime (Mins)',
+      yAxisTitle: 'Minutes'
+    },
+    frequency: {
+      labels: {{ pareto_freq_labels_json|safe }},
+      values: {{ pareto_freq_count_json|safe }},
+      cum: {{ pareto_freq_cum_json|safe }},
+      label: 'Event Frequency (Counts)',
+      yAxisTitle: 'Events'
+    }
+  };
+
+  // Expose update function globally
+  window.updateParetoChart = function(type) {
+    if (!window.paretoChartInstance) return;
+    const current = window.paretoData[type];
+    window.paretoChartInstance.data.labels = current.labels;
+    window.paretoChartInstance.data.datasets[0].label = current.label;
+    window.paretoChartInstance.data.datasets[0].data = current.values;
+    window.paretoChartInstance.data.datasets[1].data = current.cum;
+    window.paretoChartInstance.options.scales.y.title.text = current.yAxisTitle;
+    window.paretoChartInstance.update();
+  };
+
+  // Initialize on page load
+  (function() {
+    const paretoCtx = document.getElementById('paretoChart');
+    if (paretoCtx) {
+      if (window.paretoChartInstance) {
+        window.paretoChartInstance.destroy();
+      }
+      const initialType = '{{ pareto_type|default:"time" }}';
+      const initial = window.paretoData[initialType];
+      window.paretoChartInstance = new Chart(paretoCtx, {
+        type: 'bar',
+        data: {
+          labels: initial.labels,
+          datasets: [
+            {
+              type: 'bar',
+              label: initial.label,
+              data: initial.values,
+              backgroundColor: 'rgba(244, 121, 32, 0.85)',
+              borderColor: '#F47920',
+              borderWidth: 1.5,
+              borderRadius: 4,
+              yAxisID: 'y'
+            },
+            {
+              type: 'line',
+              label: 'Cumulative %',
+              data: initial.cum,
+              borderColor: '#DC2626',
+              borderWidth: 3,
+              pointBackgroundColor: '#DC2626',
+              pointBorderColor: '#FFFFFF',
+              pointBorderWidth: 1.5,
+              pointRadius: 4,
+              tension: 0.1,
+              fill: false,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onClick: (evt, activeElements) => {
+            if (activeElements.length > 0) {
+              const firstPoint = activeElements[0];
+              const label = window.paretoChartInstance.data.labels[firstPoint.index];
+              drillDownPareto(label);
+            }
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            onClick: (evt, activeElements) => {
-              if (activeElements.length > 0) {
-                const firstPoint = activeElements[0];
-                const label = window.paretoChartInstance.data.labels[firstPoint.index];
-                drillDownPareto(label);
+          plugins: {
+            legend: {
+              labels: {
+                font: { family: 'Sora, sans-serif', size: 11 }
+              }
+            }
+          },
+          scales: {
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              beginAtZero: true,
+              grid: { color: '#E5E7EB' },
+              title: {
+                display: true,
+                text: initial.yAxisTitle,
+                font: { family: 'Sora, sans-serif', weight: 'bold' }
+              },
+              ticks: { font: { family: 'JetBrains Mono, monospace' } }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              min: 0,
+              max: 100,
+              grid: { drawOnChartArea: false },
+              title: {
+                display: true,
+                text: 'Cumulative Percentage',
+                font: { family: 'Sora, sans-serif', weight: 'bold' }
+              },
+              ticks: {
+                callback: function(value) { return value + '%'; },
+                font: { family: 'JetBrains Mono, monospace' }
               }
             },
-            plugins: {
-              legend: {
-                labels: {
-                  font: { family: "'Sora', sans-serif", size: 11 }
-                }
-              }
-            },
-            scales: {
-              y: {
-                type: 'linear',
-                display: true,
-                position: 'left',
-                beginAtZero: true,
-                grid: { color: '#E5E7EB' },
-                title: {
-                  display: true,
-                  text: 'Minutes',
-                  font: { family: "'Sora', sans-serif", weight: 'bold' }
-                },
-                ticks: { font: { family: "'JetBrains Mono', monospace" } }
-              },
-              y1: {
-                type: 'linear',
-                display: true,
-                position: 'right',
-                min: 0,
-                max: 100,
-                grid: { drawOnChartArea: false },
-                title: {
-                  display: true,
-                  text: 'Cumulative Percentage',
-                  font: { family: "'Sora', sans-serif", weight: 'bold' }
-                },
-                ticks: {
-                  callback: function(value) { return value + '%'; },
-                  font: { family: "'JetBrains Mono', monospace" }
-                }
-              },
-              x: {
-                grid: { display: false },
-                ticks: {
-                  font: { family: "'Sora', sans-serif", size: 10 }
-                }
+            x: {
+              grid: { display: false },
+              ticks: {
+                font: { family: 'Sora, sans-serif', size: 10 }
               }
             }
           }
-        });
-      }
-    })();
-  </script>
-</div>
+        }
+      });
+    }
+  })();
+</script>

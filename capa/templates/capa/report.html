@@ -116,17 +116,26 @@
 {% block capa_content %}
 <div class="page-container">
 
-  <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-start;">
+  {% if delay_record_id %}
+    <div style="margin-bottom: 25px; display: flex; justify-content: flex-end;">
+      <a href="{% url 'delays:dept_overview' active_dept.id %}" 
+         style="background-color: var(--jspl-orange); color: white; text-decoration: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; border: none; box-shadow: 0 4px 12px rgba(244, 121, 32, 0.15); font-size: 0.88rem; transition: all 0.2s ease;"
+         onmouseover="this.style.filter='brightness(0.95)';"
+         onmouseout="this.style.filter='none';">
+        ⏱ Back to Delays Log
+      </a>
+    </div>
+  {% endif %}
+
+  <div style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
     <div>
-      <h1 class="portal-page-title">Master CAPA Report</h1>
-      <p class="portal-page-subtitle">Official vertical format grid of Corrective and Preventive Action parameters</p>
-      <a href="{% url 'capa:identification' active_dept.id %}" class="btn btn-primary" style="margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; background-color: var(--jspl-navy) !important; font-size: 0.8rem; height: 34px;">
+      <a href="{% url 'capa:identification' active_dept.id %}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px; background-color: var(--jspl-navy) !important; font-size: 0.8rem; height: 34px;">
         ➕ Add CAPA Manually
       </a>
     </div>
     
     <!-- Upload Document Card -->
-    <div class="card" style="padding: 12px 18px; max-width: 450px; border: 1px dashed var(--jspl-blue); background: rgba(0, 87, 168, 0.02);">
+    <div class="card" style="padding: 12px 18px; max-width: 450px; border: 1px dashed var(--jspl-blue); background: rgba(0, 87, 168, 0.02); margin: 0;">
       <h4 style="font-size: 0.8rem; font-weight: 700; color: var(--jspl-navy); margin-bottom: 6px;">📥 Upload Past Data (.docx, .doc, .pdf)</h4>
       <form action="{% url 'capa:upload_file' active_dept.id %}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
         {% csrf_token %}
@@ -237,6 +246,7 @@
                 approvedBy: '{{ r.approved_by|escapejs }}',
 
                 team: { team_leader: '', team_members: '', role_function: '', contact_nos: '' },
+                selectedMembers: [],
                 whys: [],
                 corrective: [],
                 preventive: [],
@@ -279,6 +289,7 @@
                 init() {
                   const rawTeam = JSON.parse(document.getElementById('team-{{ r.id }}').textContent || '{}');
                   this.team = this.normalizeTeam(rawTeam);
+                  this.selectedMembers = this.team.team_members ? this.team.team_members.split('\n').map(m => m.trim()).filter(m => m) : [];
                   this.whys = JSON.parse(document.getElementById('whys-{{ r.id }}').textContent || '[]');
                   this.corrective = (JSON.parse(document.getElementById('corrective-{{ r.id }}').textContent || '[]')).map(act => {
                     act.target_date = formatDateForInput(act.target_date);
@@ -292,6 +303,41 @@
                   });
                   this.fiveM = JSON.parse(document.getElementById('fivem-{{ r.id }}').textContent || '[]');
                   this.modifiedDocs = JSON.parse(document.getElementById('modifieddocs-{{ r.id }}').textContent || '[]');
+                  
+                  // Auto-update breakdown duration checkbox based on duration changes
+                  this.$watch('breakdownHrs', value => {
+                    const val = parseFloat(value);
+                    if (!isNaN(val)) {
+                      if (val >= 4) {
+                        this.breakdownApplicable = '≥ 4 Hrs.';
+                      } else if (val >= 2) {
+                        this.breakdownApplicable = '2 – 4 Hrs.';
+                      } else if (val >= 1) {
+                        this.breakdownApplicable = '1 – 2 Hrs.';
+                      } else if (val > 0) {
+                        this.breakdownApplicable = '≤ 1 Hrs.';
+                      }
+                    }
+                  });
+                  if (this.breakdownHrs && !this.breakdownApplicable) {
+                    const val = parseFloat(this.breakdownHrs);
+                    if (!isNaN(val)) {
+                      if (val >= 4) {
+                        this.breakdownApplicable = '≥ 4 Hrs.';
+                      } else if (val >= 2) {
+                        this.breakdownApplicable = '2 – 4 Hrs.';
+                      } else if (val >= 1) {
+                        this.breakdownApplicable = '1 – 2 Hrs.';
+                      } else if (val > 0) {
+                        this.breakdownApplicable = '≤ 1 Hrs.';
+                      }
+                    }
+                  }
+                  
+                  // Watch selectedMembers to sync with team.team_members
+                  this.$watch('selectedMembers', value => {
+                    this.team.team_members = value.join('\n');
+                  });
                 },
 
                 toggleEdit() {
@@ -340,6 +386,7 @@
 
                   const rawTeam = JSON.parse(document.getElementById('team-{{ r.id }}').textContent || '{}');
                   this.team = this.normalizeTeam(rawTeam);
+                  this.selectedMembers = this.team.team_members ? this.team.team_members.split('\n').map(m => m.trim()).filter(m => m) : [];
                   this.whys = JSON.parse(document.getElementById('whys-{{ r.id }}').textContent || '[]');
                   this.corrective = (JSON.parse(document.getElementById('corrective-{{ r.id }}').textContent || '[]')).map(act => {
                     act.target_date = formatDateForInput(act.target_date);
@@ -575,7 +622,22 @@
                         <!-- Team Members -->
                         <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
                           <span x-show="!editMode" class="view-value" style="white-space: pre-line;" x-text="team.team_members || '—'"></span>
-                          <textarea x-show="editMode" name="team_members" class="capa-textarea" x-model="team.team_members" placeholder="Team Members (one per line)" style="height: 80px;"></textarea>
+                          
+                          <div x-show="editMode" x-data="{ open: false }" class="multiselect-dropdown" style="position: relative; width: 100%;" @click.away="open = false">
+                            <button type="button" @click="open = !open" class="capa-input" style="width: 100%; text-align: left; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; height: auto; min-height: 38px; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                              <span style="font-size: 0.85rem; color: #0f172a; white-space: normal; word-break: break-word;" x-text="selectedMembers.length > 0 ? selectedMembers.join(', ') : 'Select Team Members...'"></span>
+                              <span style="color: #64748b; font-size: 0.8rem;">▼</span>
+                            </button>
+                            <div x-show="open" style="position: absolute; top: 100%; left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); max-height: 200px; overflow-y: auto; z-index: 50; padding: 8px;" x-transition>
+                              {% for name in user_choices %}
+                                <label style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; color: #334155; user-select: none; text-align: left;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                                  <input type="checkbox" :value="'{{ name|escapejs }}'" x-model="selectedMembers" style="accent-color: var(--jspl-blue); cursor: pointer;">
+                                  <span>{{ name }}</span>
+                                </label>
+                              {% endfor %}
+                            </div>
+                            <input type="hidden" name="team_members" :value="selectedMembers.join('\n')">
+                          </div>
                         </td>
                         <!-- Role/Function -->
                         <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">

@@ -10,14 +10,6 @@
 {% block capa_content %}
 <div class="page-container">
 
-  <!-- Header Row Banner -->
-  <div class="delays-header-bar" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: linear-gradient(135deg, var(--jspl-navy, #003478) 0%, var(--jspl-blue, #0057A8) 100%); padding: 24px; border-radius: 16px; color: #FFFFFF; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);">
-    <div>
-      <h2 style="margin: 0 0 6px 0; color: #FFFFFF; font-weight: 700; font-size: 1.6rem; letter-spacing: -0.5px;">📊 CAPA Dashboard</h2>
-      <span style="font-size: 0.9rem; opacity: 0.85;">Comparative CAPA analytics &amp; action tracking overview for <b>{{ active_dept.name }}</b></span>
-    </div>
-    {% include 'portal/partials/_fy_filter.html' %}
-  </div>
 
   <!-- Metric Summary Cards Grid -->
   <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
