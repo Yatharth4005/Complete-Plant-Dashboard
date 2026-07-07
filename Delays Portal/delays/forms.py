@@ -159,14 +159,6 @@ class DelayRecordForm(forms.ModelForm):
             action_opts = sorted(list(set(DelayDropdownOption.objects.filter(
                 department=department, category__iexact='Action'
             ).values_list('value', flat=True).distinct())))
-        if not action_opts:
-            action_opts = [
-                "Check motor body temperature and vibration levels",
-                "Inspect belt tension, pulley alignment, and look for tear/slip",
-                "Verify oil level in gearboxes and check for hydraulic leaks",
-                "Inspect mechanical coupling, spindles, and foundation bolts tightness",
-                "Verify limit switches operation and cable connection health"
-            ]
         self.fields['action'].choices = [('', 'Select Action')] + [(act, act) for act in action_opts]
         
         # If editing an existing instance, preserve values and set initial agency_type
