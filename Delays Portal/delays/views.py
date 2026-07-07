@@ -66,7 +66,6 @@ def get_department_autocompletes(department, records):
     equipments = sorted(list(normalized_eqs_set))
     
     sub_equipments_set = set(custom_options.filter(category__iexact='Sub-Equipment').values_list('value', flat=True).distinct())
-    sub_equipments_set.update(records.exclude(sub_equipment__isnull=True).exclude(sub_equipment='').values_list('sub_equipment', flat=True).distinct())
     sub_equipments = sorted([x for x in sub_equipments_set if x])
     
     incharges_set = set(custom_options.filter(category__iexact='Shift Incharge').values_list('value', flat=True).distinct())

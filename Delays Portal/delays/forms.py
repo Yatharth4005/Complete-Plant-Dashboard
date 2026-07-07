@@ -104,11 +104,10 @@ class DelayRecordForm(forms.ModelForm):
             sub_areas_set.update(DelayRecord.objects.filter(department=department).exclude(sub_area__isnull=True).exclude(sub_area='').values_list('sub_area', flat=True).distinct())
             sub_area_list = sorted([x for x in sub_areas_set if x])
 
-            # Fetch sub-equipments from dropdown options + unique past values
+            # Fetch sub-equipments from dropdown options only
             sub_equip_set = set(DelayDropdownOption.objects.filter(
                 department=department, category__iexact='Sub-Equipment'
             ).values_list('value', flat=True).distinct())
-            sub_equip_set.update(DelayRecord.objects.filter(department=department).exclude(sub_equipment__isnull=True).exclude(sub_equipment='').values_list('sub_equipment', flat=True).distinct())
             sub_equip_list = sorted([x for x in sub_equip_set if x])
 
             # Fetch shift incharges from dropdown options + unique past values
