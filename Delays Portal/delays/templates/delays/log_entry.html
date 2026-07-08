@@ -179,7 +179,18 @@
     <!-- Action Buttons -->
     <div class="form-actions-panel" style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--delays-border); padding-top: 20px;">
       <a href="{{ next_url }}" class="btn btn-secondary" style="border: 1px solid var(--delays-border); padding: 8px 16px; border-radius: var(--radius-md); text-decoration: none; color: var(--jspl-navy); font-weight: 500;">Cancel</a>
-      <button type="submit" class="btn btn-primary-gradient" style="background: linear-gradient(90deg, #F47920 0%, #E05300 100%); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer;">
+      
+      {% if is_edit and record %}
+        <button type="submit" name="action_type" value="capa" class="btn" style="background: linear-gradient(90deg, #7c3aed 0%, #6d28d9 100%); color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(124, 58, 237, 0.2); transition: all 0.2s ease;">
+          Go to CAPA Form ➔
+        </button>
+      {% elif not is_edit %}
+        <button type="submit" name="action_type" value="capa" class="btn" style="background: linear-gradient(90deg, #7c3aed 0%, #6d28d9 100%); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);">
+          📋 Save & Fill CAPA
+        </button>
+      {% endif %}
+      
+      <button type="submit" name="action_type" value="save" class="btn btn-primary-gradient" style="background: linear-gradient(90deg, #F47920 0%, #E05300 100%); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer;">
         {% if is_edit %}Update Log Entry{% else %}Submit Delay Log{% endif %}
       </button>
     </div>

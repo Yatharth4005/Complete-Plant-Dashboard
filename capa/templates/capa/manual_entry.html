@@ -87,7 +87,7 @@
 
   {% if request.GET.delay_record_id %}
     <div style="margin-bottom: 25px; display: flex; justify-content: flex-end;">
-      <a href="{% url 'delays:dept_overview' active_dept.id %}" 
+      <a href="{% url 'delays:dept_overview' active_dept.id %}?tab=summary" 
          style="background-color: var(--jspl-orange); color: white; text-decoration: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; border: none; box-shadow: 0 4px 12px rgba(244, 121, 32, 0.15); font-size: 0.88rem; transition: all 0.2s ease;"
          onmouseover="this.style.filter='brightness(0.95)';"
          onmouseout="this.style.filter='none';">
@@ -97,7 +97,7 @@
   {% endif %}
 
   <div class="card" style="max-width: 900px; margin: 0 auto 40px; padding: 25px; border: 1px solid var(--jspl-border);">
-    <form action="{% url 'capa:save_capa' active_dept.id %}" method="POST">
+    <form action="{% url 'capa:save_capa' active_dept.id %}{% if request.GET.delay_record_id %}?delay_record_id={{ request.GET.delay_record_id }}{% endif %}" method="POST">
       {% csrf_token %}
 
       <!-- File Association / Target File -->

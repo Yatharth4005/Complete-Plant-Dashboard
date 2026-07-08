@@ -1,6 +1,7 @@
 import json
 import os
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
@@ -1185,6 +1186,8 @@ def new_record(request, dept_id):
             record.sheet_name = 'Manual Entry'
             record.save()
             messages.success(request, f"Manual delay entry on {record.date} successfully logged.")
+            if request.POST.get('action_type') == 'capa':
+                return redirect(reverse('capa:report', args=[dept_id]) + f'?delay_record_id={record.id}')
             return redirect(next_url)
     else:
         form = DelayRecordForm(department=department)
@@ -1261,6 +1264,8 @@ def edit_record(request, dept_id, record_id):
         if form.is_valid():
             form.save()
             messages.success(request, "Delay record updated successfully.")
+            if request.POST.get('action_type') == 'capa':
+                return redirect(reverse('capa:report', args=[dept_id]) + f'?delay_record_id={record.id}')
             return redirect(next_url)
     else:
         form = DelayRecordForm(instance=record, department=department)

@@ -1,0 +1,61 @@
+Sheet Names: ['Fuguai Register Common_25-26', 'MC Owner', 'Fuguai Classification']
+
+=========================================
+Sheet: Fuguai Register Common_25-26
+=========================================
+Row 01: ['JISHU – HOZEN (AUTONOMOUS MAINTENANCE)', None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+Row 02: ['FUGUAI REGISTER  ', None, None, None, None, None, None, None, '#REF!', None, None, None, None, None, None, None, None, None, None]
+Row 04: ['Machine /Equipment Name', 'HPPT No.', 'Shift', 'Sl. No.', 'Date of detection', 'Detector\n (Name)', 'Fuguai / Abnormality Classification (see bottom)', 'Fuguai (Abnormality)\n (from Examples)', 'Nos.', 'Fuguai Type (Red or White)', 'Why is it “Fuguai” ( what will happen if it is left as it is )', 'How did it become so ?\n ( what is the cause)', 'Content of the counter measures', 'Executor\n (Name)', 'Planned date of execution', 'Actual date of completion', None, None, None]
+Row 05: ['Water cooler area', 4, 'B', 1, datetime.datetime(2025, 5, 1, 0, 0), 'Abhimanyu', 'Unnecessary Items', 'used handgloves ,wrappers accumulated', 20, 'White', 'thrown by someone', 'Cleaning done', 'Operation Team', datetime.datetime(2025, 5, 1, 0, 0), datetime.datetime(2025, 5, 1, 0, 0), None, None, None, None]
+Row 06: ['Casi bundle', 4, 'B', 2, datetime.datetime(2025, 7, 1, 0, 0), 'Abhimanyu', 'Unnecessary Items', 'Empty Casi wire bundle at ladle turret', 2, 'White', 'Used bundle', 'Cutting and cleaning done', 'Operation Team', datetime.datetime(2025, 7, 1, 0, 0), datetime.datetime(2025, 7, 1, 0, 0), None, None, None, None]
+Row 07: ['Used SEN', 4, 'B', 3, '15/01/2025', 'Abhimanyu', 'Minor Flaws', 'Used SEN at shop floor', 2, 'White', 'Used SEN left behind', 'Removed to designated place', 'Operation Team', '15/01/2025', '15/01/2025', None, None, None, None]
+Row 08: ['Tundish car', 5, 'A', 4, '20/1/2025', 'Abhimanyu', 'MINOR FLAWS', 'ladle slag', 40, 'white', None, 'Cleaning done', 'Operation Team', '20/1/2025', '20/1/2025', None, None, None, None]
+Row 09: ['TUNDISH car 2', 5, 'C', 5, datetime.datetime(2025, 6, 2, 0, 0), 'Kunal k', 'Minor Flaws', 'North tundish burner no.1 not working ', 1, 'RED', None, 'Cleaning done by mech', 'MECH', datetime.datetime(2025, 2, 6, 0, 0), datetime.datetime(2025, 2, 6, 0, 0), None, None, None, None]
+Row 10: ['Cooling Bed', 5, 'B', 6, datetime.datetime(2025, 6, 25, 0, 0), 'Ashish gupta', ' Contamination Sources', 'Cooling bed not working in reverse ', 1, 'RED', None, 'feedback not come', 'Elec', datetime.datetime(2025, 7, 2, 0, 0), datetime.datetime(2025, 7, 2, 0, 0), None, None, None, None]
+Row 11: ['Slide Gate plateform', 5, 'C', 7, datetime.datetime(2025, 11, 2, 0, 0), 'Abhimanyu kumar', 'Unnecessary Items', 'Slag fallen from ladle', 150, 'White', None, 'Slag from ladle', 'Cleaning done ', 'Operation', datetime.datetime(2025, 11, 2, 0, 0), datetime.datetime(2025, 11, 2, 0, 0), None, None, None]
+Row 12: ['Turret area', 5, 'C', 8, datetime.datetime(2025, 11, 2, 0, 0), 'Abhimanyu kumar', 'Unnecessary Items', 'Used shroud ', 7, 'White', None, 'Used shroud ', 'Cleaning done ', 'Operation', datetime.datetime(2025, 11, 2, 0, 0), datetime.datetime(2025, 11, 2, 0, 0), None, None, None]
+Row 13: ['Slide Gate ', 5, 'C', 9, '20/2/2025', 'Manish kumar', ' Contamination Sources', 'SLIDE GATE CYLINDRE HOSE DAMAGE OF LADLE TURRET ARM NO 2', 1, 'RED', None, 'Hot Condition', 'HOSE TO BE CHANGED', 'MECH', datetime.datetime(2025, 2, 20, 0, 0), datetime.datetime(2025, 2, 20, 0, 0), None, None, None]
+Row 14: ['Ladle Turret  ', 5, 'B', 10, '24/02/25', 'Abhimanyu kumar', 'Minor Flaws', 'Slag and dust accumulation', 500, 'White', None, 'From Ladle slag', 'Cleaning done ', 'Operation', '24/02/25', '24/02/25', None, None, None]
+Row 15: ['Mould Oscillatore Inner', 5, 'B', 11, '24/02/2025', 'Abhimanyu kumar', 'Minor Flaws', 'Dust and scrap Accumulation', 10, 'White', None, 'slag from ladle /', 'Cleaning done ', 'Operation', '24/02/25', '24/02/25', None, None, None]
+Row 16: ['Mould Oscillatore Outer', 5, 'B', 12, '24/02/2025', 'Abhimanyu kumar', 'Minor Flaws', 'Dust and scrap Accumulation', 10, 'White', None, 'slag from ladle /', 'Cleaning done ', 'Operation', '24/02/25', '24/02/25', None, None, None]
+Row 17: ['Cooling Bed', 5, 'B', 13, datetime.datetime(2025, 3, 3, 0, 0), 'Ashish gupta', ' Contamination Sources', 'Cooling bed not working in reverse ', 1, 'RED', None, 'feedback not come', 'Elec', 'Operation', datetime.datetime(2025, 3, 3, 0, 0), datetime.datetime(2025, 3, 3, 0, 0), None, None, None]
+Row 18: ['Ladle Turret', 5, 'B', 14, datetime.datetime(2025, 5, 13, 0, 0), 'Manish Kumar', 'Unnecessary Items', 'Slag pcs arround nera Ladle turret', 20, 'White', 'Fall from ladle', 'Excess slag on ladle lip', 'Ladle slag cleaning done', 'HPPT 5', '13/5/2024', '13/5/2024', None, None, None]
+Row 19: ['tundish preheater', 5, 'c', 15, datetime.datetime(2025, 5, 13, 0, 0), 'Kunal kaushlendra', 'Minor Flaws', 'Dust accumalated on south tundish car', 1, 'White', None, 'Atmosheric dust', 'Operation Team', 'HPPT 5', '13/5/2024', '13/5/2024', None, None, None]
+Row 20: ['Ladle Turret', 5, 'B', 16, datetime.datetime(2025, 5, 14, 0, 0), 'Manish Kumar', 'Unfulfilled Basic Condition', 'Arm No1 slid gate house pipe leakage', 1, 'Red', 'Fall from ladle', 'Excess heat', 'HOSE Pipe CHANGED', 'HPPT 5', '14/5/2024', '14/5/2024', None, None, None]
+Row 21: ['Ladle Turret', 5, 'B', 17, datetime.datetime(2025, 5, 14, 0, 0), 'Manish Kumar', 'Unnecessary Items', 'Slag pcs arround nera Ladle turret', 10, 'White', 'Fall from ladle', 'Excess slag on ladle lip', 'Ladle slag cleaning done', 'HPPT 5', '14/5/2024', '14/5/2024', None, None, None]
+Row 22: ['Mould oscillator', 4, 'C', 18, '14/05/2025', 'Tanmoy Sil', 'Unnecessary Items', 'Used gloves, used clothes, iron bari, old damage couplings found at oscillator area', 5, 'White', None, 'During maintenance jobs things are left out', 'cleaning to be done', 'HPPT 4', '14/05/25', '14/05/25', None, None, None]
+Row 23: ['Mould oscillator', 4, 'C', 19, '14/05/2025', 'Tanmoy Sil', 'Unfulfilled Basic Condition', 'Dust and grease cleaning not done', 4, 'White', None, 'Greases are comimg out from greasing points', 'cleaning to be done', 'HPPT 4', '14/05/25', None, None, None, None]
+Row 24: ['Mould oscillator', 4, 'C', 20, '14/05/2025', 'Tanmoy Sil', 'Minor Flaws', 'Abnornal sounds coming out from Std-5 oscillator', 1, 'Red', None, 'sounds are coming from motor-gb coulping area', 'investigation to be cone', 'Mech', '14/05/25', None, None, None, None]
+
+=========================================
+Sheet: MC Owner
+=========================================
+Row 01: ['JH Machine List', None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+Row 02: ['Sl.No.', 'Machine Name', 'No. of Equipment', 'Rank (A / B / C)', 'Machine Owner\n (JH Circle Name)', 'JH Circle Leader Name', 'JH Circle Member Name 1', 'JH Circle Member Name 2', 'JH Circle Member Name 3', 'JH Circle Member Name 4', None, 'Weekly Update in Dakshta', None, '5S Store', None]
+Row 03: [1, 'I D Fan', 3, 'A', 'HPPT-1', 'Ashish Suryavanshi', 'Shubhankar Mishra', 'Chandrama Singh', None, None, None, None, None, None, None]
+Row 04: [2, 'FD cooler', 12, 'B', 'HPPT-1', 'Ajay Kumar', 'Ramkeshwar Paswan', 'Shahnawaz Ali', None, None, None, None, None, None, None]
+Row 05: [3, 'Hot metal ladle Car', 2, 'B', 'HPPT-1', 'Kuldeep Chandra', 'Umashankar', 'Bhagwan Das', 'Vikram Kr Kashyap', 'Siddheswar Sahu', None, None, None, None, None]
+Row 06: [4, 'RMHS', 10, 'B', 'HPPT-1', 'Mukesh Gupta', 'Shriniwas Pandey', 'Bhisam Baret', 'Shubankar Mishra', 'Ranjan Tiwari', None, None, None, None, None]
+Row 07: [5, 'FAFA', 14, 'B', 'HPPT-1', 'Arvind Tiwari', 'Jagdish Chouhan', 'Uma Singh', 'Ramkeshwar Paswan', 'Chaitnya Patel', None, None, None, None, None]
+Row 08: [6, 'EAF', 1, 'A', 'HPPT-2', 'Anupam Thakre', 'Partha Sarathi ghadai ', 'Janak Patel', 'Suresh Kumar Sharma', 'Ramashry Prasad', None, None, None, None, None]
+Row 09: [7, 'EAF hydraulic Room', 4, 'A', 'HPPT-2', 'Sanjeev Pandey', 'Munna Kumar', 'Sanjay Shinde', None, None, None, None, None, None, None]
+Row 10: [8, 'Oxygen Valve stand', 4, 'A', 'HPPT-2', 'Sanjeev Pandey', 'Ramprakash', 'Shiv Shankar', None, None, None, datetime.datetime(2025, 7, 25, 0, 0), 'W4', None, None]
+Row 11: [9, 'Tapping car', 1, 'B', 'HPPT-2', 'Sanjay Jogi', 'Shiv Shankar', 'Rajesh Choudhary', None, None, None, None, None, None, None]
+Row 12: [10, 'Launder Car', 1, 'B', 'HPPT-2', 'Anupam Thakre', 'Ram kumar sahu', 'Rajnikant', 'Manish Singh', None, None, None, None, None, None]
+Row 13: [11, 'Carbon injection Machine', 1, 'A', 'HPPT-2', 'Avinash', 'Kamlesh Sahu', 'Satyanarayan Yadav', 'Suresh Sharma', None, None, None, None, None, None]
+Row 14: [12, 'LRF', 2, 'A', 'HPPT-3', 'Chandrakant tandulane', 'Rakesh Bhakta', 'Narayan Rana', 'Parvej Alam', 'Sanjay Yadav', 'Hemant Dewangan', None, None, None, None]
+Row 15: [13, 'Wire feeding machine', 2, 'A', 'HPPT-3', 'Yogesh Singh', 'Yogesh Singh', 'Dhanesh Sahu', 'Pradeep Sharma', 'Prashant Rana', 'Ramprakash', None, None, None, None]
+Row 16: [14, 'LRF Hydraulics', 2, 'A', 'HPPT-3', 'Dilip Patel', 'Munna Kumar', 'Pradeep Singh', None, None, None, None, None, None, None]
+Row 17: [15, 'Booster fan', 2, 'B', 'HPPT-3', 'Sanjay Kumar', 'Ramashray Prasad', 'Sanjay Yadav', None, None, None, None, None, None, None]
+Row 18: [16, 'LRF ladle Car', 3, 'B', 'HPPT-3', 'Vivek Trivedi', 'Jhanak Patel', 'Raju Vishwakarma', None, None, None, None, None, None, None]
+Row 19: [17, 'VD Injector house', 1, 'B', 'HPPT-3', 'Dhaneshwer Sahu', 'Dilip Gupta', 'Dilip Pathak', 'Rajat Sharma', 'Prafful Tiwari', None, None, None, None, None]
+Row 20: [18, 'Wire feeding machine-VD', 2, 'A', 'HPPT-3', 'Mukul Khunte', 'Ayan Basu', 'Umesh Jha', 'Neelesh Kumar Verma', 'Vijay Kumar', None, None, None, None, None]
+Row 21: [19, 'VD cover car', 1, 'A', 'HPPT-3', 'Pankaj Patel', 'Sandeep Kumar', 'Sanjay Patil', 'Virendra Patel', 'Chhhotelal Rana', None, None, None, None, None]
+Row 22: [20, 'Combi Caster Turret', 1, 'A', 'HPPT-5', 'Manish Kumar', 'Ram Pravesh', 'Dina Singh', 'Vimod Kurrey', 'Badal', None, None, None, None, None]
+Row 23: [21, 'Combi Caster Hydraulic Room', 1, 'A', 'HPPT-5', 'Anwar Raza', 'Munna Kumar', 'Shashi', 'Tabrez', 'Rajendra Behra', None, None, None, None, None]
+Row 24: [22, 'Combi Caster Transfer Car', 1, 'A', 'HPPT-5', 'Sandeep Sharma', 'Harendra Prashad', 'Vijay', 'Neelesh verma', 'Lakhan', None, None, None, None, None]
+
+=========================================
+Sheet: Fuguai Classification
+=========================================
+Row 03: [None, 'FUGUAI CLASSIFICATION', None, None]

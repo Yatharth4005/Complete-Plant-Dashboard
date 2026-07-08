@@ -832,6 +832,10 @@ def save_capa(request, dept_id, record_id=None):
     report.save()
     messages.success(request, f"CAPA Report {report.capa_no} saved successfully.")
     
+    delay_record_id = request.GET.get('delay_record_id')
+    if delay_record_id:
+        return redirect(reverse('delays:dept_overview', args=[dept_id]) + '?tab=summary')
+        
     if report.docx_upload:
         return redirect(reverse('capa:report', args=[dept_id]) + f'?upload_id={report.docx_upload.id}')
     else:
