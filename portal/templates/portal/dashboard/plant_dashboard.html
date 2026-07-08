@@ -38,31 +38,33 @@
 
       <div class="dept-hub-modules-list" x-show="open" x-transition x-cloak>
         {% for item in card.modules %}
-        {% if item.accessible %}
-        <!-- Unlocked Module Button -->
-        <a href="{% url 'portal:enter_module' card.dept.id item.module.key %}"
-          class="dept-hub-module-btn {{ item.module.color_class }} accessible"
-          title="{{ item.module.label }} (View Access)">
-          <span class="module-btn-icon">
-            {% include "portal/partials/_module_icon.html" with key=item.module.key %}
-          </span>
-          <div class="module-btn-text">
-            <span class="module-btn-name">{% if item.module.key == 'HOD_KPI' %}HOD KPI{% else %}{{ item.module.key }}{% endif %}</span>
-            <span class="module-btn-desc">{{ item.module.label }}</span>
-          </div>
-          <span class="module-btn-badge {{ item.access_level|lower }}">{% if item.access_level == 'EDIT' %}View + Edit{% else %}View Only{% endif %}</span>
-        </a>
-        {% else %}
-        <!-- Locked Module Button -->
-        <div class="dept-hub-module-btn locked" title="{{ item.module.label }} (Access Restricted)">
-          <span class="module-btn-icon">🔒</span>
-          <div class="module-btn-text">
-            <span class="module-btn-name">{% if item.module.key == 'HOD_KPI' %}HOD KPI{% else %}{{ item.module.key }}{% endif %}</span>
-            <span class="module-btn-desc" style="color: rgba(255, 255, 255, 0.35);">{{ item.module.label }}</span>
-          </div>
-          <span class="module-btn-badge locked">LOCKED</span>
-        </div>
-        {% endif %}
+          {% if item.module.key != 'Delays' %}
+            {% if item.accessible %}
+            <!-- Unlocked Module Button -->
+            <a href="{% url 'portal:enter_module' card.dept.id item.module.key %}"
+              class="dept-hub-module-btn {{ item.module.color_class }} accessible"
+              title="{{ item.module.label }} (View Access)">
+              <span class="module-btn-icon">
+                {% include "portal/partials/_module_icon.html" with key=item.module.key %}
+              </span>
+              <div class="module-btn-text">
+                <span class="module-btn-name">{% if item.module.key == 'HOD_KPI' %}HOD KPI{% else %}{{ item.module.key }}{% endif %}</span>
+                <span class="module-btn-desc">{{ item.module.label }}</span>
+              </div>
+              <span class="module-btn-badge {{ item.access_level|lower }}">{% if item.access_level == 'EDIT' %}View + Edit{% else %}View Only{% endif %}</span>
+            </a>
+            {% else %}
+            <!-- Locked Module Button -->
+            <div class="dept-hub-module-btn locked" title="{{ item.module.label }} (Access Restricted)">
+              <span class="module-btn-icon">🔒</span>
+              <div class="module-btn-text">
+                <span class="module-btn-name">{% if item.module.key == 'HOD_KPI' %}HOD KPI{% else %}{{ item.module.key }}{% endif %}</span>
+                <span class="module-btn-desc" style="color: rgba(255, 255, 255, 0.35);">{{ item.module.label }}</span>
+              </div>
+              <span class="module-btn-badge locked">LOCKED</span>
+            </div>
+            {% endif %}
+          {% endif %}
         {% endfor %}
       </div>
     </div>
