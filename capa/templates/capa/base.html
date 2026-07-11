@@ -254,7 +254,7 @@
   </div>
 
   <!-- Fixed parent tabs navigation bar -->
-  {% if active_tab == 'checklist_summary' or active_tab == 'manual_checklist' or is_manage_options_page and request.GET.tab == 'Action' or is_manage_options_page and request.GET.tab == 'Shift Incharge' %}
+  {% if active_tab == 'checklist_summary' or active_tab == 'manual_checklist' or active_tab == 'checklist_schedule' or active_tab == 'checklist_calendar' or active_tab == 'checklist_status' or is_manage_options_page and request.GET.module == 'checklist' %}
     <div class="main-tabs-container">
       <!-- 4. Checklist -->
       <a href="{% url 'delays:dept_overview' dept.id %}?tab=checklist_summary{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
@@ -272,7 +272,7 @@
       
       <!-- 2. Delay Logs -->
       <a href="{% url 'delays:dept_overview' dept.id %}?tab=summary{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
-         class="main-tab-link theme-blue {% if active_tab == 'summary' or active_tab == 'entry' or active_tab == 'options' or is_manage_options_page and request.GET.tab != 'Action' and request.GET.tab != 'Shift Incharge' %}active{% endif %}">
+         class="main-tab-link theme-blue {% if active_tab == 'summary' or active_tab == 'entry' or active_tab == 'options' or active_tab == 'uploads' or is_manage_options_page and request.GET.module != 'checklist' %}active{% endif %}">
          📋 Delay Logs
       </a>
       
@@ -285,7 +285,13 @@
       <!-- 5. CAPAs -->
       <a href="{% url 'capa:dashboard' dept.id %}" 
          class="main-tab-link theme-violet {% if active_module == 'CAPA' or active_tab == 'capa_summary' %}active{% endif %}">
-        📋 CAPAs
+         📋 CAPAs
+      </a>
+      
+      <!-- 6. MTTR / MTBF Analysis -->
+      <a href="{% url 'delays:dept_overview' dept.id %}?tab=mttr_mtbf{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
+         class="main-tab-link theme-rose {% if active_tab == 'mttr_mtbf' %}active{% endif %}">
+        ⏱ MTTR / MTBF Analysis
       </a>
     </div>
   {% endif %}
@@ -293,7 +299,7 @@
   <!-- Sub-modules nested navigation tabs -->
   
   <!-- Sub-tabs for Delay Logs -->
-  {% if active_tab == 'summary' or active_tab == 'entry' or active_tab == 'options' or is_manage_options_page and request.GET.tab != 'Action' and request.GET.tab != 'Shift Incharge' %}
+  {% if active_tab == 'summary' or active_tab == 'entry' or active_tab == 'options' or active_tab == 'uploads' or is_manage_options_page and request.GET.module != 'checklist' %}
     <div class="sub-tabs-bar sub-theme-blue">
       <a href="{% url 'delays:dept_overview' dept.id %}?tab=summary{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
          class="sub-tab-link {% if active_tab == 'summary' %}active{% endif %}">
@@ -307,7 +313,7 @@
       {% endif %}
       {% if can_edit and dept.id and dept.id != 0 %}
         <a href="{% url 'delays:manage_options' dept.id %}" 
-           class="sub-tab-link {% if is_manage_options_page and request.GET.tab != 'Action' and request.GET.tab != 'Shift Incharge' or active_tab == 'options' %}active{% endif %}">
+           class="sub-tab-link {% if is_manage_options_page and request.GET.module != 'checklist' or active_tab == 'options' %}active{% endif %}">
           ⚙️ Delay Dropdown options
         </a>
       {% endif %}
@@ -315,28 +321,24 @@
   {% endif %}
 
   <!-- Sub-tabs for Checklist Tab -->
-  {% if active_tab == 'mttr_mtbf' or active_tab == 'checklist_summary' or active_tab == 'manual_checklist' or is_manage_options_page and request.GET.tab == 'Action' or is_manage_options_page and request.GET.tab == 'Shift Incharge' %}
+  {% if active_tab == 'checklist_summary' or active_tab == 'manual_checklist' or active_tab == 'checklist_schedule' or active_tab == 'checklist_calendar' or active_tab == 'checklist_status' or is_manage_options_page and request.GET.module == 'checklist' %}
     <div class="sub-tabs-bar sub-theme-emerald">
+      <a href="{% url 'delays:dept_overview' dept.id %}?tab=checklist_schedule{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
+         class="sub-tab-link {% if active_tab == 'checklist_schedule' %}active{% endif %}">
+        📅 Checklist Schedule
+      </a>
+      <a href="{% url 'delays:dept_overview' dept.id %}?tab=checklist_calendar{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
+         class="sub-tab-link {% if active_tab == 'checklist_calendar' %}active{% endif %}">
+        🗓️ Checklist Calender
+      </a>
       <a href="{% url 'delays:dept_overview' dept.id %}?tab=checklist_summary{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
          class="sub-tab-link {% if active_tab == 'checklist_summary' %}active{% endif %}">
         📋 Checklist Table
       </a>
-      <a href="{% url 'delays:dept_overview' dept.id %}?tab=mttr_mtbf{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
-         class="sub-tab-link {% if active_tab == 'mttr_mtbf' %}active{% endif %}">
-        📋 Checklist Summary
+      <a href="{% url 'delays:dept_overview' dept.id %}?tab=checklist_status{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
+         class="sub-tab-link {% if active_tab == 'checklist_status' %}active{% endif %}">
+        📊 Checklist Status
       </a>
-      {% if dept.id and dept.id != 0 %}
-        <a href="{% url 'delays:dept_overview' dept.id %}?tab=manual_checklist{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
-           class="sub-tab-link {% if active_tab == 'manual_checklist' %}active{% endif %}">
-          📝 Manual Checklist
-        </a>
-      {% endif %}
-      {% if can_edit and dept.id and dept.id != 0 %}
-        <a href="{% url 'delays:manage_options' dept.id %}?tab=Action" 
-           class="sub-tab-link {% if is_manage_options_page and request.GET.tab == 'Action' or is_manage_options_page and request.GET.tab == 'Shift Incharge' %}active{% endif %}">
-          ⚙️ Checklist Dropdown Options
-        </a>
-      {% endif %}
     </div>
   {% endif %}
 

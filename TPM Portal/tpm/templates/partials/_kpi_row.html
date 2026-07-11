@@ -63,13 +63,29 @@
   <!-- Actual -->
   <td class="mono" style="text-align: right; vertical-align: middle;">
     {% if filter_type == 'range' or not can_edit %}
-      <span>{{ row.actual|default_if_none:"0" }}</span>
+      {% if row.actual is None %}
+        <span style="color: var(--jspl-muted); font-style: italic; font-size: 0.82rem;">Not Filled</span>
+      {% elif row.actual == 0 %}
+        <span style="color: #ea580c; background-color: #fff7ed; padding: 3px 8px; border: 1.5px solid #fdba74; border-radius: 4px; font-weight: bold; display: inline-block;">0</span>
+      {% else %}
+        <span>{{ row.actual }}</span>
+      {% endif %}
     {% elif row.is_PRODUCTION_row %}
-      <span x-text="actual !== null ? actual : '0'" style="font-weight: bold; color: var(--jspl-navy); padding-right: 10px;"></span>
+      <span x-text="actual !== null ? actual : 'Not Filled'" 
+            :style="actual === 0 ? 'color: #ea580c; font-weight: bold; background-color: #fff7ed; padding: 3px 8px; border: 1.5px solid #fdba74; border-radius: 4px; display: inline-block;' : 'font-weight: bold; color: var(--jspl-navy);'"
+            style="padding-right: 10px;"></span>
+      <input type="hidden" name="actual" x-model="actual">
+    {% elif row.is_automatic %}
+      <div style="display: inline-flex; align-items: center; gap: 6px;">
+        <span x-text="actual !== null ? actual : '0'" style="font-weight: bold; color: var(--jspl-navy);"></span>
+        <span class="badge" style="background-color: #E0F2FE; color: #0369A1; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Auto</span>
+      </div>
       <input type="hidden" name="actual" x-model="actual">
     {% else %}
-      <input type="number" name="actual" x-model="actual" step="any" class="input-mono" style="text-align: right;"
-        {% if is_locked %}disabled{% endif %}>
+      <input type="number" name="actual" x-model="actual" step="any" class="input-mono" style="text-align: right; transition: all 0.2s;"
+             placeholder="Not Filled"
+             :style="actual === 0 ? 'background-color: #fff7ed; border-color: #fdba74; color: #ea580c; font-weight: bold;' : ''"
+             {% if is_locked %}disabled{% endif %}>
     {% endif %}
   </td>
 

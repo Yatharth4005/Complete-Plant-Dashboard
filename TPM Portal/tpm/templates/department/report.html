@@ -211,7 +211,9 @@
                         <td style="text-align: center; padding: 8px; vertical-align: middle;"><span class="badge badge-muted">{{ k.uom }}</span></td>
                         <td class="mono" style="text-align: right; padding: 8px; vertical-align: middle;">{{ k.benchmark|default:"—" }}</td>
                         <td class="mono" style="text-align: right; padding: 8px; vertical-align: middle;">{{ k.target|default:"—" }}</td>
-                        <td class="mono" style="text-align: right; font-weight: 600; padding: 8px; vertical-align: middle;">{{ k.actual|default:"—" }}</td>
+                        <td class="mono" style="text-align: right; font-weight: 600; padding: 8px; vertical-align: middle;">
+                          {% if k.actual is not None %}{{ k.actual }}{% else %}—{% endif %}
+                        </td>
                         <td style="text-align: center; padding: 8px; vertical-align: middle;">
                           {% if k.achievement is not None %}
                             <span class="badge {% if k.achievement >= 90 %}badge-green{% elif k.achievement >= 75 %}badge-amber{% else %}badge-red{% endif %}" style="font-weight: 700; padding: 3px 8px; border-radius: 4px; font-size: 0.78rem;">

@@ -430,6 +430,38 @@ class TPMGovernanceRoleDescription(models.Model):
         return self.title
 
 
+class OPLSheet(models.Model):
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='opl_sheets')
+    pillar = models.CharField(max_length=10) # e.g., KK, JH, PM, etc.
+    opl_no = models.CharField(max_length=50, blank=True)
+    
+    theme = models.CharField(max_length=255, blank=True)
+    circle_name_members = models.CharField(max_length=255, blank=True)
+    
+    # Lesson Type: 'basic', 'trouble', 'improvement'
+    lesson_type = models.CharField(max_length=50, default='basic')
+    
+    # Before/After images
+    before_image = models.ImageField(upload_to='opl_images/', blank=True, null=True)
+    after_image = models.ImageField(upload_to='opl_images/', blank=True, null=True)
+    
+    benefits = models.TextField(blank=True)
+    
+    prepared_by = models.CharField(max_length=100, blank=True)
+    verified_by = models.CharField(max_length=100, blank=True)
+    
+    # Training table: list of dicts [{"date": "", "teacher": "", "student": ""}] (up to 5 columns)
+    training_records = models.JSONField(default=list, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return f"OPL {self.opl_no or 'Draft'} - {self.theme or 'No Theme'}"
+
+
+
 
 
 

@@ -6,7 +6,7 @@ from datetime import datetime, date, time
 from django.db import transaction
 from django.utils import timezone
 from tpm.models import Department
-from delays.models import DelayRecord, DelayUpload
+from delays.models import DelayRecord, DelayUpload, DelayDropdownOption
 
 def parse_date_string(date_str):
     """
@@ -249,9 +249,10 @@ def parse_duration_to_mins(duration_val, col_type=None):
 
 def normalize_agency_name(name):
     if not name:
-        return name
+        return ""
     name_str = str(name).strip()
-    name_upper = name_str.upper().rstrip('.')
+    name_clean = re.sub(r'[.\s]+$', '', name_str)
+    name_upper = name_clean.upper()
     
     mapping = {
         'MECH': 'Mechanical',
@@ -267,9 +268,42 @@ def normalize_agency_name(name):
         'INSTR': 'Instrumentation',
         'INSTRUMENTATION': 'Instrumentation',
         'REF': 'REF',
+        'REFRACTORY': 'REF',
+        'UTILITY': 'UTILITY',
+        'UTILITY(MECH)': 'UTILITY(MECH)',
+        'PLANNED': 'Planned',
+        'PLANNED DELAY': 'Planned',
     }
     
-    return mapping.get(name_upper, name_str)
+    return mapping.get(name_upper, name_clean)
+
+
+def normalize_equipment_or_area(value):
+    if not value:
+        return ""
+    val_str = str(value).strip()
+    val_clean = re.sub(r'[.\s]+$', '', val_str) # Strip trailing dots/spaces
+    val_upper = val_clean.upper()
+    
+    # EAF 1 / EAF-1 / EAF1 / EAF I / EAF-I -> EAF-I
+    # EAF 2 / EAF-2 / EAF2 / EAF II / EAF-II -> EAF-II
+    # EAF 3 / EAF-3 / EAF3 / EAF III / EAF-III -> EAF-III
+    # Supports EAF, LF, LRF, CCM, VD, RH
+    prefix_match = re.match(r'^(EAF|LF|LRF|CCM|VD|RH)\s*[-_]?\s*(I+|1|2|3|4|5)$', val_upper)
+    if prefix_match:
+        prefix = prefix_match.group(1)
+        num = prefix_match.group(2)
+        num_map = {
+            '1': 'I', 'I': 'I',
+            '2': 'II', 'II': 'II',
+            '3': 'III', 'III': 'III',
+            '4': 'IV', 'IV': 'IV',
+            '5': 'V', 'V': 'V'
+        }
+        roman = num_map.get(num, num)
+        return f"{prefix}-{roman}"
+        
+    return val_clean
 
 
 def clean_parsed_fields(desc, agency, sub_agency=None, equipment=None, sub_equipment=None):
@@ -413,6 +447,7 @@ def parse_sms3_sheet(rows, sheet_name, department, upload):
         
         # Clean fields
         desc, agency, _, _, _ = clean_parsed_fields(desc, agency)
+        clean_agency_opt = get_or_create_dropdown_option(department, 'Agency', agency)
         
         # Save record
         DelayRecord.objects.create(
@@ -422,7 +457,7 @@ def parse_sms3_sheet(rows, sheet_name, department, upload):
             date=sheet_date,
             time_slot=time_slot,
             duration_mins=duration,
-            agency=agency,
+            agency=clean_agency_opt or agency,
             description=desc,
         )
         records_created += 1
@@ -528,6 +563,12 @@ def parse_rail_mill_sheet(rows, sheet_name, department, upload):
             description_val, agency_val, sub_agency_val, equipment_val, sub_equipment_val
         )
         
+        clean_agency_opt = get_or_create_dropdown_option(department, 'Agency', agency)
+        clean_sub_agency_opt = get_or_create_dropdown_option(department, 'Sub-Agency', sub_agency)
+        clean_equipment_opt = get_or_create_dropdown_option(department, 'Equipment', equipment)
+        clean_sub_equipment_opt = get_or_create_dropdown_option(department, 'Sub-Equipment', sub_equipment)
+        clean_incharge_opt = get_or_create_dropdown_option(department, 'Shift Incharge', str(shift_incharge).strip() if shift_incharge else None)
+
         # Save record
         DelayRecord.objects.create(
             upload=upload,
@@ -538,18 +579,49 @@ def parse_rail_mill_sheet(rows, sheet_name, department, upload):
             start_time=row[4] if row[4] != '-' else None,
             end_time=row[5] if row[5] != '-' else None,
             duration_mins=duration,
-            agency=agency,
-            sub_agency=sub_agency,
+            agency=clean_agency_opt or agency,
+            sub_agency=clean_sub_agency_opt or sub_agency,
             section=str(section).strip() if section else None,
-            equipment=equipment,
-            sub_equipment=sub_equipment,
-            shift_incharge=str(shift_incharge).strip() if shift_incharge else None,
+            equipment=clean_equipment_opt or equipment,
+            sub_equipment=clean_sub_equipment_opt or sub_equipment,
+            shift_incharge=clean_incharge_opt or (str(shift_incharge).strip() if shift_incharge else None),
             description=description,
             why=str(why).strip() if why else None,
         )
         records_created += 1
 
     return records_created
+
+
+def get_or_create_dropdown_option(department, category, raw_value):
+    if not raw_value:
+        return ""
+    val_str = str(raw_value).strip()
+    if not val_str or val_str.upper() in ('-', 'NA', 'N/A', 'NIL', 'NONE', 'GENERAL', 'UNKNOWN AGENCY'):
+        return val_str
+        
+    if category.lower() == 'agency':
+        val_clean = normalize_agency_name(val_str)
+    else:
+        val_clean = normalize_equipment_or_area(val_str)
+        
+    # Check case-insensitively
+    existing = DelayDropdownOption.objects.filter(
+        department=department,
+        category__iexact=category,
+        value__iexact=val_clean
+    ).first()
+    
+    if existing:
+        return existing.value
+    else:
+        # Create a new option
+        DelayDropdownOption.objects.create(
+            department=department,
+            category=category,
+            value=val_clean
+        )
+        return val_clean
 
 
 def normalize_header(s):
@@ -895,6 +967,13 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             else:
                 agency_type_clean = 'Internal'
 
+        clean_agency_opt = get_or_create_dropdown_option(department, 'Agency', agency)
+        clean_sub_agency_opt = get_or_create_dropdown_option(department, 'Sub-Agency', sub_agency)
+        clean_sub_area_opt = get_or_create_dropdown_option(department, 'Sub-Area', sub_area)
+        clean_equipment_opt = get_or_create_dropdown_option(department, 'Equipment', equipment)
+        clean_sub_equipment_opt = get_or_create_dropdown_option(department, 'Sub-Equipment', sub_equipment)
+        clean_incharge_opt = get_or_create_dropdown_option(department, 'Shift Incharge', incharge.strip() if incharge else None)
+
         # Save record
         DelayRecord.objects.create(
             upload=upload,
@@ -905,13 +984,13 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             start_time=start_time_str,
             end_time=end_time_str,
             duration_mins=duration,
-            agency=agency,
-            sub_agency=sub_agency,
-            sub_area=sub_area,
+            agency=clean_agency_opt or agency,
+            sub_agency=clean_sub_agency_opt or sub_agency,
+            sub_area=clean_sub_area_opt or sub_area,
             section=None,
-            equipment=equipment,
-            sub_equipment=sub_equipment,
-            shift_incharge=incharge.strip() if incharge else None,
+            equipment=clean_equipment_opt or equipment,
+            sub_equipment=clean_sub_equipment_opt or sub_equipment,
+            shift_incharge=clean_incharge_opt or (incharge.strip() if incharge else None),
             description=desc,
             why=why.strip() if why else None,
             agency_type=agency_type_clean,

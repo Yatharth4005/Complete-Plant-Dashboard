@@ -1,0 +1,166 @@
+<form hx-post="{% if opl %}{% url 'opl_save_id' dept.id pillar_id opl.id %}{% else %}{% url 'opl_save' dept.id pillar_id %}{% endif %}"
+      hx-target="#tab-content"
+      hx-encoding="multipart/form-data"
+      style="animation: fadeIn 0.3s ease-out;">
+  {% csrf_token %}
+  
+  <div style="border: 2px solid #000; border-radius: var(--radius); overflow: hidden; background: #fff;">
+    <!-- Red Header Bar -->
+    <div style="background: #E53E3E; color: #fff; padding: 14px 20px; font-size: 1.6rem; font-weight: 900; text-align: center; letter-spacing: 1px; border-bottom: 2px solid #000; display: flex; justify-content: space-between; align-items: center;">
+      <div style="flex-grow: 1; text-align: center;">ONE POINT LESSON</div>
+      <!-- Logo placeholder or text -->
+      <div style="font-size: 1rem; font-weight: 700; border: 2px solid #fff; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1);">JINDAL STEEL</div>
+    </div>
+
+    <div style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+      <!-- Row 1: Theme & Top-Right Box -->
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+        <!-- Left: Theme -->
+        <div style="display: flex; flex-direction: column; justify-content: center;">
+          <label style="font-size: 1.25rem; font-weight: 800; color: #1D4ED8; margin-bottom: 8px;">Theme:</label>
+          <input type="text" name="theme" value="{{ opl.theme|default:'' }}" class="input-mono" style="font-size: 1.1rem; padding: 12px; font-weight: bold; border: 2px solid #4B5563; border-radius: 6px;" placeholder="Enter OPL Theme...">
+        </div>
+        
+        <!-- Right: Metadata bordered box -->
+        <div style="border: 2px solid #4b5563; border-radius: 6px; overflow: hidden;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 2px solid #4b5563;">
+              <td style="padding: 10px; font-weight: bold; background: #f3f4f6; width: 150px; font-size: 0.85rem; border-right: 2px solid #4b5563;">Dept. Name</td>
+              <td style="padding: 4px;">
+                <input type="text" name="dept_name_disabled" value="{{ dept.name }}" class="input-mono" style="border: none; font-weight: bold;" disabled>
+              </td>
+            </tr>
+            <tr style="border-bottom: 2px solid #4b5563;">
+              <td style="padding: 10px; font-weight: bold; background: #f3f4f6; font-size: 0.85rem; border-right: 2px solid #4b5563; line-height: 1.2;">JH/TPM Circle Name &amp;<br/>No. of Member</td>
+              <td style="padding: 4px;">
+                <input type="text" name="circle_name_members" value="{{ opl.circle_name_members|default:'' }}" class="input-mono" style="border: none; font-weight: bold;" placeholder="e.g. Eagle Circle (5)">
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; font-weight: bold; background: #f3f4f6; font-size: 0.85rem; border-right: 2px solid #4b5563;">OPL No.</td>
+              <td style="padding: 4px;">
+                <input type="text" name="opl_no" value="{{ opl.opl_no|default:prefills.opl_no }}" class="input-mono" style="border: none; font-weight: bold; font-family: monospace;" placeholder="OPL-001">
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Row 2: Lesson Type (Checkboxes) -->
+      <div style="display: flex; gap: 40px; margin-top: 10px; flex-wrap: wrap; background: #fafafa; padding: 12px; border-radius: 6px; border: 1.5px dashed #cbd5e1;">
+        <span style="font-weight: 800; color: #1e3a8a;">OPL Lesson Type:</span>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: #15803d;">
+          <input type="radio" name="lesson_type" value="basic" {% if not opl or opl.lesson_type == 'basic' %}checked{% endif %} style="accent-color: #16a34a; width: 18px; height: 18px;">
+          Basic Knowledge
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: #15803d;">
+          <input type="radio" name="lesson_type" value="trouble" {% if opl.lesson_type == 'trouble' %}checked{% endif %} style="accent-color: #16a34a; width: 18px; height: 18px;">
+          Trouble Shooting
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: #15803d;">
+          <input type="radio" name="lesson_type" value="improvement" {% if opl.lesson_type == 'improvement' %}checked{% endif %} style="accent-color: #16a34a; width: 18px; height: 18px;">
+          Improvement Case
+        </label>
+      </div>
+
+      <!-- Row 3: Before & After Photos -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 10px;">
+        <!-- Left: Before Photo -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="width: 100%; border: 2.5px solid #000; border-radius: 8px; padding: 16px; background: #fff; min-height: 240px; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative;">
+            <div style="font-size: 1.1rem; font-weight: 800; color: #dc2626; margin-bottom: 12px;">Before Photo</div>
+            {% if opl.before_image %}
+              <img src="{{ opl.before_image.url }}" style="max-height: 180px; max-width: 100%; border-radius: 4px; object-fit: contain;">
+            {% else %}
+              <div style="color: #94a3b8; font-size: 0.9rem; font-style: italic;">No Before photo uploaded</div>
+            {% endif %}
+            <input type="file" name="before_image" accept="image/*" class="input-mono" style="margin-top: 12px; font-size: 0.8rem; width: auto;">
+          </div>
+          <!-- Red cross visual box -->
+          <div style="border: 3px solid #16a34a; border-radius: 6px; padding: 4px 20px; font-size: 1.8rem; font-weight: bold; color: #dc2626; display: flex; align-items: center; justify-content: center; background: #fff;">
+            ❌
+          </div>
+        </div>
+
+        <!-- Right: After Photo -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="width: 100%; border: 2.5px solid #000; border-radius: 8px; padding: 16px; background: #fff; min-height: 240px; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative;">
+            <div style="font-size: 1.1rem; font-weight: 800; color: #16a34a; margin-bottom: 12px;">After Photo</div>
+            {% if opl.after_image %}
+              <img src="{{ opl.after_image.url }}" style="max-height: 180px; max-width: 100%; border-radius: 4px; object-fit: contain;">
+            {% else %}
+              <div style="color: #94a3b8; font-size: 0.9rem; font-style: italic;">No After photo uploaded</div>
+            {% endif %}
+            <input type="file" name="after_image" accept="image/*" class="input-mono" style="margin-top: 12px; font-size: 0.8rem; width: auto;">
+          </div>
+          <!-- Green checkmark visual box -->
+          <div style="border: 3px solid #16a34a; border-radius: 6px; padding: 4px 20px; font-size: 1.8rem; font-weight: bold; color: #16a34a; display: flex; align-items: center; justify-content: center; background: #fff;">
+            ✔
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 4: Benefits -->
+      <div style="margin-top: 10px;">
+        <label style="font-size: 1.25rem; font-weight: 800; color: #1D4ED8; display: block; margin-bottom: 8px;">Benefits:</label>
+        <textarea name="benefits" class="input-mono" style="font-size: 1rem; padding: 12px; border: 2px solid #4B5563; border-radius: 6px; width: 100%; min-height: 80px;" placeholder="Describe the lesson benefits (safety, quality, productivity, etc.)...">{{ opl.benefits|default:'' }}</textarea>
+      </div>
+
+      <!-- Row 5: Training bottom table -->
+      <div style="margin-top: 10px; overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; border: 2.5px solid #000;">
+          <tr>
+            <th style="border: 2px solid #000; padding: 12px; font-weight: bold; background-color: #f3f4f6; width: 140px; font-size: 0.9rem; text-align: left;">Training Date</th>
+            {% for record in training_records %}
+              <td style="border: 2px solid #000; padding: 4px;">
+                <input type="text" name="train_date" value="{{ record.date|default:'' }}" class="input-mono" style="border: none; padding: 8px; width: 100%; box-shadow: none;" placeholder="DD-MM-YYYY">
+              </td>
+            {% endfor %}
+            <td rowspan="2" style="border: 2px solid #000; padding: 12px; vertical-align: top; width: 180px;">
+              <label style="font-weight: 800; display: block; margin-bottom: 6px; font-size: 0.85rem; color: #475569;">Prepared by:</label>
+              <input type="text" name="prepared_by" value="{{ opl.prepared_by|default:'' }}" class="input-mono" style="font-weight: bold;" placeholder="Name/Sign">
+            </td>
+            <td rowspan="2" style="border: 2px solid #000; padding: 12px; vertical-align: top; width: 180px;">
+              <label style="font-weight: 800; display: block; margin-bottom: 6px; font-size: 0.85rem; color: #475569;">Verified by:</label>
+              <input type="text" name="verified_by" value="{{ opl.verified_by|default:'' }}" class="input-mono" style="font-weight: bold;" placeholder="Name/Sign">
+            </td>
+          </tr>
+          <tr>
+            <th style="border: 2px solid #000; padding: 12px; font-weight: bold; background-color: #f3f4f6; font-size: 0.9rem; text-align: left;">Teacher</th>
+            {% for record in training_records %}
+              <td style="border: 2px solid #000; padding: 4px;">
+                <input type="text" name="train_teacher" value="{{ record.teacher|default:'' }}" class="input-mono" style="border: none; padding: 8px; width: 100%; box-shadow: none;" placeholder="Teacher Name">
+              </td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th style="border: 2px solid #000; padding: 12px; font-weight: bold; background-color: #f3f4f6; font-size: 0.9rem; text-align: left;">Student</th>
+            {% for record in training_records %}
+              <td style="border: 2px solid #000; padding: 4px;">
+                <input type="text" name="train_student" value="{{ record.student|default:'' }}" class="input-mono" style="border: none; padding: 8px; width: 100%; box-shadow: none;" placeholder="Student Name">
+              </td>
+            {% endfor %}
+            <td colspan="2" style="border: 2px solid #000; background-color: #f3f4f6; text-align: center; vertical-align: middle;">
+              <span style="font-weight: bold; color: var(--jspl-navy); font-size: 0.95rem; letter-spacing: 0.5px;">ONE POINT LESSON</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- Actions Row -->
+    <div style="padding: 20px 24px; background: #f8fafc; border-top: 2px solid #000; display: flex; justify-content: flex-end; gap: 12px;">
+      <button type="button" class="btn btn-secondary"
+              hx-get="{% url 'opl_list_partial' dept.id pillar_id %}"
+              hx-target="#tab-content"
+              hx-swap="innerHTML">
+        Cancel
+      </button>
+      <button type="submit" class="btn btn-primary">
+        💾 Save OPL Sheet
+      </button>
+    </div>
+
+  </div>
+</form>

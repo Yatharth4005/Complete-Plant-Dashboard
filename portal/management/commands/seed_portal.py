@@ -182,6 +182,15 @@ class Command(BaseCommand):
                 'redirect_url_template': '/department/{dept_id}/coming-soon/DAKSHATA/',
                 'sort_order': 14,
             },
+            {
+                'key': 'SMED',
+                'label': 'SMED',
+                'description': 'Single Minute Exchange of Die (SMED) changeover time tracking and analytics',
+                'icon': 'clock',
+                'color_class': 'module-smed',
+                'redirect_url_template': '/department/{dept_id}/coming-soon/SMED/',
+                'sort_order': 15,
+            },
         ]
         
         for m in MODULES:

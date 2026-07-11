@@ -8,11 +8,11 @@ from django.http import HttpResponse, JsonResponse
 from django.db import models
 from django.db.models import Q, Sum, Avg, Count
 from django.utils import timezone
-from datetime import date
-from tpm.models import Department
-from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification, EquipmentShutdownSetting, MaintenanceChecklist, MaintenanceChecklistItem
+from datetime import date, timedelta, datetime
+from tpm.models import Department, User
+from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification, EquipmentShutdownSetting, MaintenanceChecklist, MaintenanceChecklistItem, ChecklistSchedule
 from delays.forms import DelayRecordForm
-from delays.utils.parser import parse_excel_file, normalize_agency_name
+from delays.utils.parser import parse_excel_file, normalize_agency_name, normalize_equipment_or_area
 from portal.utils.access import user_can_access_module, user_can_edit_module
 
 import re
@@ -28,6 +28,16 @@ def clean_equipment_name(name):
         return f"{tonnage}T CRANE"
     return name_upper
 
+def format_date_range_bracket(start_str, end_str):
+    if not start_str or not end_str:
+        return ""
+    try:
+        d1 = datetime.strptime(start_str, '%Y-%m-%d').strftime('%d-%m-%Y')
+        d2 = datetime.strptime(end_str, '%Y-%m-%d').strftime('%d-%m-%Y')
+        return f"({d1} to {d2})"
+    except Exception:
+        return f"({start_str} to {end_str})"
+
 def get_equipment_filter_q(selected_equipment):
     if not selected_equipment:
         return Q()
@@ -37,6 +47,36 @@ def get_equipment_filter_q(selected_equipment):
         tonnage = match.group(1)
         return Q(equipment__icontains=tonnage) & Q(equipment__icontains='crane')
     return Q(equipment__iexact=selected_equipment)
+
+def apply_request_filters(request, records):
+    q = request.GET.get('q', '').strip()
+    agency_type = request.GET.get('agency_type', '').strip()
+    agency = request.GET.get('agency', '').strip()
+    sub_agency = request.GET.get('sub_agency', '').strip()
+    date_start = request.GET.get('date_start', '').strip()
+    date_end = request.GET.get('date_end', '').strip()
+    
+    if q:
+        records = records.filter(
+            Q(description__icontains=q) |
+            Q(equipment__icontains=q) |
+            Q(sub_equipment__icontains=q) |
+            Q(shift_incharge__icontains=q) |
+            Q(why__icontains=q) |
+            Q(action__icontains=q)
+        )
+    if agency_type:
+        records = records.filter(agency_type=agency_type)
+    if agency:
+        records = records.filter(agency=agency)
+    if sub_agency:
+        records = records.filter(sub_agency=sub_agency)
+    if date_start:
+        records = records.filter(date__gte=date_start)
+    if date_end:
+        records = records.filter(date__lte=date_end)
+        
+    return records
 
 def get_department_autocompletes(department, records):
     if department.id == 0:
@@ -95,14 +135,89 @@ def get_department_autocompletes(department, records):
         'actions': actions
     }
 
+def merge_delay_records_value(department, category, old_val, new_val):
+    if category.lower() == 'agency':
+        DelayRecord.objects.filter(department=department, agency=old_val).update(agency=new_val)
+    elif category.lower() == 'sub-agency':
+        DelayRecord.objects.filter(department=department, sub_agency=old_val).update(sub_agency=new_val)
+    elif category.lower() == 'sub-area':
+        DelayRecord.objects.filter(department=department, sub_area=old_val).update(sub_area=new_val)
+    elif category.lower() == 'equipment':
+        DelayRecord.objects.filter(department=department, equipment=old_val).update(equipment=new_val)
+    elif category.lower() == 'sub-equipment':
+        DelayRecord.objects.filter(department=department, sub_equipment=old_val).update(sub_equipment=new_val)
+    elif category.lower() == 'shift incharge':
+        DelayRecord.objects.filter(department=department, shift_incharge=old_val).update(shift_incharge=new_val)
+    elif category.lower() == 'action':
+        DelayRecord.objects.filter(department=department, action=old_val).update(action=new_val)
+
+def self_heal_dropdown_options(department):
+    if not department or department.id == 0:
+        return
+        
+    # Get all options for this department
+    options = DelayDropdownOption.objects.filter(department=department)
+    
+    # 1. Normalize values
+    for opt in options:
+        val = opt.value.strip()
+        
+        # Delete purely numeric options (excel formatting pollution)
+        try:
+            float(val)
+            opt.delete()
+            continue
+        except ValueError:
+            pass
+            
+        if opt.category.lower() == 'agency':
+            val_clean = normalize_agency_name(val)
+        else:
+            val_clean = normalize_equipment_or_area(val)
+            
+        if val != val_clean:
+            # Check if clean exists
+            dup = DelayDropdownOption.objects.filter(
+                department=department,
+                category=opt.category,
+                value=val_clean,
+                parent_value=opt.parent_value
+            ).first()
+            if dup and dup.id != opt.id:
+                # Merge records referencing old value
+                merge_delay_records_value(department, opt.category, val, val_clean)
+                opt.delete()
+            else:
+                opt.value = val_clean
+                opt.save()
+                
+    # 2. Merge case-insensitive duplicates
+    options = DelayDropdownOption.objects.filter(department=department)
+    seen = {} # (category, value.lower(), parent_value.lower()) -> canonical option
+    for opt in options:
+        parent_clean = (opt.parent_value or '').strip().lower()
+        key = (opt.category.lower(), opt.value.strip().lower(), parent_clean)
+        if key in seen:
+            canonical = seen[key]
+            # Merge
+            merge_delay_records_value(department, opt.category, opt.value, canonical.value)
+            opt.delete()
+        else:
+            seen[key] = opt
+
+
 @login_required
 def dept_overview(request, dept_id):
     """
     Main overview and dashboard for department delays.
     Displays metrics, charts, upload features, and logs tables.
     """
+    if int(dept_id) != 0:
+        department_obj = get_object_or_404(Department, id=dept_id)
+        self_heal_dropdown_options(department_obj)
+        
     tab = request.GET.get('tab', 'dashboard').strip()
-    if tab in ['summary', 'pareto', 'mttr_mtbf', 'capa_summary', 'checklist_summary', 'manual_checklist']:
+    if tab in ['summary', 'pareto', 'mttr_mtbf', 'capa_summary', 'checklist_summary', 'manual_checklist', 'checklist_schedule', 'checklist_calendar', 'checklist_status', 'uploads']:
         active_tab = tab
     else:
         active_tab = 'dashboard'
@@ -225,6 +340,12 @@ def dept_overview(request, dept_id):
         all_records = all_records.filter(date__gte=date_start)
     if date_end:
         all_records = all_records.filter(date__lte=date_end)
+    
+    # Keep a reference to the records filtered only by date, for autocompletes
+    records_for_auto = all_records
+    
+    # Apply global search query and dropdown filters to all_records
+    all_records = apply_request_filters(request, all_records)
     
     # Active departments for switching
     departments = Department.objects.all().order_by('name')
@@ -423,7 +544,7 @@ def dept_overview(request, dept_id):
         uploads = DelayUpload.objects.filter(department=department).order_by('-uploaded_at')
     
     # Form autocompletes
-    autocompletes = get_department_autocompletes(department, all_records)
+    autocompletes = get_department_autocompletes(department, records_for_auto)
     agencies = autocompletes['agencies']
     sub_agencies = autocompletes['sub_agencies']
     sub_areas = autocompletes['sub_areas']
@@ -864,6 +985,10 @@ def dept_overview(request, dept_id):
         'departments': departments,
         'date_start': date_start,
         'date_end': date_end,
+        'q_val': request.GET.get('q', '').strip(),
+        'agency_type_val': request.GET.get('agency_type', '').strip(),
+        'agency_val': request.GET.get('agency', '').strip(),
+        'sub_agency_val': request.GET.get('sub_agency', '').strip(),
         'total_calendar_hrs': total_calendar_hrs,
         'mttr_mtbf_list': mttr_mtbf_list,
         'mttr_mtbf_list_json': json.dumps(mttr_mtbf_list),
@@ -940,6 +1065,12 @@ def dept_overview(request, dept_id):
         'incharges': incharges,
         'actions': actions,
         
+        # Fetch unique MaintenanceChecklist instances (stored checklists)
+        'checklists': [],
+
+        # Fetch HOD users
+        'users': User.objects.all().order_by('username'),
+
         # Fetch Checklist items from manual entry
         'checklist_items': MaintenanceChecklistItem.objects.select_related('checklist', 'checklist__department').order_by('-checklist__date', '-checklist__id', 'id') if department.id == 0 else MaintenanceChecklistItem.objects.filter(
             checklist__department=department
@@ -947,9 +1078,202 @@ def dept_overview(request, dept_id):
 
         # Sidebar/Layout settings
         'active_dept_id': department.id,
-        'active_module': 'Delays',
+        'active_module': 'Checklist' if 'checklist' in active_tab else 'Delays',
         'active_section': 'department_module',
     }
+
+    # Fetch/Auto-create Checklist Schedules and compute status compliance
+    
+    users_list = User.objects.all().order_by('username')
+    context['users'] = users_list
+    
+    if department.id != 0:
+        checklist_equipments = DelayDropdownOption.objects.filter(
+            department=department,
+            category__iexact='Equipment',
+            parent_value='Maintenance'
+        ).values_list('value', flat=True).distinct()
+        
+        for eq in checklist_equipments:
+            ChecklistSchedule.objects.get_or_create(
+                department=department,
+                checklist_name=eq,
+                defaults={'frequency': 'Daily'}
+            )
+            
+        schedules = ChecklistSchedule.objects.filter(
+            department=department,
+            checklist_name__in=checklist_equipments
+        ).select_related('assigned_hod')
+    else:
+        valid_checklist_names = DelayDropdownOption.objects.filter(
+            category__iexact='Equipment',
+            parent_value='Maintenance'
+        ).values_list('value', flat=True).distinct()
+        
+        schedules = ChecklistSchedule.objects.filter(
+            checklist_name__in=valid_checklist_names
+        ).select_related('department', 'assigned_hod')
+        
+    today_val = date.today()
+    checklist_status_list = []
+    for sched in schedules:
+        latest = MaintenanceChecklist.objects.filter(
+            department=sched.department,
+            equipment=sched.checklist_name
+        ).order_by('-date', '-id').first()
+        
+        if not latest:
+            status_info = {
+                'completed': False,
+                'time': '—',
+                'result': '—',
+                'color': 'gray'
+            }
+        else:
+            freq = sched.frequency
+            completed = False
+            
+            if freq == 'Daily':
+                completed = (latest.date == today_val)
+            elif freq == 'Weekly':
+                start_week = today_val - timedelta(days=today_val.weekday())
+                completed = (latest.date >= start_week)
+            elif freq == 'Fortnightly':
+                if today_val.day <= 15:
+                    start_range = date(today_val.year, today_val.month, 1)
+                else:
+                    start_range = date(today_val.year, today_val.month, 16)
+                completed = (latest.date >= start_range)
+            elif freq == 'Monthly':
+                completed = (latest.date.year == today_val.year and latest.date.month == today_val.month)
+            elif freq == 'Quarterly':
+                curr_q = (today_val.month - 1) // 3
+                latest_q = (latest.date.month - 1) // 3
+                completed = (latest.date.year == today_val.year and curr_q == latest_q)
+            elif freq == 'Half Yearly':
+                curr_h = 1 if today_val.month <= 6 else 2
+                latest_h = 1 if latest.date.month <= 6 else 2
+                completed = (latest.date.year == today_val.year and curr_h == latest_h)
+            elif freq == 'Yearly':
+                completed = (latest.date.year == today_val.year)
+                
+            if completed:
+                has_defect = latest.items.filter(status='NOT OK').exists()
+                result = 'NOT OK' if has_defect else 'OK'
+                color = 'red' if has_defect else 'green'
+                comp_time = latest.created_at.strftime('%d-%b-%Y %H:%M') if hasattr(latest, 'created_at') and latest.created_at else latest.date.strftime('%d-%b-%Y')
+                status_info = {
+                    'completed': True,
+                    'time': comp_time,
+                    'result': result,
+                    'color': color
+                }
+            else:
+                status_info = {
+                    'completed': False,
+                    'time': '—',
+                    'result': 'Pending',
+                    'color': 'orange'
+                }
+        checklist_status_list.append({
+            'schedule': sched,
+            'status': status_info,
+            'area': (latest.area or '—') if latest else '—',
+            'sub_area': (latest.sub_area or '—') if latest else '—',
+            'shift_incharge': (latest.shift_incharge or '—') if latest else '—',
+            'latest_date': latest.date.strftime('%d-%b-%Y') if latest else '—',
+            'latest_id': latest.id if latest else None,
+        })
+        
+    context['checklist_schedules'] = schedules
+    context['checklist_status_list'] = checklist_status_list
+    context['freq_filter_labels'] = ['All', 'Daily', 'Weekly', 'Fortnightly', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']
+
+    # Build lists of all checklists seeded/schedules for the checklist summary table
+    if department.id != 0:
+        # Seeded checklist names are the unique equipments for this department
+        seeded_names = DelayDropdownOption.objects.filter(
+            department=department,
+            category__iexact='Equipment',
+            parent_value='Maintenance'
+        ).values_list('value', flat=True).distinct()
+        
+        # Parse date_end to determine the target date to check submissions
+        try:
+            target_date = datetime.strptime(date_end, '%Y-%m-%d').date()
+        except Exception:
+            target_date = date.today()
+            
+        checklists_data = []
+        for name in seeded_names:
+            checklist_inst = MaintenanceChecklist.objects.filter(
+                department=department,
+                equipment=name,
+                date=target_date
+            ).first()
+            
+            if checklist_inst:
+                checklists_data.append({
+                    'name': name,
+                    'exists': True,
+                    'instance': checklist_inst,
+                    'date': checklist_inst.date,
+                    'agency': checklist_inst.responsible_agency,
+                    'agency_type': checklist_inst.agency_type,
+                    'area': checklist_inst.area,
+                    'sub_area': checklist_inst.sub_area,
+                    'sub_equipment': checklist_inst.sub_equipment or '—',
+                    'shift_incharge': checklist_inst.shift_incharge or '—',
+                    'has_defects': checklist_inst.has_defects(),
+                    'id': checklist_inst.id
+                })
+            else:
+                opt = DelayDropdownOption.objects.filter(
+                    department=department,
+                    category__iexact='Equipment',
+                    value=name,
+                    parent_value='Maintenance'
+                ).first()
+                default_area = opt.parent_value if opt else ""
+                
+                checklists_data.append({
+                    'name': name,
+                    'exists': False,
+                    'instance': None,
+                    'date': target_date,
+                    'agency': '—',
+                    'agency_type': 'Internal',
+                    'area': default_area or '—',
+                    'sub_area': '—',
+                    'sub_equipment': '—',
+                    'shift_incharge': '—',
+                    'has_defects': False,
+                    'id': None
+                })
+    else:
+        # For overall plant, show all submitted checklists
+        checklists_data = []
+        checklists_qs = MaintenanceChecklist.objects.all().select_related('department', 'created_by').order_by('-date', '-id')
+        for cl in checklists_qs:
+            checklists_data.append({
+                'name': cl.equipment or '—',
+                'exists': True,
+                'instance': cl,
+                'date': cl.date,
+                'agency': cl.responsible_agency,
+                'agency_type': cl.agency_type,
+                'area': cl.area or '—',
+                'sub_area': cl.sub_area or '—',
+                'sub_equipment': cl.sub_equipment or '—',
+                'shift_incharge': cl.shift_incharge or '—',
+                'has_defects': cl.has_defects(),
+                'id': cl.id
+            })
+            
+    context['checklists'] = checklists_data
+
+
     
     # Serialize dropdown options for Alpine.js hierarchy
     dropdown_options_list = []
@@ -961,6 +1285,7 @@ def dept_overview(request, dept_id):
                 'parent_value': opt.parent_value or '',
             })
     context['dropdown_options_json'] = json.dumps(dropdown_options_list)
+    context['date_period_bracket'] = format_date_range_bracket(date_start, date_end)
     
     return render(request, 'delays/dashboard.html', context)
 
@@ -998,7 +1323,7 @@ def upload_file(request, dept_id):
         except Exception as e:
             messages.error(request, f"System error occurred during parsing: {str(e)}")
             
-    return redirect('delays:dept_overview', dept_id=dept_id)
+    return redirect(f"{reverse('delays:dept_overview', args=[dept_id])}?tab=uploads")
 
 
 @login_required
@@ -1024,7 +1349,8 @@ def delete_upload(request, dept_id, upload_id):
             
     upload.delete() # Cascade deletes associated DelayRecords
     messages.success(request, f"Downtime logs and upload registry for '{filename}' deleted successfully.")
-    return redirect('delays:dept_overview', dept_id=dept_id)
+    tab = request.GET.get('tab', 'uploads').strip()
+    return redirect(f"{reverse('delays:dept_overview', args=[dept_id])}?tab={tab}")
 
 
 @login_required
@@ -1045,37 +1371,15 @@ def records_table(request, dept_id):
         can_edit = user_can_edit_module(request.user, department, 'Delays')
         records = DelayRecord.objects.filter(department=department)
         
-    query = request.GET.get('q', '').strip()
-    agency_type_filter = request.GET.get('agency_type', '').strip()
-    agency_filter = request.GET.get('agency', '').strip()
-    sub_agency_filter = request.GET.get('sub_agency', '').strip()
+    # Apply global filters (q, agency_type, agency, sub_agency, date_start, date_end)
+    records = apply_request_filters(request, records)
+    
+    # Extra granular filters
     sub_area_filter = request.GET.get('sub_area', '').strip()
     equipment_filter = request.GET.get('equipment', '').strip()
     sub_equipment_filter = request.GET.get('sub_equipment', '').strip()
     sheet_filter = request.GET.get('sheet', '').strip()
-    date_start = request.GET.get('date_start', '').strip()
-    date_end = request.GET.get('date_end', '').strip()
     
-    if query:
-        records = records.filter(
-            Q(description__icontains=query) |
-            Q(equipment__icontains=query) |
-            Q(sub_equipment__icontains=query) |
-            Q(shift_incharge__icontains=query) |
-            Q(why__icontains=query) |
-            Q(action__icontains=query)  # type: ignore
-        )
-        
-    if agency_type_filter:
-        records = records.filter(agency_type=agency_type_filter)
-
-    if agency_filter:
-        records = records.filter(agency=agency_filter)
-
-        
-    if sub_agency_filter:
-        records = records.filter(sub_agency=sub_agency_filter)
-        
     if sub_area_filter:
         records = records.filter(sub_area=sub_area_filter)
         
@@ -1088,12 +1392,6 @@ def records_table(request, dept_id):
         
     if sheet_filter:
         records = records.filter(sheet_name=sheet_filter)
-        
-    if date_start:
-        records = records.filter(date__gte=date_start)
-        
-    if date_end:
-        records = records.filter(date__lte=date_end)
         
     if int(dept_id) == 0:
         all_records = DelayRecord.objects.all()
@@ -1476,6 +1774,16 @@ def pareto_overall(request, dept_id):
     if date_end:
         records = records.filter(date__lte=date_end)
         
+    # Get autocompletes based on date range
+    autocompletes = get_department_autocompletes(department, records)
+    if department.id == 0:
+        external_departments = Department.objects.all().order_by('name')
+    else:
+        external_departments = Department.objects.exclude(id=department.id).order_by('name')
+        
+    # Apply global search query and dropdown filters
+    records = apply_request_filters(request, records)
+        
     total_mins = records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
     total_events = records.count()
     
@@ -1624,6 +1932,16 @@ def pareto_overall(request, dept_id):
         'top_agency_freq_count': top_agency_freq_count,
         'is_description': is_description,
         'pareto_type': pareto_type,
+        'agencies': autocompletes['agencies'],
+        'sub_agencies': autocompletes['sub_agencies'],
+        'external_departments': external_departments,
+        'date_start': date_start,
+        'date_end': date_end,
+        'date_period_bracket': format_date_range_bracket(date_start, date_end),
+        'q_val': request.GET.get('q', '').strip(),
+        'agency_type_val': request.GET.get('agency_type', '').strip(),
+        'agency_val': request.GET.get('agency', '').strip(),
+        'sub_agency_val': request.GET.get('sub_agency', '').strip(),
         
         # Safe JSONs
         'pareto_labels_json': json.dumps([x['agency'] for x in agency_pareto]),
@@ -1655,13 +1973,10 @@ def pareto_agency(request, dept_id):
         department = get_object_or_404(Department, id=dept_id)
         records = DelayRecord.objects.filter(department=department, agency=agency_name)
         
-    # Apply date filters if present in parameters
+    # Apply date and global search/dropdown filters
     date_start = request.GET.get('date_start', '').strip()
     date_end = request.GET.get('date_end', '').strip()
-    if date_start:
-        records = records.filter(date__gte=date_start)
-    if date_end:
-        records = records.filter(date__lte=date_end)
+    records = apply_request_filters(request, records)
 
     total_agency_mins = records.aggregate(Sum('duration_mins'))['duration_mins__sum'] or 0.0
     total_agency_events = records.count()
@@ -1746,6 +2061,9 @@ def pareto_agency(request, dept_id):
         'top_equipment_val': top_equipment_val,
         'is_description': is_description,
         'pareto_type': pareto_type,
+        'date_start': date_start,
+        'date_end': date_end,
+        'date_period_bracket': format_date_range_bracket(date_start, date_end),
         
         'pareto_labels_json': json.dumps([x['label'] for x in equip_pareto[:15]]),
         'pareto_values_json': json.dumps([x['count'] if pareto_type == 'frequency' else x['mins'] for x in equip_pareto[:15]]),
@@ -1791,7 +2109,7 @@ def manage_options(request, dept_id):
                     else:
                         parent_value = capitalize_first_letters(raw_parent)
                 
-                value_clean = normalize_agency_name(value) if category.lower() == 'agency' else value
+                value_clean = normalize_agency_name(value) if category.lower() == 'agency' else normalize_equipment_or_area(value)
                 option, created = DelayDropdownOption.objects.get_or_create(
                     department=department,
                     category=category,
@@ -1837,7 +2155,7 @@ def manage_options(request, dept_id):
                     else:
                         parent_value = capitalize_first_letters(raw_parent)
                 
-                option.value = normalize_agency_name(new_value) if cat.lower() == 'agency' else new_value
+                option.value = normalize_agency_name(new_value) if cat.lower() == 'agency' else normalize_equipment_or_area(new_value)
                 option.parent_value = parent_value
                 try:
                     option.save()
@@ -1850,7 +2168,11 @@ def manage_options(request, dept_id):
         # Determine which tab category to redirect to so that Alpine.js opens the same tab
         from django.urls import reverse
         category_to_keep = category if action == 'add' else cat
-        return redirect(f"{reverse('delays:manage_options', args=[dept_id])}?tab={category_to_keep}")
+        module = request.POST.get('module', '').strip() or request.GET.get('module', '').strip()
+        redir_url = f"{reverse('delays:manage_options', args=[dept_id])}?tab={category_to_keep}"
+        if module:
+            redir_url += f"&module={module}"
+        return redirect(redir_url)
 
     # Auto-seed DelayDropdownOption if it is completely empty for this department
     if not DelayDropdownOption.objects.filter(department=department).exists():
@@ -1941,7 +2263,7 @@ def manage_options(request, dept_id):
         'options': options,
         'suggested_categories': suggested_categories,
         'active_dept_id': department.id,
-        'active_module': 'Delays',
+        'active_module': 'Checklist' if request.GET.get('tab', 'Agency') in ['Action', 'Shift Incharge'] else 'Delays',
         'active_section': 'department_module',
         'is_manage_options_page': True,
         'can_edit': True,
@@ -2152,6 +2474,7 @@ def create_checklist(request, dept_id):
             equipment = data.get('equipment', '')
             sub_equipment = data.get('sub_equipment', '')
             shift_incharge = data.get('shift_incharge', '')
+            frequency = data.get('frequency', 'Daily')
             items_data = data.get('items', [])
             
             if not responsible_agency:
@@ -2176,6 +2499,7 @@ def create_checklist(request, dept_id):
                     equipment=equipment,
                     sub_equipment=sub_equipment,
                     shift_incharge=shift_incharge,
+                    frequency=frequency,
                     created_by=request.user
                 )
                 return JsonResponse({'status': 'success', 'checklist_id': checklist.id})
@@ -2191,6 +2515,7 @@ def create_checklist(request, dept_id):
                     equipment=eq_name,
                     sub_equipment=sub_equipment if eq_name == equipment else '',
                     shift_incharge=shift_incharge,
+                    frequency=frequency,
                     created_by=request.user
                 )
                 last_checklist_id = checklist.id
@@ -2241,4 +2566,375 @@ def delete_checklist_item(request, dept_id, item_id):
         
     messages.success(request, "Checklist item deleted successfully.")
     return redirect(f"/delays/department/{dept_id}/?tab=checklist_summary")
+
+
+@login_required
+def mttr_mtbf_overall(request, dept_id):
+    """
+    Returns the MTTR/MTBF Analysis content (HTMX endpoint).
+    """
+    if int(dept_id) == 0:
+        class DummyDept:
+            id = 0
+            name = "Overall Plant"
+            code = "Overall"
+        department = DummyDept()
+        all_records = DelayRecord.objects.all()
+        can_edit = False
+    else:
+        department = get_object_or_404(Department, id=dept_id)
+        all_records = DelayRecord.objects.filter(department=department)
+        can_edit = user_can_edit_module(request.user, department, 'Delays')
+        
+    # Get inputs
+    date_start = request.GET.get('date_start', '').strip()
+    date_end = request.GET.get('date_end', '').strip()
+    
+    # Get autocompletes based on date range
+    date_filtered = all_records.filter(date__gte=date_start) if date_start else all_records
+    if date_end:
+        date_filtered = date_filtered.filter(date__lte=date_end)
+        
+    autocompletes = get_department_autocompletes(department, date_filtered)
+    if department.id == 0:
+        external_departments = Department.objects.all().order_by('name')
+    else:
+        external_departments = Department.objects.exclude(id=department.id).order_by('name')
+        
+    # Apply query filters to records for calculations
+    all_records = apply_request_filters(request, all_records)
+    
+    # Calculate MTTR/MTBF
+    from django.db.models import Min, Max
+    import datetime
+    d1 = None
+    d2 = None
+    try:
+        if date_start:
+            d1 = datetime.datetime.strptime(date_start, '%Y-%m-%d').date()
+        if date_end:
+            d2 = datetime.datetime.strptime(date_end, '%Y-%m-%d').date()
+    except Exception:
+        pass
+        
+    if not d1 or not d2:
+        if all_records.exists():
+            d1 = all_records.aggregate(Min('date'))['date__min'] or datetime.date.today().replace(day=1)
+            d2 = all_records.aggregate(Max('date'))['date__max'] or datetime.date.today()
+        else:
+            d1 = datetime.date.today().replace(day=1)
+            d2 = datetime.date.today()
+            
+    total_days = max((d2 - d1).days + 1, 1)
+    total_calendar_hrs = total_days * 24.0
+
+    from collections import defaultdict
+    reliability_data = defaultdict(lambda: {
+        'total_downtime_mins': 0.0,
+        'total_shutdown_mins': 0.0,
+        'failures_count': 0,
+        'total_count': 0,
+    })
+    
+    for r in all_records:
+        key = (r.sub_agency or 'N/A', r.equipment or 'N/A')
+        duration = r.duration_mins or 0.0
+        agency_clean = (r.agency or '').strip().lower()
+        is_planned = 'planned' in agency_clean or 'shutdown' in agency_clean
+        
+        reliability_data[key]['total_count'] += 1
+        if is_planned:
+            reliability_data[key]['total_shutdown_mins'] += duration
+        else:
+            reliability_data[key]['total_downtime_mins'] += duration
+            reliability_data[key]['failures_count'] += 1
+
+    # Fetch manual shutdown settings for the department
+    if department.id == 0:
+        shutdown_settings = {
+            (s.sub_area, s.equipment): s.shutdown_hrs
+            for s in EquipmentShutdownSetting.objects.all()
+        }
+    else:
+        shutdown_settings = {
+            (s.sub_area, s.equipment): s.shutdown_hrs
+            for s in EquipmentShutdownSetting.objects.filter(department=department)
+        }
+
+    mttr_mtbf_list = []
+    for (area, equip), stats in reliability_data.items():
+        shutdown_hrs = shutdown_settings.get((area or 'N/A', equip or 'N/A'), stats['total_shutdown_mins'] / 60.0)
+        downtime_hrs = stats['total_downtime_mins'] / 60.0
+        failures = stats['failures_count']
+        total_events_count = stats['total_count']
+        
+        # MTTR (Hrs)
+        mttr = downtime_hrs / failures if failures > 0 else 0.0
+        
+        # MTBF (Hrs)
+        op_time_hrs = max(total_calendar_hrs - downtime_hrs - shutdown_hrs, 0.0)
+        mtbf = op_time_hrs / failures if failures > 0 else total_calendar_hrs
+        
+        # Availability %
+        divisor = max(total_calendar_hrs - shutdown_hrs, 0.1)
+        availability = (op_time_hrs / divisor) * 100.0
+        if availability > 100.0:
+            availability = 100.0
+            
+        mttr_mtbf_list.append({
+            'area': area,
+            'equipment': equip,
+            'shutdown_hrs': round(shutdown_hrs, 1),
+            'downtime_hrs': round(downtime_hrs, 1),
+            'failures': failures,
+            'repeatability': total_events_count,
+            'mttr': round(mttr, 1),
+            'mtbf': round(mtbf, 1),
+            'availability': round(availability, 2)
+        })
+        
+    mttr_mtbf_list.sort(key=lambda x: x['downtime_hrs'], reverse=True)
+        
+    from django.middleware.csrf import get_token
+    context = {
+        'department': department,
+        'can_edit': can_edit,
+        'total_calendar_hrs': total_calendar_hrs,
+        'mttr_mtbf_list': mttr_mtbf_list,
+        'mttr_mtbf_list_json': json.dumps(mttr_mtbf_list),
+        'agencies': autocompletes['agencies'],
+        'sub_agencies': autocompletes['sub_agencies'],
+        'external_departments': external_departments,
+        'date_start': date_start,
+        'date_end': date_end,
+        'date_period_bracket': format_date_range_bracket(date_start, date_end),
+        'csrf_token': get_token(request),
+        'q_val': request.GET.get('q', '').strip(),
+        'agency_type_val': request.GET.get('agency_type', '').strip(),
+        'agency_val': request.GET.get('agency', '').strip(),
+        'sub_agency_val': request.GET.get('sub_agency', '').strip(),
+    }
+    return render(request, 'delays/partials/_mttr_mtbf_content.html', context)
+
+
+@login_required
+def reschedule_checklist(request, dept_id, checklist_id):
+    """
+    POST endpoint to reschedule a checklist by updating its date in the database.
+    """
+    if request.method == 'POST':
+        try:
+            if int(dept_id) == 0:
+                department = get_object_or_404(Department, id=0) if Department.objects.filter(id=0).exists() else None
+                can_edit = request.user.is_admin()
+            else:
+                department = get_object_or_404(Department, id=dept_id)
+                can_edit = user_can_edit_module(request.user, department, 'Delays')
+
+            if not can_edit:
+                return JsonResponse({'status': 'error', 'message': 'Permission denied.'}, status=403)
+
+            data = json.loads(request.body)
+            new_date_str = data.get('new_date', '').strip()
+            if not new_date_str:
+                return JsonResponse({'status': 'error', 'message': 'Date is required.'}, status=400)
+
+            new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
+
+            checklist = get_object_or_404(MaintenanceChecklist, id=checklist_id)
+            checklist.date = new_date
+            checklist.save()
+
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+
+@login_required
+def update_checklist_schedule(request, dept_id):
+    if request.method == 'POST':
+        try:
+            if int(dept_id) == 0:
+                return JsonResponse({'status': 'error', 'message': 'Cannot update schedule for overall plant.'}, status=400)
+            
+            department = get_object_or_404(Department, id=dept_id)
+            can_edit = user_can_edit_module(request.user, department, 'Delays')
+            if not can_edit:
+                return JsonResponse({'status': 'error', 'message': 'Permission denied.'}, status=403)
+            
+            data = json.loads(request.body)
+            schedule_id = data.get('schedule_id')
+            hod_id = data.get('assigned_hod_id')
+            
+            schedule = get_object_or_404(ChecklistSchedule, id=schedule_id, department=department)
+            if hod_id is not None:
+                if hod_id == '' or hod_id == 'null' or hod_id == 'None' or hod_id == 'NoneType':
+                    schedule.assigned_hod = None
+                else:
+                    from tpm.models import User
+                    schedule.assigned_hod = get_object_or_404(User, id=hod_id)
+            schedule.save()
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+
+@login_required
+def update_checklist_schedule_incharge(request, dept_id, schedule_id):
+    """
+    AJAX POST endpoint to update the shift_incharge field on a ChecklistSchedule.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+    
+    try:
+        if int(dept_id) == 0:
+            return JsonResponse({'status': 'error', 'message': 'Cannot update schedule for overall plant.'}, status=400)
+        
+        department = get_object_or_404(Department, id=dept_id)
+        
+        if not (user_can_edit_module(request.user, department, 'Delays') or request.user.is_admin()):
+            return JsonResponse({'status': 'error', 'message': 'Permission denied.'}, status=403)
+        
+        data = json.loads(request.body)
+        shift_incharge = (data.get('shift_incharge') or '').strip()
+        
+        schedule = get_object_or_404(ChecklistSchedule, id=schedule_id, department=department)
+        # Store shift_incharge on the most recent MaintenanceChecklist for this schedule
+        latest = MaintenanceChecklist.objects.filter(
+            department=department,
+            equipment=schedule.checklist_name
+        ).order_by('-date', '-id').first()
+        
+        if latest:
+            latest.shift_incharge = shift_incharge
+            latest.save(update_fields=['shift_incharge'])
+        
+        return JsonResponse({'status': 'success', 'shift_incharge': shift_incharge})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+
+
+@login_required
+def edit_checklist(request, dept_id, checklist_id):
+    department = get_object_or_404(Department, id=dept_id)
+    
+    can_edit = user_can_edit_module(request.user, department, 'Delays')
+    if not can_edit:
+        messages.error(request, "You do not have permission to edit checklists.")
+        return redirect(f"/delays/department/{dept_id}/?tab=checklist_summary")
+
+    if int(checklist_id) == 0:
+        initialize = request.GET.get('initialize') == 'true'
+        equipment_name = request.GET.get('equipment')
+        date_str = request.GET.get('date')
+        
+        if not initialize or not equipment_name or not date_str:
+            messages.error(request, "Invalid checklist initialization parameters.")
+            return redirect(f"/delays/department/{dept_id}/?tab=checklist_summary")
+            
+        try:
+            checklist_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except Exception as e:
+            messages.error(request, f"Invalid date: {str(e)}")
+            return redirect(f"/delays/department/{dept_id}/?tab=checklist_summary")
+            
+        # Check if already exists to avoid double creation
+        checklist = MaintenanceChecklist.objects.filter(
+            department=department,
+            equipment=equipment_name,
+            date=checklist_date
+        ).first()
+        
+        if not checklist:
+            # Determine default agency and area
+            opt = DelayDropdownOption.objects.filter(
+                department=department,
+                category__iexact='Equipment',
+                value=equipment_name,
+                parent_value='Maintenance'
+            ).first()
+            default_area = opt.parent_value if opt else ""
+            
+            # Fetch default HOD/agency schedule
+            sched = ChecklistSchedule.objects.filter(department=department, checklist_name=equipment_name).first()
+            default_agency = 'Mechanical'
+            
+            checklist = MaintenanceChecklist.objects.create(
+                department=department,
+                date=checklist_date,
+                equipment=equipment_name,
+                responsible_agency=default_agency,
+                area=default_area,
+                created_by=request.user
+            )
+            
+            # Fetch all action items seeded for this equipment (order by ID to keep the Excel row sequence)
+            actions = DelayDropdownOption.objects.filter(
+                department=department,
+                category__iexact='Action',
+                parent_value=equipment_name
+            ).order_by('id')
+            for act in actions:
+                MaintenanceChecklistItem.objects.create(
+                    checklist=checklist,
+                    action_item=act.value,
+                    status=None if act.is_header else 'OK',
+                    is_header=act.is_header
+                )
+        
+        return redirect(f"/delays/department/{dept_id}/checklist/{checklist.id}/edit/")
+
+    checklist = get_object_or_404(MaintenanceChecklist, id=checklist_id, department=department)
+
+        
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            # Update checklist fields
+            checklist.date = data.get('date', checklist.date)
+            checklist.responsible_agency = data.get('responsible_agency', checklist.responsible_agency)
+            checklist.area = data.get('area', checklist.area)
+            checklist.sub_area = data.get('sub_area', checklist.sub_area)
+            checklist.equipment = data.get('equipment', checklist.equipment)
+            checklist.sub_equipment = data.get('sub_equipment', checklist.sub_equipment)
+            checklist.shift_incharge = data.get('shift_incharge', checklist.shift_incharge)
+            checklist.engineer = data.get('engineer', checklist.engineer)
+            checklist.operator = data.get('operator', checklist.operator)
+            checklist.save()
+            
+            # Update items
+            items_data = data.get('items', [])
+            for item in items_data:
+                item_id = item.get('id')
+                status = item.get('status', 'OK')
+                remarks = item.get('remarks', '')
+                
+                if item_id:
+                    checklist_item = MaintenanceChecklistItem.objects.filter(id=item_id, checklist=checklist).first()
+                    if checklist_item:
+                        checklist_item.status = status
+                        checklist_item.remarks = remarks
+                        checklist_item.save()
+            
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            
+    # GET: Render the edit form
+    context = {
+        'department': department,
+        'checklist': checklist,
+        'items': checklist.items.all(),
+        'users': User.objects.all().order_by('username'),
+        'active_tab': 'checklist_summary',
+        'active_dept_id': department.id,
+        'active_module': 'Checklist',
+    }
+    return render(request, 'delays/edit_checklist.html', context)
+
 

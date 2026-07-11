@@ -118,6 +118,7 @@ class DelayDropdownOption(models.Model):
     category = models.CharField(max_length=100, help_text="e.g. 'Agency', 'Sub-Agency', 'Equipment', 'Sub-Equipment', etc.")
     value = models.CharField(max_length=255)
     parent_value = models.CharField(max_length=255, blank=True, null=True, help_text="Optional parent value, e.g. parent agency for a sub-agency")
+    is_header = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('department', 'category', 'value', 'parent_value')
@@ -158,10 +159,22 @@ class EquipmentShutdownSetting(models.Model):
         return f"{self.department.code} - {self.sub_area} / {self.equipment}: {self.shutdown_hrs} hrs"
 
 
+from django.utils import timezone
+
 class MaintenanceChecklist(models.Model):
     objects = models.Manager()
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='maintenance_checklists')
-    date = models.DateField(auto_now_add=True)
+    date = models.DateField(default=timezone.now)
+    created_at = models.DateTimeField(default=timezone.now)
+    frequency = models.CharField(max_length=50, default='Daily', choices=[
+        ('Daily', 'Daily'),
+        ('Weekly', 'Weekly'),
+        ('Fortnightly', 'Fortnightly'),
+        ('Monthly', 'Monthly'),
+        ('Quarterly', 'Quarterly'),
+        ('Half Yearly', 'Half Yearly'),
+        ('Yearly', 'Yearly')
+    ])
     agency_type = models.CharField(max_length=50, default='Internal')
     responsible_agency = models.CharField(max_length=150)
     area = models.CharField(max_length=150, blank=True, null=True)
@@ -169,23 +182,46 @@ class MaintenanceChecklist(models.Model):
     equipment = models.CharField(max_length=200, blank=True, null=True)
     sub_equipment = models.CharField(max_length=200, blank=True, null=True)
     shift_incharge = models.CharField(max_length=150, blank=True, null=True)
+    engineer = models.CharField(max_length=150, blank=True, null=True)
+    operator = models.CharField(max_length=150, blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         ordering = ['-date', '-id']
 
     def __str__(self):
-        return f"{self.department.code} - Checklist {self.id} ({self.date})"
+        return f"{self.department.code} - Checklist {self.id} ({self.date}) - {self.frequency}"
+
+    def has_defects(self):
+        return self.items.filter(status='NOT OK').exists()
+
 
 
 class MaintenanceChecklistItem(models.Model):
     objects = models.Manager()
     checklist = models.ForeignKey(MaintenanceChecklist, on_delete=models.CASCADE, related_name='items')
     action_item = models.CharField(max_length=255)
-    status = models.CharField(max_length=50, choices=[('OK', 'OK'), ('NOT OK', 'NOT OK')])
+    status = models.CharField(max_length=50, choices=[('OK', 'OK'), ('NOT OK', 'NOT OK')], blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
+    is_header = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Checklist {self.checklist.id} - {self.action_item} ({self.status})"
+        return f"Checklist {self.checklist.id} - {self.action_item} ({self.status or 'Header'})"
+
+
+
+class ChecklistSchedule(models.Model):
+    objects = models.Manager()
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='checklist_schedules')
+    checklist_name = models.CharField(max_length=255)
+    frequency = models.CharField(max_length=50, default='Daily')
+    assigned_hod = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_checklists')
+
+    class Meta:
+        unique_together = ('department', 'checklist_name')
+
+    def __str__(self):
+        return f"{self.checklist_name} ({self.frequency}) - HOD: {self.assigned_hod.username if self.assigned_hod else 'None'}"
+
 
 

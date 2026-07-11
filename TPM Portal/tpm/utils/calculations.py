@@ -348,3 +348,186 @@ def update_jh_kaizen_kpi_value(dept, month, year):
             db_val.save(update_fields=['actual'])
 
 
+def get_kaizen_registered_count(dept, pillar, month, year):
+    from tpm.models import KaizenSheet
+    sheets = KaizenSheet.objects.filter(department=dept, pillar=pillar)
+    count = 0
+    for sheet in sheets:
+        if sheet.start_date:
+            for fmt in ('%d-%m-%Y', '%Y-%m-%d'):
+                try:
+                    dt = datetime.datetime.strptime(sheet.start_date.strip(), fmt)
+                    if dt.month == month and dt.year == year:
+                        count += 1
+                        break
+                except ValueError:
+                    pass
+    return count
+
+def get_kaizen_completed_count(dept, pillar, month, year):
+    from tpm.models import KaizenSheet
+    sheets = KaizenSheet.objects.filter(department=dept, pillar=pillar)
+    count = 0
+    for sheet in sheets:
+        if sheet.finish_date:
+            for fmt in ('%d-%m-%Y', '%Y-%m-%d'):
+                try:
+                    dt = datetime.datetime.strptime(sheet.finish_date.strip(), fmt)
+                    if dt.month == month and dt.year == year:
+                        count += 1
+                        break
+                except ValueError:
+                    pass
+    return count
+
+def get_opl_developed_count(dept, pillar, month, year):
+    from tpm.models import OPLSheet
+    if pillar == 'ET':
+        sheets = OPLSheet.objects.filter(department=dept)
+    else:
+        sheets = OPLSheet.objects.filter(department=dept, pillar=pillar)
+    
+    count = 0
+    for sheet in sheets:
+        if sheet.created_at:
+            if sheet.created_at.month == month and sheet.created_at.year == year:
+                count += 1
+    return count
+
+def get_kaizen_registered_count_range(dept, pillar, from_month, from_year, to_month, to_year):
+    from tpm.models import KaizenSheet
+    sheets = KaizenSheet.objects.filter(department=dept, pillar=pillar)
+    count = 0
+    start = from_year * 12 + from_month
+    end = to_year * 12 + to_month
+    for sheet in sheets:
+        if sheet.start_date:
+            for fmt in ('%d-%m-%Y', '%Y-%m-%d'):
+                try:
+                    dt = datetime.datetime.strptime(sheet.start_date.strip(), fmt)
+                    current = dt.year * 12 + dt.month
+                    if start <= current <= end:
+                        count += 1
+                        break
+                except ValueError:
+                    pass
+    return count
+
+def get_kaizen_completed_count_range(dept, pillar, from_month, from_year, to_month, to_year):
+    from tpm.models import KaizenSheet
+    sheets = KaizenSheet.objects.filter(department=dept, pillar=pillar)
+    count = 0
+    start = from_year * 12 + from_month
+    end = to_year * 12 + to_month
+    for sheet in sheets:
+        if sheet.finish_date:
+            for fmt in ('%d-%m-%Y', '%Y-%m-%d'):
+                try:
+                    dt = datetime.datetime.strptime(sheet.finish_date.strip(), fmt)
+                    current = dt.year * 12 + dt.month
+                    if start <= current <= end:
+                        count += 1
+                        break
+                except ValueError:
+                    pass
+    return count
+
+def get_opl_developed_count_range(dept, pillar, from_month, from_year, to_month, to_year):
+    from tpm.models import OPLSheet
+    if pillar == 'ET':
+        sheets = OPLSheet.objects.filter(department=dept)
+    else:
+        sheets = OPLSheet.objects.filter(department=dept, pillar=pillar)
+    
+    count = 0
+    start = from_year * 12 + from_month
+    end = to_year * 12 + to_month
+    for sheet in sheets:
+        if sheet.created_at:
+            current = sheet.created_at.year * 12 + sheet.created_at.month
+            if start <= current <= end:
+                count += 1
+    return count
+
+def get_automatic_kpi_value(dept, pillar_id, sl_no, month, year):
+    if pillar_id == 'KK' and sl_no == '6':
+        return float(get_kaizen_registered_count(dept, 'KK', month, year))
+    elif pillar_id == 'KK' and sl_no == '7':
+        return float(get_kaizen_completed_count(dept, 'KK', month, year))
+    elif pillar_id == 'JH' and sl_no == '6':
+        return float(get_kaizen_completed_count(dept, 'JH', month, year))
+    elif pillar_id == 'JH' and sl_no == '7':
+        return float(get_opl_developed_count(dept, 'JH', month, year))
+    elif pillar_id == 'PM' and sl_no == '10':
+        return float(get_kaizen_completed_count(dept, 'PM', month, year))
+    elif pillar_id == 'PM' and sl_no == '11':
+        return float(get_opl_developed_count(dept, 'PM', month, year))
+    elif pillar_id == 'QM' and sl_no == '4':
+        return float(get_kaizen_completed_count(dept, 'QM', month, year))
+    elif pillar_id == 'ET' and sl_no == '7':
+        return float(get_opl_developed_count(dept, 'ET', month, year))
+    elif pillar_id == 'SHE' and sl_no == '11':
+        return float(get_kaizen_registered_count(dept, 'SHE', month, year))
+    elif pillar_id == 'OTPM' and sl_no == '3':
+        return float(get_kaizen_registered_count(dept, 'OTPM', month, year))
+    elif pillar_id == 'OTPM' and sl_no == '4':
+        return float(get_kaizen_completed_count(dept, 'OTPM', month, year))
+    elif pillar_id == 'OTPM' and sl_no == '5':
+        return float(get_opl_developed_count(dept, 'OTPM', month, year))
+    return None
+
+def get_months_in_range_local(from_month, from_year, to_month, to_year):
+    result = []
+    m = from_month
+    y = from_year
+    while y < to_year or (y == to_year and m <= to_month):
+        result.append({'month': m, 'year': y})
+        m += 1
+        if m > 12:
+            m = 1
+            y += 1
+    return result
+
+def get_automatic_kpi_value_range_split(dept, pillar_id, sl_no, from_month, from_year, to_month, to_year):
+    months = get_months_in_range_local(from_month, from_year, to_month, to_year)
+    total_val = 0.0
+    count_months = 0
+    
+    is_auto = (
+        (pillar_id == 'KK' and sl_no in ('6', '7')) or
+        (pillar_id == 'JH' and sl_no in ('6', '7')) or
+        (pillar_id == 'PM' and sl_no in ('10', '11')) or
+        (pillar_id == 'QM' and sl_no == '4') or
+        (pillar_id == 'ET' and sl_no == '7') or
+        (pillar_id == 'SHE' and sl_no == '11') or
+        (pillar_id == 'OTPM' and sl_no in ('3', '4', '5'))
+    )
+    if not is_auto:
+        return None
+        
+    for m_item in months:
+        m = m_item['month']
+        y = m_item['year']
+        if y > 2026 or (y == 2026 and m >= 7):
+            val = get_automatic_kpi_value(dept, pillar_id, sl_no, m, y)
+        else:
+            from tpm.models import KPIValue
+            db_val = KPIValue.objects.filter(
+                pillar_entry__department=dept,
+                pillar_entry__pillar=pillar_id,
+                pillar_entry__month=m,
+                pillar_entry__year=y,
+                sl_no=sl_no
+            ).first()
+            val = db_val.actual if db_val else None
+            
+        if val is not None:
+            total_val += val
+            count_months += 1
+            
+    if count_months == 0:
+        return 0.0
+    return total_val
+
+
+

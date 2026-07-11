@@ -2,13 +2,13 @@
 {% load static %}
 
 {% block delays_header_right %}
-  {% if active_tab == 'dashboard' or active_tab == 'summary' or active_tab == 'pareto' or active_tab == 'mttr_mtbf' or active_tab == 'capa_summary' or active_tab == 'checklist_summary' or active_tab == 'manual_checklist' %}
+  {% if active_tab == 'dashboard' or active_tab == 'summary' or active_tab == 'pareto' or active_tab == 'mttr_mtbf' or active_tab == 'capa_summary' or active_tab == 'checklist_summary' or active_tab == 'manual_checklist' or active_tab == 'checklist_schedule' or active_tab == 'checklist_calendar' or active_tab == 'checklist_status' %}
     {% include 'portal/partials/_fy_filter.html' %}
   {% endif %}
 {% endblock %}
 
 {% block delays_content %}
-<div x-data="{ uploadOpen: false, deleteOpen: false, deleteUrl: '', activeTab: '{% if active_tab == 'summary' %}logs{% elif active_tab == 'pareto' %}pareto{% elif active_tab == 'mttr_mtbf' %}mttr_mtbf{% elif active_tab == 'capa_summary' %}capa_summary{% elif active_tab == 'checklist_summary' %}checklist_summary{% elif active_tab == 'manual_checklist' %}manual_checklist{% else %}pareto{% endif %}' }">
+<div x-data="{ uploadOpen: false, deleteOpen: false, deleteUrl: '', activeTab: '{% if active_tab == 'summary' %}logs{% elif active_tab == 'uploads' %}uploads{% elif active_tab == 'pareto' %}pareto{% elif active_tab == 'mttr_mtbf' %}mttr_mtbf{% elif active_tab == 'capa_summary' %}capa_summary{% elif active_tab == 'checklist_summary' %}checklist_summary{% elif active_tab == 'manual_checklist' %}manual_checklist{% elif active_tab == 'checklist_schedule' %}checklist_schedule{% elif active_tab == 'checklist_calendar' %}checklist_calendar{% elif active_tab == 'checklist_status' %}checklist_status{% else %}pareto{% endif %}' }">
 
   <!-- TOP ACTIONS & KPI GRID -->
   {% if active_tab == 'dashboard' %}
@@ -27,11 +27,16 @@
       
       <!-- KPI 2 -->
       <div class="kpi-card navy-glow">
-        <div class="kpi-icon">📊</div>
+        <div class="kpi-icon">⚙️</div>
         <div class="kpi-info">
-          <span class="kpi-label">Downtime Events</span>
-          <span class="kpi-value font-mono">{{ total_events }}</span>
-          <span class="kpi-subtext">Logged delays</span>
+          <span class="kpi-label">Top Equipment (Downtime)</span>
+          {% if equip_pareto %}
+            <span class="kpi-value truncate" title="{{ equip_pareto.0.equipment }}">{{ equip_pareto.0.equipment }}</span>
+            <span class="kpi-subtext">{{ equip_pareto.0.mins }} mins downtime</span>
+          {% else %}
+            <span class="kpi-value font-mono">—</span>
+            <span class="kpi-subtext">No equipment recorded</span>
+          {% endif %}
         </div>
       </div>
       
@@ -107,54 +112,8 @@
           </table>
         </div>
       {% else %}
-        <!-- Filters Form -->
-        <form id="filter-form" 
-              hx-get="{% url 'delays:records_table' department.id %}" 
-              hx-trigger="change, keyup changed delay:300ms" 
-              hx-target="#records-table-container"
-              class="filter-bar">
-          
-          <div class="filter-group col-search">
-            <label class="filter-label">Search Delay Details</label>
-            <input type="text" name="q" placeholder="Search equipment, agency..." class="filter-input input-mono">
-          </div>
-          
-          <div class="filter-group">
-            <label class="filter-label">Agency Type</label>
-            <select name="agency_type" id="filter_agency_type" class="filter-input input-mono">
-              <option value="">All Types</option>
-              <option value="Internal">Internal</option>
-              <option value="External">External</option>
-            </select>
-          </div>
-          
-          <div class="filter-group">
-            <label class="filter-label">Agency</label>
-            <select name="agency" id="filter_agency" class="filter-input input-mono">
-              <option value="">All Agencies</option>
-              {% for a in agencies %}
-                <option value="{{ a }}">{{ a }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          
-          <div class="filter-group">
-            <label class="filter-label">Area</label>
-            <select name="sub_agency" class="filter-input input-mono">
-              <option value="">All Areas</option>
-              {% for sa in sub_agencies %}
-                <option value="{{ sa }}">{{ sa }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-
-          
-          <input type="hidden" name="date_start" value="{{ date_start }}">
-          <input type="hidden" name="date_end" value="{{ date_end }}">
-
-
-        </form>
+        {% url 'delays:records_table' department.id as records_url %}
+        {% include "delays/partials/_delay_filters.html" with filter_tab_id="summary" hx_get_url=records_url hx_target="#records-table-container" %}
 
         <!-- Logs Table Container -->
         <div id="records-table-container">
@@ -202,11 +161,12 @@
                 </td>
                 {% if can_edit %}
                   <td style="text-align: center; white-space: nowrap;">
-                    <button type="button" 
+                    <a href="#" 
                        class="btn-delete-upload"
-                       @click="deleteUrl = '{% url 'delays:delete_upload' department.id up.id %}'; deleteOpen = true;">
+                       style="text-decoration: none;"
+                       onclick="window.showConfirm('Delete Upload', 'Are you sure you want to delete this upload? This will permanently remove all associated parsed delay records.', function(confirmed) { if (confirmed) { window.location.href = '{% url 'delays:delete_upload' department.id up.id %}?tab=uploads'; } }); return false;">
                       🗑️ Delete Upload
-                    </button>
+                    </a>
                   </td>
                 {% endif %}
               </tr>
@@ -452,299 +412,9 @@
         {% endfor %}
       </div>
     </div>
-
-    <!-- TAB 6: MTTR/MTBF ANALYSIS -->
-    <div x-show="activeTab === 'mttr_mtbf'" x-transition style="display: none; padding: 24px;" x-data="reliabilityAnalysis()">
-      <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <h3 style="color: var(--jspl-navy); margin: 0 0 6px 0;">⏱ MTTR / MTBF Equipment Analysis</h3>
-          <p style="color: var(--delays-muted, #6b7280); font-size: 0.85rem; margin: 0;">
-            Reliability metrics (Mean Time to Repair, Mean Time Between Failures, and Availability) grouped by Area &amp; Equipment.
-          </p>
-        </div>
-        <button @click="showLocalCalculator = !showLocalCalculator" class="btn-dashboard btn-primary-gradient" style="font-size: 0.8rem; padding: 8px 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer;">
-          🧮 <span x-text="showLocalCalculator ? 'Hide Calculator' : 'Open Calculator'"></span>
-        </button>
-      </div>
-
-      <!-- Dropdown Filters for Reliability Table -->
-      <div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 16px; flex-wrap: wrap;">
-        <div class="filter-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
-          <label class="filter-label">Filter Sub Area</label>
-          <select x-model="searchSubArea" class="filter-input input-mono" style="width: 100%;">
-            <option value="">All Sub Areas</option>
-            <template x-for="area in subAreas" :key="area">
-              <option :value="area" x-text="area"></option>
-            </template>
-          </select>
-        </div>
-        <div class="filter-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
-          <label class="filter-label">Filter Equipment</label>
-          <select x-model="searchEquipment" class="filter-input input-mono" style="width: 100%;">
-            <option value="">All Equipments</option>
-            <template x-for="eq in equipments" :key="eq">
-              <option :value="eq" x-text="eq"></option>
-            </template>
-          </select>
-        </div>
-      </div>
-
-      <!-- Collapsible Calculator Block -->
-      <div x-show="showLocalCalculator" style="margin-bottom: 24px; border: 1px solid var(--delays-border); border-radius: 12px; overflow: hidden; background: #fafbfd; box-shadow: 0 4px 12px rgba(0,0,0,0.02); padding: 20px;" x-data="{
-        calcCalTime: 720,
-        calcShutdown: 24,
-        calcDowntime: 12,
-        calcFailures: 3,
-        
-        formulaMTTR_num: 'downtime',
-        formulaMTTR_den: 'failures',
-        
-        formulaMTBF_num: 'uptime',
-        formulaMTBF_den: 'failures',
-        
-        formulaAvailability_num: 'mtbf',
-        formulaAvailability_den: 'mtbf + mttr',
-        formulaAvailability_mult: '100',
-        
-        evaluateFormula(formulaStr, scope) {
-          try {
-            let expr = formulaStr.toLowerCase().replace(/[^a-z0-9+\-*/().\s]/g, '');
-            expr = expr.replace(/\buptime\b/g, scope.uptime);
-            expr = expr.replace(/\bdowntime\b/g, scope.downtime);
-            expr = expr.replace(/\bshutdown\b/g, scope.shutdown);
-            expr = expr.replace(/\bfailures\b/g, scope.failures);
-            expr = expr.replace(/\bcalendar\b/g, scope.calendar);
-            expr = expr.replace(/\bmttr\b/g, scope.mttr || 0);
-            expr = expr.replace(/\bmtbf\b/g, scope.mtbf || 0);
-            
-            let res = Function('return (' + expr + ')')();
-            return isNaN(res) || !isFinite(res) ? 0 : res;
-          } catch(e) {
-            return 0;
-          }
-        },
-        
-        get calcUptime() {
-          return Math.max(this.calcCalTime - this.calcShutdown - this.calcDowntime, 0);
-        },
-        
-        get calcMTTR() {
-          let scope = {
-            calendar: this.calcCalTime,
-            shutdown: this.calcShutdown,
-            downtime: this.calcDowntime,
-            failures: this.calcFailures,
-            uptime: this.calcUptime
-          };
-          let formula = '(' + this.formulaMTTR_num + ') / (' + this.formulaMTTR_den + ')';
-          return this.evaluateFormula(formula, scope);
-        },
-        
-        get calcMTBF() {
-          let scope = {
-            calendar: this.calcCalTime,
-            shutdown: this.calcShutdown,
-            downtime: this.calcDowntime,
-            failures: this.calcFailures,
-            uptime: this.calcUptime
-          };
-          let formula = '(' + this.formulaMTBF_num + ') / (' + this.formulaMTBF_den + ')';
-          return this.evaluateFormula(formula, scope);
-        },
-        
-        get calcAvailability() {
-          let scope = {
-            calendar: this.calcCalTime,
-            shutdown: this.calcShutdown,
-            downtime: this.calcDowntime,
-            failures: this.calcFailures,
-            uptime: this.calcUptime,
-            mttr: this.calcMTTR,
-            mtbf: this.calcMTBF
-          };
-          let formula = '(' + this.formulaAvailability_num + ') / (' + this.formulaAvailability_den + ') * (' + this.formulaAvailability_mult + ')';
-          return this.evaluateFormula(formula, scope);
-        }
-      }">
-        <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px;">
-          <!-- Left: Formulas and info -->
-          <div style="border-right: 1px solid var(--delays-border); padding-right: 20px;">
-            <h4 style="color: var(--delays-primary); margin: 0 0 16px 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">Edit Formula Mathematical Models</h4>
-            
-            <div style="display: flex; flex-direction: column; gap: 18px;">
-              <!-- 1. MTTR Formula Box -->
-              <div style="background: white; border-radius: 8px; border: 1px solid #E5E7EB; padding: 12px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
-                <strong style="color: var(--delays-accent); font-size: 0.82rem; display: block; margin-bottom: 8px; text-transform: uppercase;">1. MTTR (Mean Time To Repair)</strong>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                  <span style="font-family: monospace; font-size: 0.9rem; color: #475569; font-weight: bold; white-space: nowrap;">MTTR =</span>
-                  <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
-                    <input type="text" x-model="formulaMTTR_num" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-bottom: 2px;">
-                    <div style="width: 100%; height: 2px; background: #64748b; margin: 4px 0;"></div>
-                    <input type="text" x-model="formulaMTTR_den" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-top: 2px;">
-                  </div>
-                </div>
-                <span style="font-size: 0.7rem; color: #64748b; margin-top: 8px; display: block;">Variables: <code>downtime</code>, <code>failures</code>, <code>calendar</code>, <code>shutdown</code>, <code>uptime</code></span>
-              </div>
-              
-              <!-- 2. MTBF Formula Box -->
-              <div style="background: white; border-radius: 8px; border: 1px solid #E5E7EB; padding: 12px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
-                <strong style="color: var(--delays-accent); font-size: 0.82rem; display: block; margin-bottom: 8px; text-transform: uppercase;">2. MTBF (Mean Time Between Failures)</strong>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                  <span style="font-family: monospace; font-size: 0.9rem; color: #475569; font-weight: bold; white-space: nowrap;">MTBF =</span>
-                  <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
-                    <input type="text" x-model="formulaMTBF_num" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-bottom: 2px;">
-                    <div style="width: 100%; height: 2px; background: #64748b; margin: 4px 0;"></div>
-                    <input type="text" x-model="formulaMTBF_den" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-top: 2px;">
-                  </div>
-                </div>
-                <span style="font-size: 0.7rem; color: #64748b; margin-top: 8px; display: block;">Variables: <code>uptime</code>, <code>failures</code>, <code>calendar</code>, <code>shutdown</code>, <code>downtime</code></span>
-              </div>
-              
-              <!-- 3. Availability Formula Box -->
-              <div style="background: white; border-radius: 8px; border: 1px solid #E5E7EB; padding: 12px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
-                <strong style="color: var(--delays-accent); font-size: 0.82rem; display: block; margin-bottom: 8px; text-transform: uppercase;">3. Operational Availability Formula</strong>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                  <span style="font-family: monospace; font-size: 0.9rem; color: #475569; font-weight: bold; white-space: nowrap;">Avail =</span>
-                  <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
-                    <input type="text" x-model="formulaAvailability_num" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-bottom: 2px;">
-                    <div style="width: 100%; height: 2px; background: #64748b; margin: 4px 0;"></div>
-                    <input type="text" x-model="formulaAvailability_den" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-top: 2px;">
-                  </div>
-                  <span style="font-family: monospace; font-size: 1.1rem; color: #475569; font-weight: bold;">&times;</span>
-                  <input type="text" x-model="formulaAvailability_mult" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 60px; outline: none; margin-bottom: 0;">
-                </div>
-                <span style="font-size: 0.7rem; color: #64748b; margin-top: 8px; display: block;">Variables: <code>mtbf</code>, <code>mttr</code>, <code>uptime</code>, <code>downtime</code>, <code>calendar</code>, <code>shutdown</code></span>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Right: Calculator Controls -->
-          <div style="display: flex; flex-direction: column; gap: 16px;">
-            <h4 style="color: var(--delays-primary); margin: 0 0 4px 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">Live Simulator</h4>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-              <div class="filter-group" style="margin-bottom: 0;">
-                <label class="filter-label" style="margin-bottom: 4px;">Total Calendar Time (Hrs)</label>
-                <input type="number" min="0" x-model.number="calcCalTime" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
-              </div>
-              <div class="filter-group" style="margin-bottom: 0;">
-                <label class="filter-label" style="margin-bottom: 4px;">Planned Shutdown (Hrs)</label>
-                <input type="number" min="0" x-model.number="calcShutdown" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
-              </div>
-              <div class="filter-group" style="margin-bottom: 0;">
-                <label class="filter-label" style="margin-bottom: 4px;">Unplanned Downtime (Hrs)</label>
-                <input type="number" min="0" x-model.number="calcDowntime" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
-              </div>
-              <div class="filter-group" style="margin-bottom: 0;">
-                <label class="filter-label" style="margin-bottom: 4px;">No. of Failures (Nos.)</label>
-                <input type="number" min="1" x-model.number="calcFailures" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
-              </div>
-            </div>
-            
-            <!-- Result Panel -->
-            <div style="margin-top: 8px; background: white; border: 1px solid var(--delays-border); border-radius: 8px; padding: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; text-align: center;">
-              <div>
-                <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">Total Uptime</span>
-                <strong style="font-size: 1.1rem; color: var(--delays-primary); font-family: 'JetBrains Mono', monospace;" x-text="calcUptime.toFixed(1) + ' hrs'"></strong>
-              </div>
-              <div>
-                <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">MTTR</span>
-                <strong style="font-size: 1.1rem; color: var(--delays-accent); font-family: 'JetBrains Mono', monospace;" x-text="calcMTTR.toFixed(2) + ' hrs'"></strong>
-              </div>
-              <div>
-                <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">MTBF</span>
-                <strong style="font-size: 1.1rem; color: var(--delays-accent); font-family: 'JetBrains Mono', monospace;" x-text="calcMTBF.toFixed(1) + ' hrs'"></strong>
-              </div>
-              <div>
-                <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">Availability</span>
-                <strong style="font-size: 1.1rem; font-family: 'JetBrains Mono', monospace;" :style="{ color: calcAvailability >= 98.0 ? '#16a34a' : (calcAvailability >= 95.0 ? '#ea580c' : '#dc2626') }" x-text="calcAvailability.toFixed(2) + '%'"></strong>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="delays-table">
-          <thead>
-            <tr>
-              <th style="text-align: left;">Sub Area</th>
-              <th style="text-align: left;">Equipment</th>
-              <th style="text-align: right; width: 120px;">Shutdown (HRS)</th>
-              <th style="text-align: right; width: 120px;">downtime (HRS)</th>
-              <th style="text-align: right; width: 130px;">No. of failure (Nos.)</th>
-              <th style="text-align: right; width: 130px;">Repeatability (Nos.)</th>
-              <th style="text-align: right; width: 100px;">MTTR (Hrs)</th>
-              <th style="text-align: right; width: 100px;">MTBF(Hrs)</th>
-              <th style="text-align: right; width: 100px;">Availability</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template x-for="(item, index) in filteredItems" :key="item.area + '-' + item.equipment">
-              <tr class="hover-row">
-                <td style="text-align: left;"><b x-text="item.area"></b></td>
-                <td style="text-align: left;" x-text="item.equipment"></td>
-                <td style="text-align: right; width: 120px; vertical-align: middle;">
-                  <input type="number" 
-                         step="0.1" 
-                         min="0" 
-                         x-model.number="item.shutdown_hrs" 
-                         @input="recalculateRow(item)" 
-                         @change="saveShutdown(item)"
-                         class="font-mono" 
-                         style="text-align: right; width: 80px; padding: 4px 8px; border: 1px dashed var(--delays-border, #cbd5e1); border-radius: 4px; background: transparent; color: inherit; font-weight: 600; outline: none; transition: border-color 0.2s;"
-                         onfocus="this.style.borderColor='var(--delays-primary, #F47920)'; this.style.borderStyle='solid';"
-                         onblur="this.style.borderColor='var(--delays-border, #cbd5e1)'; this.style.borderStyle='dashed';"
-                         :disabled="!{{ can_edit|yesno:'true,false' }}">
-                </td>
-                <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="parseFloat(item.downtime_hrs || 0).toFixed(1)"></td>
-                <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="item.failures"></td>
-                <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="item.repeatability"></td>
-                <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="parseFloat(item.mttr || 0).toFixed(1)"></td>
-                <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="parseFloat(item.mtbf || 0).toFixed(1)"></td>
-                <td style="text-align: right; font-weight: bold;" class="font-mono"
-                    :style="{ color: item.availability >= 98.0 ? '#16a34a' : (item.availability >= 95.0 ? '#ea580c' : '#dc2626') }"
-                    x-text="parseFloat(item.availability || 0).toFixed(2) + '%'">
-                </td>
-              </tr>
-            </template>
-            <!-- Fallback if filtered list is empty -->
-            <template x-if="filteredItems.length === 0">
-              <tr>
-                <td colspan="9" style="text-align: center; color: var(--delays-muted, #6b7280); padding: 30px;">
-                  No delay records match the filtered criteria.
-                </td>
-              </tr>
-            </template>
-          </tbody>
-          <tfoot style="border-top: 2px solid var(--delays-border, #cbd5e1); background: rgba(0,0,0,0.02); font-weight: bold;">
-            <!-- TOTAL row -->
-            <tr style="border-bottom: 1px solid var(--delays-border, #cbd5e1);">
-              <td colspan="2" style="text-align: left; padding: 10px;">TOTAL</td>
-              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalShutdown.toFixed(1)"></td>
-              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalDowntime.toFixed(1)"></td>
-              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalFailures"></td>
-              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalRepeatability"></td>
-              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="overallMTTR.toFixed(1)"></td>
-              <td style="text-align: right; padding: 10px;" class="font-mono" x-text="overallMTBF.toFixed(1)"></td>
-              <td style="text-align: right; padding: 10px; color: var(--delays-primary, #F47920);" class="font-mono" x-text="overallAvailability.toFixed(2) + '%'"></td>
-            </tr>
-            <!-- AVERAGE row -->
-            <tr>
-              <td colspan="2" style="text-align: left; padding: 10px; color: var(--delays-muted, #6b7280);">AVERAGE</td>
-              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgShutdown.toFixed(1)"></td>
-              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgDowntime.toFixed(1)"></td>
-              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgFailures.toFixed(1)"></td>
-              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgRepeatability.toFixed(1)"></td>
-              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgMTTR.toFixed(1)"></td>
-              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgMTBF.toFixed(1)"></td>
-              <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgAvailability.toFixed(2) + '%'"></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+    <div x-show="activeTab === 'mttr_mtbf'" x-transition style="display: none; padding: 24px;" id="mttr-mtbf-tab-container">
+      {% include "delays/partials/_mttr_mtbf_content.html" %}
     </div>
-  </div>
 
   <!-- TAB 7: CAPA SUMMARY -->
   <div x-show="activeTab === 'capa_summary'" x-transition style="display: none; padding: 24px;">
@@ -855,77 +525,1089 @@
       </div>
     </div>
 
-    <!-- TAB 8: CHECKLIST SUMMARY -->
-    <div x-show="activeTab === 'checklist_summary'" x-transition style="display: none; padding: 24px;">
-      <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <h3 style="color: var(--jspl-navy); margin: 0 0 6px 0;">📋 Maintenance Checklist Summary</h3>
-          <p style="color: var(--delays-muted, #6b7280); font-size: 0.85rem; margin: 0;">
-            Overview of safety, mechanical, and electrical compliance checklists for {{ department.name }}.
-          </p>
-        </div>
-        <button @click="activeTab = 'manual_checklist'; window.location.search = '?tab=manual_checklist';" class="btn-dashboard btn-primary-gradient" style="font-size: 0.8rem; padding: 8px 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer; border-radius: 6px; color: white;">
-          📝 Fill New Checklist
-        </button>
-      </div>
+    <!-- Alpine checklistDashboard Definition -->
+    <script>
+      document.addEventListener('alpine:init', () => {
+        Alpine.data('checklistDashboard', () => {
+          let rawItems = [];
+          const dataEl = document.getElementById('raw-checklist-items-data');
+          if (dataEl) {
+            try {
+              rawItems = JSON.parse(dataEl.textContent);
+            } catch(e) {
+              console.error("Failed to parse raw checklist items:", e);
+            }
+          }
+          
+          rawItems.forEach(item => {
+            let shift = 'A';
+            const inc = (item.shift_incharge || '').toUpperCase();
+            if (inc.includes('SHIFT B') || inc.includes(', B') || inc.includes(' B,') || inc.includes('(B)')) shift = 'B';
+            else if (inc.includes('SHIFT C') || inc.includes(', C') || inc.includes(' C,') || inc.includes('(C)')) shift = 'C';
+            else if (inc.includes('SHIFT A') || inc.includes(', A') || inc.includes(' A,') || inc.includes('(A)')) shift = 'A';
+            item.parsed_shift = shift;
+          });
 
-      <div class="table-responsive">
-        <table class="delays-table">
-          <thead>
-            <tr>
-              <th style="text-align: left; width: 100px;">Date</th>
-              <th style="text-align: left; width: 160px;">Responsible Agency</th>
-              <th style="text-align: left; width: 180px;">Area / Sub-Area</th>
-              <th style="text-align: left; width: 200px;">Equipment / Sub-Equipment</th>
-              <th style="text-align: left; width: 130px;">Shift Incharge</th>
-              <th style="text-align: left; width: 220px;">Action / Item</th>
-              <th style="text-align: center; width: 100px;">Status</th>
-              <th style="text-align: left; min-width: 200px;">Remarks / Findings</th>
-              <th style="text-align: center; width: 80px;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in checklist_items %}
-              <tr class="hover-row">
-                <td class="font-mono">{{ item.checklist.date|date:"Y-m-d" }}</td>
+          return {
+            items: rawItems,
+            scheduleDays: [],
+            calendarDays: [],
+            calendarMonthYearStr: '',
+            selectedYear: new Date().getFullYear(),
+            selectedMonth: new Date().getMonth(),
+            yearsList: [2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030],
+            monthsList: [
+              { value: 0, label: 'Jan' },
+              { value: 1, label: 'Feb' },
+              { value: 2, label: 'Mar' },
+              { value: 3, label: 'Apr' },
+              { value: 4, label: 'May' },
+              { value: 5, label: 'Jun' },
+              { value: 6, label: 'Jul' },
+              { value: 7, label: 'Aug' },
+              { value: 8, label: 'Sep' },
+              { value: 9, label: 'Oct' },
+              { value: 10, label: 'Nov' },
+              { value: 11, label: 'Dec' }
+            ],
+            
+            rescheduleOpen: false,
+            rescheduleId: null,
+            rescheduleDate: '',
+            selectedCalendarDate: '',
+            
+            selectedFreq: 'Daily',
+            weeklyList: [],
+            fortnightlyList: [],
+            monthlyList: [],
+            quarterlyList: [],
+            halfYearlyList: [],
+            yearlyList: [],
+            
+            getChecklistsOnDate(dateStr) {
+              if (!dateStr) return [];
+              const checklistsMap = {};
+              this.items.filter(item => item.date === dateStr).forEach(item => {
+                if (!checklistsMap[item.checklist_id]) {
+                  checklistsMap[item.checklist_id] = {
+                    id: item.checklist_id,
+                    equipment: item.equipment,
+                    responsible_agency: item.responsible_agency,
+                    shift_incharge: item.shift_incharge,
+                    frequency: item.frequency,
+                    date: item.date
+                  };
+                }
+              });
+              return Object.values(checklistsMap);
+            },
+            
+            init() {
+              this.generateScheduleDays();
+              this.generateCalendar();
+              this.generateWeeks();
+              this.generateFortnights();
+              this.generateMonths();
+              this.generateQuarters();
+              this.generateHalfYearly();
+              this.generateYearly();
+            },
+            
+            getWeekNumber(d) {
+              d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+              d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+              var startOfYear = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+              var weekNo = Math.ceil(( ( (d - startOfYear) / 86400000) + 1)/7);
+              return weekNo;
+            },
+            
+            generateScheduleDays() {
+              const days = [];
+              for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const displayDate = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+                const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+                
+                const shifts = ['A', 'B', 'C'].map(sh => {
+                  const checklistForShift = this.items.filter(item => item.date === dateStr && item.parsed_shift === sh && item.frequency === 'Daily');
+                  let status = 'scheduled';
+                  if (checklistForShift.length > 0) {
+                    const hasNotOk = checklistForShift.some(item => item.status === 'NOT OK');
+                    status = hasNotOk ? 'defect' : 'completed';
+                  } else {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    if (dateStr < todayStr) {
+                      status = 'missed';
+                    }
+                  }
+                  return {
+                    name: sh,
+                    status: status,
+                    checklists: checklistForShift
+                  };
+                });
+                
+                days.push({
+                  dateStr: dateStr,
+                  displayDate: displayDate,
+                  dayName: dayName,
+                  shifts: shifts
+                });
+              }
+              this.scheduleDays = days;
+            },
+
+            generateWeeks() {
+              const weeks = [];
+              const now = new Date();
+              for (let i = 5; i >= 0; i--) {
+                const start = new Date();
+                start.setDate(now.getDate() - (i * 7) - now.getDay() + 1); // Monday
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6); // Sunday
+                
+                const startStr = start.toISOString().split('T')[0];
+                const endStr = end.toISOString().split('T')[0];
+                const label = `${start.toLocaleDateString('en-US', {day:'numeric', month:'short'})} - ${end.toLocaleDateString('en-US', {day:'numeric', month:'short'})}`;
+                
+                const logged = this.items.filter(item => item.date >= startStr && item.date <= endStr && item.frequency === 'Weekly');
+                let status = 'scheduled';
+                if (logged.length > 0) {
+                  status = logged.some(item => item.status === 'NOT OK') ? 'defect' : 'completed';
+                } else if (end < now) {
+                  status = 'missed';
+                }
+                
+                weeks.push({
+                  label: `Week ${this.getWeekNumber(start)}`,
+                  range: label,
+                  status: status,
+                  items: logged
+                });
+              }
+              this.weeklyList = weeks;
+            },
+
+            generateFortnights() {
+              const fortnights = [];
+              const now = new Date();
+              let currYear = now.getFullYear();
+              let currMonth = now.getMonth();
+              let currDay = now.getDate();
+              
+              let isFirstHalf = currDay <= 15;
+              
+              for (let i = 0; i < 4; i++) {
+                let start, end;
+                if (isFirstHalf) {
+                  start = new Date(currYear, currMonth, 1);
+                  end = new Date(currYear, currMonth, 15);
+                } else {
+                  start = new Date(currYear, currMonth, 16);
+                  end = new Date(currYear, currMonth + 1, 0);
+                }
+                
+                const startStr = start.toISOString().split('T')[0];
+                const endStr = end.toISOString().split('T')[0];
+                const monthName = start.toLocaleDateString('en-US', { month: 'short' });
+                const label = `${monthName} (${isFirstHalf ? '1st-15th' : '16th-End'})`;
+                
+                const logged = this.items.filter(item => item.date >= startStr && item.date <= endStr && item.frequency === 'Fortnightly');
+                let status = 'scheduled';
+                if (logged.length > 0) {
+                  status = logged.some(item => item.status === 'NOT OK') ? 'defect' : 'completed';
+                } else if (end < now) {
+                  status = 'missed';
+                }
+                
+                fortnights.unshift({
+                  label: label,
+                  range: `${start.getDate()} - ${end.getDate()} ${monthName}`,
+                  status: status,
+                  items: logged
+                });
+                
+                if (isFirstHalf) {
+                  currMonth--;
+                  if (currMonth < 0) {
+                    currMonth = 11;
+                    currYear--;
+                  }
+                  isFirstHalf = false;
+                } else {
+                  isFirstHalf = true;
+                }
+              }
+              this.fortnightlyList = fortnights;
+            },
+
+            generateMonths() {
+              const months = [];
+              const now = new Date();
+              let currYear = now.getFullYear();
+              let currMonth = now.getMonth();
+              
+              for (let i = 0; i < 4; i++) {
+                const start = new Date(currYear, currMonth, 1);
+                const end = new Date(currYear, currMonth + 1, 0);
+                
+                const startStr = start.toISOString().split('T')[0];
+                const endStr = end.toISOString().split('T')[0];
+                const label = start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                
+                const logged = this.items.filter(item => item.date >= startStr && item.date <= endStr && item.frequency === 'Monthly');
+                let status = 'scheduled';
+                if (logged.length > 0) {
+                  status = logged.some(item => item.status === 'NOT OK') ? 'defect' : 'completed';
+                } else if (end < now) {
+                  status = 'missed';
+                }
+                
+                months.unshift({
+                  label: label,
+                  status: status,
+                  items: logged
+                });
+                
+                currMonth--;
+                if (currMonth < 0) {
+                  currMonth = 11;
+                  currYear--;
+                }
+              }
+              this.monthlyList = months;
+            },
+
+            generateQuarters() {
+              const quarters = [];
+              const now = new Date();
+              let currYear = now.getFullYear();
+              let currMonth = now.getMonth();
+              let currQ = Math.floor(currMonth / 3);
+              
+              for (let i = 0; i < 4; i++) {
+                let startMonth = currQ * 3;
+                const start = new Date(currYear, startMonth, 1);
+                const end = new Date(currYear, startMonth + 3, 0);
+                
+                const startStr = start.toISOString().split('T')[0];
+                const endStr = end.toISOString().split('T')[0];
+                const qNames = ["Q4 (Jan-Mar)", "Q1 (Apr-Jun)", "Q2 (Jul-Sep)", "Q3 (Oct-Dec)"];
+                const label = `${qNames[currQ]} ${currYear}`;
+                
+                const logged = this.items.filter(item => item.date >= startStr && item.date <= endStr && item.frequency === 'Quarterly');
+                let status = 'scheduled';
+                if (logged.length > 0) {
+                  status = logged.some(item => item.status === 'NOT OK') ? 'defect' : 'completed';
+                } else if (end < now) {
+                  status = 'missed';
+                }
+                
+                quarters.unshift({
+                  label: label,
+                  status: status,
+                  items: logged
+                });
+                
+                currQ--;
+                if (currQ < 0) {
+                  currQ = 3;
+                  currYear--;
+                }
+              }
+              this.quarterlyList = quarters;
+            },
+
+            generateHalfYearly() {
+              const halfYears = [];
+              const now = new Date();
+              let currYear = now.getFullYear();
+              let currMonth = now.getMonth();
+              let isH1 = currMonth >= 3 && currMonth <= 8;
+              
+              for (let i = 0; i < 2; i++) {
+                let start, end, label;
+                if (isH1) {
+                  start = new Date(currYear, 3, 1);
+                  end = new Date(currYear, 9, 0);
+                  label = `H1 (Apr-Sep) FY ${currYear}-${(currYear+1).toString().slice(2)}`;
+                } else {
+                  let fyYear = currMonth < 3 ? currYear - 1 : currYear;
+                  start = new Date(fyYear, 9, 1);
+                  end = new Date(fyYear + 1, 3, 0);
+                  label = `H2 (Oct-Mar) FY ${fyYear}-${(fyYear+1).toString().slice(2)}`;
+                }
+                
+                const startStr = start.toISOString().split('T')[0];
+                const endStr = end.toISOString().split('T')[0];
+                
+                const logged = this.items.filter(item => item.date >= startStr && item.date <= endStr && item.frequency === 'Half Yearly');
+                let status = 'scheduled';
+                if (logged.length > 0) {
+                  status = logged.some(item => item.status === 'NOT OK') ? 'defect' : 'completed';
+                } else if (end < now) {
+                  status = 'missed';
+                }
+                
+                halfYears.unshift({
+                  label: label,
+                  status: status,
+                  items: logged
+                });
+                
+                isH1 = !isH1;
+                if (isH1) {
+                  currYear--;
+                }
+              }
+              this.halfYearlyList = halfYears;
+            },
+
+            generateYearly() {
+              const yearly = [];
+              const now = new Date();
+              let currYear = now.getFullYear();
+              let currMonth = now.getMonth();
+              let fyStartYear = currMonth < 3 ? currYear - 1 : currYear;
+              
+              for (let i = 0; i < 2; i++) {
+                const start = new Date(fyStartYear, 3, 1);
+                const end = new Date(fyStartYear + 1, 3, 0);
+                const label = `FY ${fyStartYear}-${(fyStartYear+1).toString().slice(2)}`;
+                
+                const startStr = start.toISOString().split('T')[0];
+                const endStr = end.toISOString().split('T')[0];
+                
+                const logged = this.items.filter(item => item.date >= startStr && item.date <= endStr && item.frequency === 'Yearly');
+                let status = 'scheduled';
+                if (logged.length > 0) {
+                  status = logged.some(item => item.status === 'NOT OK') ? 'defect' : 'completed';
+                } else if (end < now) {
+                  status = 'missed';
+                }
+                
+                yearly.unshift({
+                  label: label,
+                  status: status,
+                  items: logged
+                });
+                
+                fyStartYear--;
+              }
+              this.yearlyList = yearly;
+            },
+            
+            generateCalendar() {
+              const year = parseInt(this.selectedYear);
+              const month = parseInt(this.selectedMonth);
+              const date = new Date(year, month, 1);
+              
+              this.calendarMonthYearStr = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+              
+              const firstDay = new Date(year, month, 1);
+              const firstDayIndex = (firstDay.getDay() + 6) % 7;
+              
+              const lastDay = new Date(year, month + 1, 0);
+              const totalDays = lastDay.getDate();
+              
+              const days = [];
+              
+              const prevLastDay = new Date(year, month, 0).getDate();
+              for (let i = firstDayIndex; i > 0; i--) {
+                days.push({
+                  dayNum: prevLastDay - i + 1,
+                  isCurrentMonth: false,
+                  dateStr: '',
+                  status: 'neutral',
+                  checklistCount: 0
+                });
+              }
+              
+              for (let i = 1; i <= totalDays; i++) {
+                const currentDayDate = new Date(year, month, i);
+                const dateStr = currentDayDate.toISOString().split('T')[0];
+                
+                const checklistsOnDate = this.items.filter(item => item.date === dateStr);
+                const checklistCount = new Set(checklistsOnDate.map(c => c.checklist_id)).size;
+                
+                let status = 'neutral';
+                if (checklistCount > 0) {
+                  const hasNotOk = checklistsOnDate.some(item => item.status === 'NOT OK');
+                  status = hasNotOk ? 'defect' : 'completed';
+                } else {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  if (dateStr < todayStr) {
+                    const dayOfWeek = currentDayDate.getDay();
+                    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                      status = 'missed';
+                    }
+                  }
+                }
+                
+                days.push({
+                  dayNum: i,
+                  isCurrentMonth: true,
+                  dateStr: dateStr,
+                  checklistCount: checklistCount,
+                  status: status
+                });
+              }
+              
+              const remainingCells = 42 - days.length;
+              for (let i = 1; i <= remainingCells; i++) {
+                days.push({
+                  dayNum: i,
+                  isCurrentMonth: false,
+                  dateStr: '',
+                  status: 'neutral',
+                  checklistCount: 0
+                });
+              }
+              
+              this.calendarDays = days;
+            },
+            
+            changeMonth(direction) {
+              let m = parseInt(this.selectedMonth) + direction;
+              let y = parseInt(this.selectedYear);
+              if (m < 0) {
+                m = 11;
+                y--;
+              } else if (m > 11) {
+                m = 0;
+                y++;
+              }
+              this.selectedMonth = m;
+              this.selectedYear = y;
+              this.generateCalendar();
+            },
+            
+            filterTableByDate(dateStr) {
+              if (!dateStr) return;
+              window.location.href = `?tab=checklist_summary&date_start=${dateStr}&date_end=${dateStr}`;
+            },
+            
+            openRescheduleModal(id, dateStr) {
+              this.rescheduleId = id;
+              this.rescheduleDate = dateStr;
+              this.rescheduleOpen = true;
+            },
+            
+            submitReschedule() {
+              if (!this.rescheduleDate) return;
+              fetch(`/delays/department/{{ department.id }}/checklist/${this.rescheduleId}/reschedule/`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ new_date: this.rescheduleDate })
+              })
+              .then(response => {
+                if (!response.ok) throw new Error('Failed to reschedule');
+                return response.json();
+              })
+              .then(data => {
+                if (data.status === 'success') {
+                  this.rescheduleOpen = false;
+                  window.location.reload();
+                } else {
+                  alert(data.message || 'Error rescheduling');
+                }
+              })
+              .catch(err => {
+                console.error(err);
+                alert('Failed to reschedule checklist.');
+              });
+            },
+            
+            get stats() {
+              const totalChecklists = new Set(this.items.map(i => i.checklist_id)).size;
+              const okItems = this.items.filter(i => i.status === 'OK').length;
+              const notOkItems = this.items.filter(i => i.status === 'NOT OK').length;
+              const totalInspectionPoints = this.items.length;
+              
+              const okRate = totalInspectionPoints > 0 ? (okItems / totalInspectionPoints * 100) : 100;
+              
+              const defects = [];
+              const seen = new Set();
+              this.items.forEach(i => {
+                if (i.status === 'NOT OK') {
+                  const key = i.checklist_id + '-' + i.action_item;
+                  if (!seen.has(key)) {
+                    seen.add(key);
+                    defects.push(i);
+                  }
+                }
+              });
+              
+              return {
+                totalChecklists: totalChecklists,
+                okRate: okRate.toFixed(1),
+                notOkCount: notOkItems,
+                defects: defects
+              };
+            }
+          };
+        });
+      });
+    </script>
+
+    <div x-data="checklistDashboard()" x-init="init()">
+      <script id="raw-checklist-items-data" type="application/json">
+        [
+          {% for item in checklist_items %}
+            {
+              "id": {{ item.id }},
+              "checklist_id": {{ item.checklist.id }},
+              "date": "{{ item.checklist.date|date:'Y-m-d' }}",
+              "shift_incharge": "{{ item.checklist.shift_incharge|default:''|escapejs }}",
+              "responsible_agency": "{{ item.checklist.responsible_agency|default:''|escapejs }}",
+              "area": "{{ item.checklist.area|default:''|escapejs }}",
+              "equipment": "{{ item.checklist.equipment|default:''|escapejs }}",
+              "action_item": "{{ item.action_item|default:''|escapejs }}",
+              "status": "{{ item.status|default:'OK'|escapejs }}",
+              "remarks": "{{ item.remarks|default:''|escapejs }}",
+              "frequency": "{{ item.checklist.frequency|default:'Daily'|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        ]
+      </script>
+
+      <!-- Checklist Schedule Tab -->
+      <div x-show="activeTab === 'checklist_schedule'" x-transition style="display: none; padding: 24px;"
+           x-data="{ activeFreq: 'All' }">
+
+        <style>
+          .freq-filter-btn {
+            background: #ffffff !important;
+            color: var(--jspl-navy, #002855) !important;
+            border: 1.5px solid #cbd5e1 !important;
+            padding: 8px 16px !important;
+            font-weight: 600 !important;
+            font-size: 0.82rem !important;
+            cursor: pointer !important;
+            border-radius: 20px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-decoration: none !important;
+            line-height: 1 !important;
+            outline: none !important;
+            transition: all 0.2s ease !important;
+            margin-right: 4px !important;
+            margin-bottom: 8px !important;
+            box-shadow: none !important;
+          }
+          .freq-filter-btn:hover {
+            background: #f1f5f9 !important;
+            border-color: #94a3b8 !important;
+            color: #1e293b !important;
+            text-decoration: none !important;
+          }
+          .freq-filter-btn.active {
+            background: var(--jspl-navy, #002855) !important;
+            border-color: var(--jspl-navy, #002855) !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(0, 40, 85, 0.18) !important;
+            text-decoration: none !important;
+          }
+          .incharge-edit-btn {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            padding: 5px 12px !important;
+            cursor: pointer !important;
+            font-size: 0.75rem !important;
+            color: var(--jspl-navy, #002855) !important;
+            white-space: nowrap !important;
+            text-decoration: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            line-height: 1 !important;
+            font-weight: 600 !important;
+            transition: all 0.15s ease !important;
+          }
+          .incharge-edit-btn:hover {
+            background: #f0f4ff !important;
+            border-color: #93c5fd !important;
+            text-decoration: none !important;
+          }
+        </style>
+
+        <!-- Header -->
+        <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h3 style="color: var(--jspl-navy); margin: 0 0 6px 0;">📅 Checklist Schedule</h3>
+            <p style="color: var(--delays-muted, #6b7280); font-size: 0.85rem; margin: 0;">
+              View checklist status by frequency. Click a frequency to filter the list.
+            </p>
+          </div>
+        </div>
+
+        <!-- Frequency Filter Buttons -->
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">
+          {% for freq_label in freq_filter_labels %}
+          <button
+            @click="activeFreq = '{{ freq_label }}'"
+            class="freq-filter-btn"
+            :class="activeFreq === '{{ freq_label }}' ? 'active' : ''"
+          >{{ freq_label }}</button>
+          {% endfor %}
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive" style="background: white; border: 1px solid var(--delays-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
+          <table class="delays-table" style="margin: 0;">
+            <thead>
+              <tr>
+                <th style="text-align: left; width: 120px;">Date</th>
+                <th style="text-align: left;">Checklist Name</th>
+                <th style="text-align: left; width: 140px;">Area</th>
+                <th style="text-align: left; width: 140px;">Sub-Area</th>
+                <th style="text-align: center; width: 110px;">Status</th>
+                <th style="text-align: center; width: 120px;">Frequency</th>
+                <th style="text-align: left; width: 260px;">Assigned Shift Incharge</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in checklist_status_list %}
+              <tr class="hover-row checklist-sched-row" data-freq="{{ item.schedule.frequency }}"
+                  x-show="activeFreq === 'All' || activeFreq === '{{ item.schedule.frequency }}'"
+                  x-transition>
+                <!-- Date -->
+                <td class="font-mono" style="font-size: 0.82rem; color: #475569;">
+                  {{ item.latest_date }}
+                </td>
+
+                <!-- Checklist Name -->
                 <td>
-                  {{ item.checklist.responsible_agency }}
-                  <span class="agency-badge" style="{% if item.checklist.agency_type == 'Internal' %}background: rgba(22,163,74,0.05); color: #16a34a; border-color: rgba(22,163,74,0.15);{% else %}background: rgba(59,130,246,0.05); color: #3b82f6; border-color: rgba(59,130,246,0.15);{% endif %} font-size: 0.68rem; padding: 1px 4px;">
-                    {{ item.checklist.agency_type }}
-                  </span>
+                  <strong>{{ item.schedule.checklist_name }}</strong>
                 </td>
-                <td>{{ item.checklist.area|default:"—" }} / {{ item.checklist.sub_area|default:"—" }}</td>
-                <td><b>{{ item.checklist.equipment|default:"—" }}</b> / {{ item.checklist.sub_equipment|default:"—" }}</td>
-                <td>{{ item.checklist.shift_incharge|default:"—" }}</td>
-                <td>{{ item.action_item }}</td>
+
+                <!-- Area -->
+                <td style="font-size: 0.85rem; color: #374151;">{{ item.area }}</td>
+
+                <!-- Sub-Area -->
+                <td style="font-size: 0.85rem; color: #374151;">{{ item.sub_area }}</td>
+
+                <!-- Status -->
                 <td style="text-align: center;">
-                  <span class="status-badge" style="{% if item.status == 'OK' %}background: rgba(22,163,74,0.1); color: #16a34a;{% else %}background: rgba(220,38,38,0.1); color: #dc2626;{% endif %} padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">
-                    {% if item.status == 'OK' %}🟢 OK{% else %}🔴 NOT OK{% endif %}
+                  {% if item.status.completed %}
+                    <span style="background: rgba(22,163,74,0.1); color: #16a34a; padding: 3px 10px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; display: inline-block;">
+                      ✅ Filled
+                    </span>
+                  {% else %}
+                    <span style="background: rgba(234,88,12,0.1); color: #ea580c; padding: 3px 10px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; display: inline-block;">
+                      🕐 Pending
+                    </span>
+                  {% endif %}
+                </td>
+
+                <!-- Frequency Badge -->
+                <td style="text-align: center;">
+                  <span style="font-weight: 700; font-size: 0.75rem; background: #e0f2fe; color: #0369a1; padding: 3px 10px; border-radius: 12px; display: inline-block;">
+                    {{ item.schedule.frequency }}
                   </span>
                 </td>
-                <td>{{ item.remarks|default:"—" }}</td>
-                <td style="text-align: center; vertical-align: middle;">
+
+                <!-- Shift Incharge with inline edit dropdown -->
+                <td x-data="{ editing: false, val: '{{ item.shift_incharge|escapejs }}' === '—' ? '' : '{{ item.shift_incharge|escapejs }}' }"
+                    style="vertical-align: middle; padding: 12px 16px;">
+                  
+                  <!-- View Mode -->
+                  <div x-show="!editing" style="display: flex; align-items: center; gap: 10px;">
+                    <!-- Not Assigned -->
+                    <template x-if="!val">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 0.78rem; color: #94a3b8; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 3px 8px; border-radius: 6px; font-weight: 500; display: inline-flex; align-items: center;">
+                          ⚠️ Not Assigned
+                        </span>
+                        {% if can_edit or is_admin %}
+                        <button @click="editing = true" class="incharge-edit-btn" style="padding: 4px 8px !important; font-size: 0.7rem !important;">
+                          ✏️ Assign
+                        </button>
+                        {% endif %}
+                      </div>
+                    </template>
+                    
+                    <!-- Assigned -->
+                    <template x-if="val">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 0.85rem; color: #1e293b; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                          <span style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: #e0f2fe; color: #0369a1; border-radius: 50%; font-size: 0.72rem; font-weight: 700;"
+                                x-text="val.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase()"></span>
+                          <span x-text="val"></span>
+                        </span>
+                        {% if can_edit or is_admin %}
+                        <button @click="editing = true" class="incharge-edit-btn" style="padding: 4px 8px !important; font-size: 0.7rem !important;">
+                          ✏️ Edit
+                        </button>
+                        {% endif %}
+                      </div>
+                    </template>
+                  </div>
+
+                  <!-- Edit Mode -->
                   {% if can_edit or is_admin %}
-                    <a href="{% url 'delays:delete_checklist_item' department.id item.id %}" 
-                       onclick="return confirm('Are you sure you want to delete this checklist item?');" 
-                       style="text-decoration: none; font-size: 1.1rem; color: #dc2626; cursor: pointer;" 
-                       title="Delete Item">
-                      🗑️
-                    </a>
-                  {% else %}
-                    <span style="color: var(--delays-muted, #94a3b8);">—</span>
+                  <div x-show="editing" style="display: flex; align-items: center; gap: 6px; width: 100%;">
+                    <select x-model="val"
+                            style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 8px; font-size: 0.8rem; outline: none; background: white; width: 140px; cursor: pointer; height: 30px; font-family: inherit;">
+                      <option value="">Select Shift Incharge</option>
+                      {% for u in users %}
+                        <option value="{{ u.get_display_name }}" {% if item.shift_incharge == u.get_display_name %}selected{% endif %}>
+                          {{ u.get_display_name }} ({{ u.username }})
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <button @click="
+                              fetch('/delays/department/{{ department.id }}/checklist/schedule/{{ item.schedule.id }}/update-incharge/', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                                body: JSON.stringify({ shift_incharge: val })
+                              }).then(r => r.json()).then(d => { if(d.status === 'success') editing = false; else alert(d.message || 'Error'); }).catch(() => alert('Network error'));
+                            "
+                            style="background: #16a34a !important; color: white !important; border: none !important; border-radius: 6px !important; width: 30px !important; height: 30px !important; cursor: pointer !important; font-size: 0.85rem !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; line-height: 1 !important; padding: 0 !important; transition: background 0.15s ease;">
+                      ✓
+                    </button>
+                    <button @click="editing = false; val = '{{ item.shift_incharge|escapejs }}' === '—' ? '' : '{{ item.shift_incharge|escapejs }}'"
+                            style="background: #f3f4f6 !important; color: #374151 !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; width: 30px !important; height: 30px !important; cursor: pointer !important; font-size: 0.85rem !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; line-height: 1 !important; padding: 0 !important; transition: all 0.15s ease;">
+                      ✕
+                    </button>
+                  </div>
                   {% endif %}
                 </td>
               </tr>
-            {% empty %}
+              {% empty %}
               <tr>
-                <td colspan="9" style="text-align: center; color: var(--delays-muted, #6b7280); padding: 30px;">
-                  No maintenance checklists submitted yet.
-                </td>
+                <td colspan="7" class="table-empty">No checklists found for this department.</td>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+              {% endfor %}
+
+              <!-- Show empty state if no rows match the frequency filter -->
+              <tr x-show="activeFreq !== 'All' && !new Set([{% for item in checklist_status_list %}'{{ item.schedule.frequency }}'{% if not forloop.last %},{% endif %}{% endfor %}]).has(activeFreq)"
+                  style="display: none;">
+                <td colspan="7" class="table-empty">No checklists found for the selected frequency.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <!-- Checklist Calendar Tab -->
+      <div x-show="activeTab === 'checklist_calendar'" x-transition style="display: none; padding: 24px;">
+        <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h3 style="color: var(--jspl-navy); margin: 0 0 6px 0;">🗓️ Checklist Calendar</h3>
+            <p style="color: var(--delays-muted, #6b7280); font-size: 0.85rem; margin: 0;">
+              Click on a date to show its logged checklists and reschedule them.
+            </p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid var(--delays-border); border-radius: 8px; padding: 4px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
+            <button @click="changeMonth(-1)" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--jspl-navy); font-weight: bold; padding: 4px 8px;">◀</button>
+            
+            <!-- Month Select -->
+            <select x-model="selectedMonth" @change="generateCalendar()" style="border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.88rem; color: var(--jspl-navy); background: white; cursor: pointer; outline: none;">
+              <template x-for="m in monthsList" :key="m.value">
+                <option :value="m.value" x-text="m.label" :selected="m.value == selectedMonth"></option>
+              </template>
+            </select>
+            
+            <!-- Year Select -->
+            <select x-model="selectedYear" @change="generateCalendar()" style="border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.88rem; color: var(--jspl-navy); background: white; cursor: pointer; outline: none;">
+              <template x-for="y in yearsList" :key="y">
+                <option :value="y" x-text="y" :selected="y == selectedYear"></option>
+              </template>
+            </select>
+            
+            <button @click="changeMonth(1)" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--jspl-navy); font-weight: bold; padding: 4px 8px;">▶</button>
+          </div>
+        </div>
+
+        <!-- Calendar Grid -->
+        <div style="background: white; border: 1px solid var(--delays-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); max-width: 900px; margin: 0 auto;">
+          <!-- Week Header -->
+          <div style="display: grid; grid-template-columns: repeat(7, 1fr); background: #f8fafc; border-bottom: 1px solid var(--delays-border); text-align: center; font-weight: bold; font-size: 0.82rem; color: var(--jspl-navy); padding: 12px 0;">
+            <div>Mon</div>
+            <div>Tue</div>
+            <div>Wed</div>
+            <div>Thu</div>
+            <div>Fri</div>
+            <div>Sat</div>
+            <div>Sun</div>
+          </div>
+          
+          <!-- Days Grid -->
+          <div style="display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 90px;">
+            <template x-for="(day, index) in calendarDays" :key="index">
+              <div style="border-right: 1px solid var(--delays-border); border-bottom: 1px solid var(--delays-border); padding: 8px; display: flex; flex-direction: column; justify-content: space-between; position: relative; transition: background-color 0.2s;"
+                   :style="{
+                      background: !day.isCurrentMonth ? '#f8fafc' : (day.status === 'completed' ? '#f0fdf4' : (day.status === 'defect' ? '#fef3c7' : (day.status === 'missed' ? '#fef2f2' : '#ffffff'))),
+                      cursor: day.isCurrentMonth ? 'pointer' : 'default'
+                   }"
+                   @click="day.isCurrentMonth && (selectedCalendarDate = day.dateStr)"
+                   onmouseover="if(this.style.cursor === 'pointer') this.style.backgroundColor='rgba(0,52,120,0.02)'"
+                   onmouseout="if(this.style.cursor === 'pointer') this.style.backgroundColor=''">
+                   
+                <span style="font-size: 0.82rem; font-weight: bold; align-self: flex-end;" 
+                      :style="{ color: day.isCurrentMonth ? 'var(--jspl-navy)' : '#cbd5e1' }" 
+                      x-text="day.dayNum"></span>
+                
+                <!-- Indicator Badge -->
+                <template x-if="day.isCurrentMonth && day.checklistCount > 0">
+                  <span style="font-size: 0.72rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-align: center; width: fit-content;"
+                        :style="{
+                          background: day.status === 'completed' ? '#16a34a' : '#d97706',
+                          color: 'white'
+                        }"
+                        x-text="(day.status === 'completed' ? '✓ ' : '⚠ ') + day.checklistCount">
+                  </span>
+                </template>
+                
+                <template x-if="day.isCurrentMonth && day.checklistCount === 0 && day.status === 'missed'">
+                  <span style="font-size: 0.65rem; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 0.3px;">Missed</span>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Selected Date Checklists Table -->
+        <template x-if="selectedCalendarDate">
+          <div style="margin-top: 24px; background: white; border: 1px solid var(--delays-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.01); max-width: 900px; margin-left: auto; margin-right: auto;">
+            <h4 style="color: var(--jspl-navy); margin: 0 0 12px 0; font-size: 0.95rem; font-weight: bold;">
+              Checklists Logged on <span x-text="selectedCalendarDate"></span>
+            </h4>
+            <div class="table-responsive">
+              <table class="delays-table" style="margin: 0;">
+                <thead>
+                  <tr>
+                    <th style="text-align: left;">Checklist Name (Equipment)</th>
+                    <th style="text-align: left;">Responsible Agency</th>
+                    <th style="text-align: left;">Frequency</th>
+                    <th style="text-align: left;">Shift Incharge</th>
+                    {% if can_edit or is_admin %}
+                      <th style="text-align: center; width: 140px;">Action</th>
+                    {% endif %}
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="cl in getChecklistsOnDate(selectedCalendarDate)" :key="cl.id">
+                    <tr>
+                      <td><strong x-text="cl.equipment"></strong></td>
+                      <td x-text="cl.responsible_agency"></td>
+                      <td x-text="cl.frequency"></td>
+                      <td x-text="cl.shift_incharge"></td>
+                      {% if can_edit or is_admin %}
+                        <td style="text-align: center;">
+                          <button type="button" @click="openRescheduleModal(cl.id, cl.date)" 
+                                  class="btn-dashboard btn-primary-gradient" 
+                                  style="font-size: 0.75rem; padding: 4px 10px; border: none; cursor: pointer; border-radius: 4px; color: white;">
+                            📅 Reschedule
+                          </button>
+                        </td>
+                      {% endif %}
+                    </tr>
+                  </template>
+                  <template x-if="getChecklistsOnDate(selectedCalendarDate).length === 0">
+                    <tr>
+                      <td colspan="{% if can_edit or is_admin %}5{% else %}4{% endif %}" class="table-empty">
+                        No checklists logged on this date.
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- TAB 8: CHECKLIST SUMMARY -->
+      <div x-show="activeTab === 'checklist_summary'" x-transition style="display: none; padding: 24px;">
+        <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h3 style="color: var(--jspl-navy); margin: 0 0 6px 0;">📋 Maintenance Checklist Summary</h3>
+            <p style="color: var(--delays-muted, #6b7280); font-size: 0.85rem; margin: 0;">
+              Overview of safety, mechanical, and electrical checklists for {{ department.name }}.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="delays-table">
+            <thead>
+              <tr>
+                <th style="text-align: left; width: 120px;">Date</th>
+                <th style="text-align: left; width: 180px;">Responsible Agency</th>
+                <th style="text-align: left; width: 200px;">Area / Sub-Area</th>
+                <th style="text-align: left; width: 220px;">Equipment / Sub-Equipment</th>
+                <th style="text-align: left; width: 160px;">Shift Incharge</th>
+                <th style="text-align: center; width: 100px;">Status</th>
+                <th style="text-align: center; width: 120px;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cl in checklists %}
+                <tr class="hover-row">
+                  <td class="font-mono">{{ cl.date|date:"Y-m-d" }}</td>
+                  <td>
+                    {{ cl.agency }}
+                    {% if cl.exists %}
+                      <span class="agency-badge" style="{% if cl.agency_type == 'Internal' %}background: rgba(22,163,74,0.05); color: #16a34a; border-color: rgba(22,163,74,0.15);{% else %}background: rgba(59,130,246,0.05); color: #3b82f6; border-color: rgba(59,130,246,0.15);{% endif %} font-size: 0.68rem; padding: 1px 4px;">
+                        {{ cl.agency_type }}
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td>{{ cl.area }} / {{ cl.sub_area }}</td>
+                  <td><b>{{ cl.name }}</b> / {{ cl.sub_equipment }}</td>
+                  <td>{{ cl.shift_incharge }}</td>
+                  <td style="text-align: center;">
+                    {% if cl.exists %}
+                      {% if cl.has_defects %}
+                        <span class="status-badge" style="background: rgba(220,38,38,0.1); color: #dc2626; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">
+                          🔴 NOT OK
+                        </span>
+                      {% else %}
+                        <span class="status-badge" style="background: rgba(22,163,74,0.1); color: #16a34a; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">
+                          🟢 OK
+                        </span>
+                      {% endif %}
+                    {% else %}
+                      <span class="status-badge" style="background: rgba(234,88,12,0.1); color: #ea580c; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">
+                        🟡 Pending
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td style="text-align: center; vertical-align: middle;">
+                    {% if can_edit or is_admin %}
+                      {% if cl.exists %}
+                        <a href="{% url 'delays:edit_checklist' department.id cl.id %}" 
+                           class="btn-dashboard btn-primary-gradient" 
+                           style="font-size: 0.75rem; padding: 5px 12px; border-radius: 4px; border: none; cursor: pointer; text-decoration: none; display: inline-block; color: white;">
+                          ✏️ Edit
+                        </a>
+                      {% else %}
+                        <a href="{% url 'delays:edit_checklist' department.id 0 %}?initialize=true&equipment={{ cl.name|urlencode }}&date={{ cl.date|date:'Y-m-d' }}" 
+                           class="btn-dashboard btn-primary-gradient" 
+                           style="font-size: 0.75rem; padding: 5px 12px; border-radius: 4px; border: none; cursor: pointer; text-decoration: none; display: inline-block; color: white; background: #ea580c;">
+                          📝 Fill
+                        </a>
+                      {% endif %}
+                    {% else %}
+                      <span style="color: var(--delays-muted, #94a3b8);">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="7" style="text-align: center; color: var(--delays-muted, #6b7280); padding: 30px;">
+                    No maintenance checklists configured.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Checklist Status Tab -->
+      <div x-show="activeTab === 'checklist_status'" x-transition style="display: none; padding: 24px;">
+        <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h3 style="color: var(--jspl-navy); margin: 0 0 6px 0;">📊 Checklist Status</h3>
+            <p style="color: var(--delays-muted, #6b7280); font-size: 0.85rem; margin: 0;">
+              Operational compliance and status tracking of checklist schedules.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-responsive" style="background: white; border: 1px solid var(--delays-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
+          <table class="delays-table" style="margin: 0;">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Checklist Name</th>
+                <th style="text-align: left; width: 140px;">Frequency</th>
+                <th style="text-align: left; width: 180px;">Assigned HOD</th>
+                <th style="text-align: center; width: 150px;">Completion Status</th>
+                <th style="text-align: left; width: 180px;">Completion Time</th>
+                <th style="text-align: center; width: 130px;">Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in checklist_status_list %}
+                <tr class="hover-row">
+                  <td><strong>{{ item.schedule.checklist_name }}</strong></td>
+                  <td>
+                    <span class="status-badge" style="font-weight: 700; font-size: 0.75rem; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 12px;">
+                      {{ item.schedule.frequency }}
+                    </span>
+                  </td>
+                  <td>
+                    {% if item.schedule.assigned_hod %}
+                      {{ item.schedule.assigned_hod.get_display_name }}
+                    {% else %}
+                      <span style="color: var(--delays-muted, #94a3b8); font-style: italic;">Unassigned</span>
+                    {% endif %}
+                  </td>
+                  <td style="text-align: center;">
+                    {% if item.status.completed %}
+                      <span style="background: rgba(22,163,74,0.1); color: #16a34a; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.78rem; display: inline-block;">
+                        Completed
+                      </span>
+                    {% else %}
+                      <span style="background: rgba(234,88,12,0.1); color: #ea580c; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.78rem; display: inline-block;">
+                        Pending
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td class="font-mono" style="font-size: 0.82rem;">{{ item.status.time }}</td>
+                  <td style="text-align: center;">
+                    {% if item.status.completed %}
+                      {% if item.status.result == 'OK' %}
+                        <span class="status-badge" style="background: rgba(22,163,74,0.15); color: #16a34a; font-weight: bold; font-size: 0.75rem; padding: 4px 10px; border-radius: 4px;">
+                          🟢 OK
+                        </span>
+                      {% else %}
+                        <span class="status-badge" style="background: rgba(220,38,38,0.15); color: #dc2626; font-weight: bold; font-size: 0.75rem; padding: 4px 10px; border-radius: 4px;">
+                          🔴 NOT OK
+                        </span>
+                      {% endif %}
+                    {% else %}
+                      <span style="color: var(--delays-muted, #cbd5e1); font-weight: bold;">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="6" class="table-empty">No schedules configured.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RESCHEDULE MODAL -->
+      <div x-show="rescheduleOpen" x-transition x-cloak style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+        <div @click.outside="rescheduleOpen = false" style="background: white; border-radius: 12px; max-width: 400px; width: 90%; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-top: 5px solid var(--jspl-navy);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="color: var(--jspl-navy); margin: 0; font-size: 1.15rem; font-weight: 700;">📅 Reschedule Checklist</h3>
+            <button @click="rescheduleOpen = false" style="background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--delays-muted);">&times;</button>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 600; color: #374151; font-size: 0.88rem; margin-bottom: 8px;">Select New Inspection Date:</label>
+            <input type="date" x-model="rescheduleDate" style="width: 100%; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem;">
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button @click="rescheduleOpen = false" style="border: 1px solid #cbd5e1; background: #f3f4f6; color: #374151; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Cancel</button>
+            <button @click="submitReschedule()" class="btn-dashboard btn-primary-gradient" style="border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">Save Changes</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1024,25 +1706,29 @@
                 {% endfor %}
               </select>
             </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label style="font-weight: 700; color: black; min-width: 110px; display: inline-block;">Frequency *:</label>
+              <select x-model="frequency" style="border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 4px; font-size: 0.85rem; width: 100%; background: white; box-sizing: border-box;">
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Fortnightly">Fortnightly</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Quarterly">Quarterly</option>
+                <option value="Half Yearly">Half Yearly</option>
+                <option value="Yearly">Yearly</option>
+              </select>
+            </div>
           </div>
         </div>
 
         <!-- ================= UNIFIED DYNAMIC CHECKLIST LAYOUT ================= -->
         <div style="display: flex; flex-direction: column; gap: 16px; width: 100%;">
           
-          <!-- Dropdown options row (Select Action, Equipment Name, Sub Equipment) -->
+          <!-- Dropdown options row (Equipment Name, Sub Equipment) -->
           <div style="display: flex; gap: 16px; margin-bottom: 8px; align-items: flex-end; background: #f8fafc; border: 1px solid var(--delays-border); border-radius: 8px; padding: 16px; flex-wrap: wrap;">
-            <div class="form-field-group" style="flex: 1.5; min-width: 250px;">
-              <label class="field-label" style="font-weight: 600; color: var(--jspl-navy); font-size: 0.85rem;">Select Action to Inspect</label>
-              <select x-model="selectedAction" @change="addAction()" class="filter-input" style="width: 100%; padding: 8px 12px; border: 1px solid var(--jspl-border); border-radius: 6px; background: white;">
-                <option value="">-- Choose Action to Inspect --</option>
-                <template x-for="act in availableActions" :key="act">
-                  <option :value="act" x-text="act"></option>
-                </template>
-              </select>
-            </div>
             
-            <div class="form-field-group" style="flex: 1; min-width: 180px;">
+            <div class="form-field-group" style="flex: 1; min-width: 200px;">
               <label class="field-label" style="font-weight: 600; color: var(--jspl-navy); font-size: 0.85rem;">Equipment Name</label>
               <select x-model="equipment" @change="onEquipmentChange()" class="filter-input" style="width: 100%; padding: 8px 12px; border: 1px solid var(--jspl-border); border-radius: 6px; background: white;">
                 <option value="">Select Equipment</option>
@@ -1052,7 +1738,7 @@
               </select>
             </div>
             
-            <div class="form-field-group" style="flex: 1; min-width: 180px;">
+            <div class="form-field-group" style="flex: 1; min-width: 200px;">
               <label class="field-label" style="font-weight: 600; color: var(--jspl-navy); font-size: 0.85rem;">Sub Equipment</label>
               <select x-model="subEquipment" class="filter-input" style="width: 100%; padding: 8px 12px; border: 1px solid var(--jspl-border); border-radius: 6px; background: white;">
                 <option value="">Select Sub Equipment</option>
@@ -1163,7 +1849,7 @@
     <!-- Chart 1: Daily Trend / Department Comparison -->
     <div class="chart-card delays-chart-large">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px;">
-        <h3 id="trendChartTitle" class="chart-title" style="margin: 0; border-bottom: none; padding-bottom: 0;">📈 {% if department.id == 0 %}Department Downtime Comparison (Mins){% else %}{% if is_monthly_trend %}Monthly Downtime Trend (Mins){% else %}Daily Downtime Trend (Mins){% endif %}{% endif %}</h3>
+        <h3 id="trendChartTitle" class="chart-title" style="margin: 0; border-bottom: none; padding-bottom: 0;">📈 {% if department.id == 0 %}Department Downtime Comparison (Mins){% else %}{% if is_monthly_trend %}Monthly Downtime Trend (Mins){% else %}Daily Downtime Trend (Mins){% endif %}{% endif %} <span style="font-size: 0.85rem; font-weight: normal; color: var(--delays-muted);">{{ date_period_bracket }}</span></h3>
         {% if department.id == 0 %}
           <button id="backToOverallBtn" class="btn-dashboard btn-secondary-gradient" style="display: none; font-size: 0.75rem; padding: 6px 12px; margin: 0; line-height: 1; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; background: linear-gradient(135deg, var(--jspl-blue, #0057A8) 0%, var(--jspl-navy, #003478) 100%); color: white;">
             ← Back to Overall View
@@ -1177,7 +1863,7 @@
     
     <!-- Chart 2: Agency Share -->
     <div class="chart-card">
-      <h3 class="chart-title">🍕 {% if department.id == 0 %}Downtime Share by Department{% else %}Downtime Share by Agency{% endif %}</h3>
+      <h3 class="chart-title">🍕 {% if department.id == 0 %}Downtime Share by Department{% else %}Downtime Share by Agency{% endif %} <span style="font-size: 0.85rem; font-weight: normal; color: var(--delays-muted);">{{ date_period_bracket }}</span></h3>
       <div class="chart-container">
         <canvas id="agencyChart"></canvas>
       </div>
@@ -1190,7 +1876,7 @@
     <!-- Card 1: Internal Agency Bottlenecks -->
     <div class="chart-card" style="display: flex; flex-direction: column; gap: 16px;">
       <h3 class="chart-title" style="margin-bottom: 0; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-        ⚙️ Top Internal Bottlenecks (Assets &amp; Areas)
+        ⚙️ Top Internal Bottlenecks (Assets &amp; Areas) <span style="font-size: 0.85rem; font-weight: normal; color: var(--delays-muted);">{{ date_period_bracket }}</span>
       </h3>
       
       <!-- Top: Graph -->
@@ -1228,7 +1914,7 @@
     <!-- Card 2: External Agency Bottlenecks -->
     <div class="chart-card" style="display: flex; flex-direction: column; gap: 16px;">
       <h3 class="chart-title" style="margin-bottom: 0; border-bottom: 1px solid var(--delays-border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-        🌐 Top External Bottlenecks (Utilities &amp; Depts)
+        🌐 Top External Bottlenecks (Utilities &amp; Depts) <span style="font-size: 0.85rem; font-weight: normal; color: var(--delays-muted);">{{ date_period_bracket }}</span>
       </h3>
       
       <!-- Top: Graph -->
@@ -1336,7 +2022,7 @@
   </div>
 
   <!-- Action Buttons Panel at the bottom -->
-  {% if active_tab != 'summary' %}
+  {% if active_tab == 'uploads' %}
     <div class="action-buttons-panel" style="margin-top: 30px; border-top: 1px solid var(--delays-border); padding-top: 20px;">
       {% if can_edit %}
         <button class="btn-dashboard btn-primary-gradient" @click="uploadOpen = true">
@@ -1374,6 +2060,7 @@
         equipment: '',
         subEquipment: '',
         shiftIncharge: '',
+        frequency: 'Daily',
         
         // Excel header fields
         checklistDate: new Date().toISOString().split('T')[0],
@@ -1386,10 +2073,10 @@
         
         getFilteredEquipments() {
           if (!this.area) {
-            return this.allDropdownOptions.filter(opt => opt.category === 'Equipment');
+            return this.allDropdownOptions.filter(opt => opt.category.trim().toLowerCase() === 'equipment');
           }
           return this.allDropdownOptions.filter(opt => 
-            opt.category === 'Equipment' && 
+            opt.category.trim().toLowerCase() === 'equipment' && 
             opt.parent_value && 
             opt.parent_value.trim().toLowerCase() === this.area.trim().toLowerCase()
           );
@@ -1397,10 +2084,10 @@
         
         getFilteredSubEquipments() {
           if (!this.equipment) {
-            return this.allDropdownOptions.filter(opt => opt.category === 'Sub-Equipment');
+            return this.allDropdownOptions.filter(opt => opt.category.trim().toLowerCase() === 'sub-equipment');
           }
           return this.allDropdownOptions.filter(opt => 
-            opt.category === 'Sub-Equipment' && 
+            opt.category.trim().toLowerCase() === 'sub-equipment' && 
             opt.parent_value && 
             opt.parent_value.trim().toLowerCase() === this.equipment.trim().toLowerCase()
           );
@@ -1413,16 +2100,18 @@
         },
         
         onEquipmentChange() {
+          console.log("Equipment changed to:", this.equipment);
           if (!this.equipment) {
             this.selectedItems = [];
             return;
           }
           // Find actions belonging to this equipment
           const eqActions = this.allDropdownOptions.filter(opt => 
-            opt.category === 'Action' && 
+            opt.category.trim().toLowerCase() === 'action' && 
             opt.parent_value && 
             opt.parent_value.trim().toLowerCase() === this.equipment.trim().toLowerCase()
           );
+          console.log("Matched actions for " + this.equipment + ":", eqActions);
           
           if (eqActions.length > 0) {
             this.selectedItems = eqActions.map(act => ({
@@ -1520,6 +2209,7 @@
             equipment: this.equipment,
             sub_equipment: this.subEquipment,
             shift_incharge: `${this.shiftIncharge} (Shift ${this.shiftVal}, Given: ${this.givenTime}, Handover: ${this.handOverTime})`,
+            frequency: this.frequency,
             items: itemsToSend
           };
 
@@ -1593,153 +2283,6 @@
     paretoCum: {{ pareto_cum_json|safe }}
   };
 
-  function reliabilityAnalysis() {
-    return {
-      showLocalCalculator: false,
-      searchSubArea: '',
-      searchEquipment: '',
-      totalCalendarHrs: {{ total_calendar_hrs|default:720.0 }},
-      items: {{ mttr_mtbf_list_json|safe }},
-      
-      get subAreas() {
-        return [...new Set(this.items.map(i => i.area).filter(Boolean))].sort();
-      },
-      
-      get equipments() {
-        const filtered = this.searchSubArea 
-          ? this.items.filter(i => i.area === this.searchSubArea) 
-          : this.items;
-        return [...new Set(filtered.map(i => i.equipment).filter(Boolean))].sort();
-      },
-      
-      get filteredItems() {
-        return this.items.filter(item => {
-          const matchArea = !this.searchSubArea || item.area === this.searchSubArea;
-          const matchEquip = !this.searchEquipment || item.equipment === this.searchEquipment;
-          return matchArea && matchEquip;
-        });
-      },
-      
-      get totalShutdown() {
-        return this.filteredItems.reduce((sum, item) => sum + parseFloat(item.shutdown_hrs || 0), 0);
-      },
-      get totalDowntime() {
-        return this.filteredItems.reduce((sum, item) => sum + parseFloat(item.downtime_hrs || 0), 0);
-      },
-      get totalFailures() {
-        return this.filteredItems.reduce((sum, item) => sum + parseInt(item.failures || 0), 0);
-      },
-      get totalRepeatability() {
-        return this.filteredItems.reduce((sum, item) => sum + parseInt(item.repeatability || 0), 0);
-      },
-      get overallMTTR() {
-        const f = this.totalFailures;
-        return f > 0 ? this.totalDowntime / f : 0.0;
-      },
-      get overallMTBF() {
-        const f = this.totalFailures;
-        if (f === 0) return this.totalCalendarHrs;
-        const totalOpTime = this.filteredItems.reduce((sum, item) => {
-          const op = this.totalCalendarHrs - parseFloat(item.downtime_hrs || 0) - parseFloat(item.shutdown_hrs || 0);
-          return sum + Math.max(op, 0);
-        }, 0);
-        return totalOpTime / f;
-      },
-      get overallAvailability() {
-        let totalOpTime = 0;
-        let totalDivisor = 0;
-        this.filteredItems.forEach(item => {
-          const dt = parseFloat(item.downtime_hrs || 0);
-          const sh = parseFloat(item.shutdown_hrs || 0);
-          const op = Math.max(this.totalCalendarHrs - dt - sh, 0.0);
-          const div = Math.max(this.totalCalendarHrs - sh, 0.1);
-          totalOpTime += op;
-          totalDivisor += div;
-        });
-        if (totalDivisor <= 0.1) return 0.0;
-        const avail = (totalOpTime / totalDivisor) * 100.0;
-        return avail > 100.0 ? 100.0 : avail;
-      },
-      
-      get avgShutdown() {
-        const len = this.filteredItems.length;
-        return len > 0 ? this.totalShutdown / len : 0.0;
-      },
-      get avgDowntime() {
-        const len = this.filteredItems.length;
-        return len > 0 ? this.totalDowntime / len : 0.0;
-      },
-      get avgFailures() {
-        const len = this.filteredItems.length;
-        return len > 0 ? this.totalFailures / len : 0.0;
-      },
-      get avgRepeatability() {
-        const len = this.filteredItems.length;
-        return len > 0 ? this.totalRepeatability / len : 0.0;
-      },
-      get avgMTTR() {
-        const len = this.filteredItems.length;
-        if (len === 0) return 0.0;
-        const sumMTTR = this.filteredItems.reduce((sum, item) => sum + parseFloat(item.mttr || 0), 0);
-        return sumMTTR / len;
-      },
-      get avgMTBF() {
-        const len = this.filteredItems.length;
-        if (len === 0) return 0.0;
-        const sumMTBF = this.filteredItems.reduce((sum, item) => sum + parseFloat(item.mtbf || 0), 0);
-        return sumMTBF / len;
-      },
-      get avgAvailability() {
-        const len = this.filteredItems.length;
-        if (len === 0) return 0.0;
-        const sumAvail = this.filteredItems.reduce((sum, item) => sum + parseFloat(item.availability || 0), 0);
-        return sumAvail / len;
-      },
-      
-      recalculateRow(item) {
-        const dt = parseFloat(item.downtime_hrs || 0);
-        const sh = parseFloat(item.shutdown_hrs || 0);
-        const f = parseInt(item.failures || 0);
-        
-        item.mttr = f > 0 ? (dt / f) : 0.0;
-        
-        const op = Math.max(this.totalCalendarHrs - dt - sh, 0.0);
-        item.mtbf = f > 0 ? (op / f) : this.totalCalendarHrs;
-        
-        const div = Math.max(this.totalCalendarHrs - sh, 0.1);
-        let avail = (op / div) * 100.0;
-        if (avail > 100.0) avail = 100.0;
-        item.availability = avail;
-      },
-      
-      saveShutdown(item) {
-        const sh = parseFloat(item.shutdown_hrs || 0);
-        fetch('/delays/department/{{ department.id }}/save-shutdown/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-          },
-          body: JSON.stringify({
-            sub_area: item.area,
-            equipment: item.equipment,
-            shutdown_hrs: sh
-          })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.status === 'success') {
-            console.log('Shutdown hours saved successfully:', data.shutdown_hrs);
-          } else {
-            console.error('Error saving shutdown hours:', data.message);
-          }
-        })
-        .catch(err => {
-          console.error('Network error saving shutdown hours:', err);
-        });
-      }
-    };
-  }
 
   function updateWhyButton(selectEl, recordId) {
     const btn = document.getElementById('why-btn-' + recordId);
@@ -1816,5 +2359,34 @@
       updateFilterAgencyOptions();
     }
   });
+
+  window.updateSchedule = function(scheduleId, hodId) {
+    const payload = {
+      schedule_id: scheduleId,
+      assigned_hod_id: hodId || 'None'
+    };
+    
+    fetch(`/delays/department/{{ department.id }}/checklist/schedule/update/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(response => {
+      if (!response.ok) throw new Error('Failed to update schedule');
+      return response.json();
+    })
+    .then(data => {
+      if (data.status !== 'success') {
+        alert(data.message || 'Error updating schedule');
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Failed to update HOD assignment.');
+    });
+  };
 </script>
 {% endblock %}

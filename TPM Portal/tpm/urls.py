@@ -2,7 +2,7 @@
 
 from django.urls import path
 from tpm.views import auth_views, dashboard_views, department_views, governance_views
-from tpm.views import pillar_views, ws_kpi_views, report_views, admin_views, kaizen_views, capa_views, jh_master_views
+from tpm.views import pillar_views, ws_kpi_views, report_views, admin_views, kaizen_views, capa_views, jh_master_views, opl_views
 
 urlpatterns = [
     # Auth
@@ -118,6 +118,20 @@ urlpatterns = [
          kaizen_views.download_excel, name='kaizen_download_excel'),
     path('kaizen/<int:kaizen_id>/download/pdf/',
          kaizen_views.download_pdf, name='kaizen_download_pdf'),
+
+    # OPL Sheets
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/opl/',
+         opl_views.opl_list_partial, name='opl_list_partial'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/opl/new/',
+         opl_views.opl_edit_partial, name='opl_new_partial'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/opl/<int:opl_id>/edit/',
+         opl_views.opl_edit_partial, name='opl_edit_partial'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/opl/save/',
+         opl_views.opl_save, name='opl_save'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/opl/save/<int:opl_id>/',
+         opl_views.opl_save, name='opl_save_id'),
+    path('department/<int:dept_id>/pillar/<str:pillar_id>/opl/<int:opl_id>/delete/',
+         opl_views.opl_delete, name='opl_delete'),
 
     # Plant Dashboard Overview Tab partial
     path('dashboard/overview/',

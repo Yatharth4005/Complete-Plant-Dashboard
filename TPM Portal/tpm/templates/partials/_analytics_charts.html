@@ -25,7 +25,7 @@
     </div>
     
     <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); overflow-y: auto;">
-      <h3 style="margin-bottom: 15px;">KPI Summary (Selected Month)</h3>
+      <h3 style="margin-bottom: 15px;">KPI Summary ({{ period_label }})</h3>
       <table class="kpi-table">
         <thead>
           <tr>
@@ -42,7 +42,15 @@
               <td class="mono">{{ row.sl_no }}</td>
               <td>{{ row.kpi_name }}</td>
               <td class="mono" style="text-align: right;">{{ row.target|default_if_none:"—" }}</td>
-              <td class="mono" style="text-align: right;">{{ row.actual|default_if_none:"0" }}</td>
+              <td class="mono" style="text-align: right;">
+                {% if row.actual is None %}
+                  <span style="color: var(--jspl-muted); font-style: italic;">—</span>
+                {% elif row.actual == 0 %}
+                  <span style="color: #ea580c; font-weight: bold;">0</span>
+                {% else %}
+                  {{ row.actual }}
+                {% endif %}
+              </td>
               <td class="mono {% if row.achievement >= 90 %}text-status-green{% elif row.achievement >= 75 %}text-status-amber{% else %}text-status-red{% endif %}" style="text-align: right; font-weight: bold;">
                 {% if row.achievement is not None %}{{ row.achievement|floatformat:1 }}%{% else %}—{% endif %}
               </td>
@@ -156,7 +164,7 @@
         data: {
           labels: barLabels,
           datasets: [{
-            label: 'Achievement %',
+            label: 'Achievement',
             data: barValues,
             backgroundColor: barColors,
             borderRadius: 4
@@ -167,13 +175,32 @@
           maintainAspectRatio: false,
           indexAxis: 'y',
           plugins: {
-            legend: { display: false }
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed.x !== null) {
+                    label += context.parsed.x + '%';
+                  }
+                  return label;
+                }
+              }
+            }
           },
           scales: {
             x: {
               beginAtZero: true,
               max: 100,
-              grid: { color: '#E8F0FA' }
+              grid: { color: '#E8F0FA' },
+              ticks: {
+                callback: function(value) {
+                  return value + '%';
+                }
+              }
             },
             y: {
               grid: { display: false }

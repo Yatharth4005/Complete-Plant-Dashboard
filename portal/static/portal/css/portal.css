@@ -1352,6 +1352,10 @@ a {
   border-left: 4.5px solid #0ea5e9;
 }
 
+.dept-hub-module-btn.module-smed {
+  border-left: 4.5px solid #d946ef;
+}
+
 .dept-hub-module-btn.accessible.module-tpm:hover {
   border-color: var(--jspl-blue);
 }
@@ -1406,6 +1410,10 @@ a {
 
 .dept-hub-module-btn.accessible.module-dakshata:hover {
   border-color: #0ea5e9;
+}
+
+.dept-hub-module-btn.accessible.module-smed:hover {
+  border-color: #d946ef;
 }
 
 .dept-hub-module-btn.locked {
@@ -1756,6 +1764,10 @@ select.input-mono {
 
 .module-card.module-dakshata {
   border-top: 4px solid #0ea5e9;
+}
+
+.module-card.module-smed {
+  border-top: 4px solid #d946ef;
 }
 
 .module-card.module-governance {

@@ -56,7 +56,7 @@ def sidebar_context(request):
             except ValueError:
                 pass
             
-    # Detect module namespace in path
+    tab_param = request.GET.get('tab', '').lower()
     parts_lower = [p.lower() for p in parts]
     if 'tpm' in parts_lower:
         active_module = 'TPM'
@@ -64,6 +64,8 @@ def sidebar_context(request):
         active_module = 'CMC'
     elif 'iso' in parts_lower:
         active_module = 'ISO'
+    elif 'checklist' in tab_param or 'checklist' in parts_lower:
+        active_module = 'Checklist'
     elif 'delays' in parts_lower:
         active_module = 'Delays'
     elif 'oee' in parts_lower:
@@ -78,6 +80,8 @@ def sidebar_context(request):
         active_module = 'SPARE'
     elif 'dakshata' in parts_lower:
         active_module = 'DAKSHATA'
+    elif 'smed' in parts_lower:
+        active_module = 'SMED'
     elif 'hod-kpi' in parts_lower:
         active_module = 'HOD_KPI'
 

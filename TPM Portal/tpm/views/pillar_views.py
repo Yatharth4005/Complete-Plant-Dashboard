@@ -147,6 +147,7 @@ def get_kpi_rows(dept, pillar_id, month, year, selected_equipment=None):
             'achievement': None,
             'is_custom': d.get('is_custom', False),
             'custom_id': d.get('custom_id'),
+            'is_automatic': False,
         }
         
         # If database value exists, overlay it
@@ -163,8 +164,33 @@ def get_kpi_rows(dept, pillar_id, month, year, selected_equipment=None):
                 if db_val.benchmark is not None:
                     row_data['benchmark'] = db_val.benchmark
 
-        # For JH pillar, row 6 (JH Kaizen Completed): auto-calculate actual from KaizenSheet objects if not in DB
-        if pillar_id == 'JH' and d['sl_no'] == '6':
+        # For automatic fields from July 2026 onwards, override actual from sheets
+        is_present_or_future = (year > 2026 or (year == 2026 and month >= 7))
+        auto_val = None
+        if is_present_or_future:
+            from tpm.utils.calculations import get_automatic_kpi_value
+            auto_val = get_automatic_kpi_value(dept, pillar_id, d['sl_no'], month, year)
+            
+        if auto_val is not None:
+            row_data['actual'] = auto_val
+            row_data['is_automatic'] = True
+            if entry:
+                db_val, created_val = KPIValue.objects.get_or_create(
+                    pillar_entry=entry, sl_no=d['sl_no'],
+                    defaults={
+                        'kpi_name': d['name'],
+                        'uom': d['uom'],
+                        'benchmark': d['benchmark'],
+                        'target': d['target'],
+                        'actual': auto_val
+                    }
+                )
+                if not created_val and db_val.actual != auto_val:
+                    db_val.actual = auto_val
+                    db_val.save(update_fields=['actual'])
+        
+        # Fallback JH row 6: auto-calculate actual from KaizenSheet if not overridden
+        elif pillar_id == 'JH' and d['sl_no'] == '6':
             db_val_exists = entry and KPIValue.objects.filter(pillar_entry=entry, sl_no='6').exclude(actual__isnull=True).exists()
             if not db_val_exists:
                 count = get_jh_kaizen_count(dept, month, year)
@@ -307,6 +333,7 @@ def get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year
             'achievement': None,
             'is_custom': d.get('is_custom', False),
             'custom_id': d.get('custom_id'),
+            'is_automatic': False,
         }
         
         # Query all KPIValue objects for this sl_no inside the range
@@ -340,7 +367,14 @@ def get_kpi_rows_range(dept, pillar_id, from_month, from_year, to_month, to_year
                 if row_data['performance'] is not None: row_data['performance'] = round(row_data['performance'], 2)
                 if row_data['quality'] is not None: row_data['quality'] = round(row_data['quality'], 2)
         
-        if pillar_id == 'JH' and d['sl_no'] == '6' and not kpi_values.exists():
+        # Override with split range aggregation for automatic fields
+        from tpm.utils.calculations import get_automatic_kpi_value_range_split
+        range_auto_val = get_automatic_kpi_value_range_split(dept, pillar_id, d['sl_no'], from_month, from_year, to_month, to_year)
+        if range_auto_val is not None:
+            row_data['actual'] = range_auto_val
+            row_data['is_automatic'] = True
+            
+        elif pillar_id == 'JH' and d['sl_no'] == '6' and not kpi_values.exists():
             row_data['actual'] = get_jh_kaizen_count_range(dept, from_month, from_year, to_month, to_year)
 
         # For PM pillar, rows 1, 2, 3: override with dynamically calculated values if not in DB
@@ -636,6 +670,15 @@ def save_kpi_row(request, dept_id, pillar_id):
             db_val.actual = float(actual_str) if actual_str else None
     else:
         db_val.actual = float(actual_str) if actual_str else None
+
+    # Overwrite actual with sheet counts if this is an automatic field from July 2026 onwards
+    is_present_or_future = (year > 2026 or (year == 2026 and month >= 7))
+    auto_val = None
+    if is_present_or_future:
+        from tpm.utils.calculations import get_automatic_kpi_value
+        auto_val = get_automatic_kpi_value(dept, pillar_id, sl_no, month, year)
+        if auto_val is not None:
+            db_val.actual = auto_val
         
     db_val.remarks = remarks
     db_val.save()
@@ -660,6 +703,7 @@ def save_kpi_row(request, dept_id, pillar_id):
         'achievement': achievement,
         'is_custom': kpi_meta.get('is_custom', False),
         'custom_id': kpi_meta.get('custom_id'),
+        'is_automatic': is_present_or_future and (auto_val is not None),
     }
     
     context = {

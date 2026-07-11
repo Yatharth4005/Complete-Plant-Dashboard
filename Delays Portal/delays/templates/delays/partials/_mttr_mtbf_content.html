@@ -1,0 +1,406 @@
+<div x-data="reliabilityAnalysis()">
+  <!-- Reusable Filter Bar -->
+  {% url 'delays:mttr_mtbf_overall' department.id as mttr_mtbf_url %}
+  {% include "delays/partials/_delay_filters.html" with filter_tab_id="mttr_mtbf" hx_get_url=mttr_mtbf_url hx_target="#mttr-mtbf-tab-container" %}
+
+  <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div>
+      <h3 style="color: var(--jspl-navy); margin: 0 0 6px 0;">⏱ MTTR / MTBF Equipment Analysis <span style="font-size: 0.85rem; font-weight: normal; color: var(--delays-muted);">{{ date_period_bracket }}</span></h3>
+      <p style="color: var(--delays-muted, #6b7280); font-size: 0.85rem; margin: 0;">
+        Reliability metrics (Mean Time to Repair, Mean Time Between Failures, and Availability) grouped by Area &amp; Equipment.
+      </p>
+    </div>
+    <button @click="showLocalCalculator = !showLocalCalculator" class="btn-dashboard btn-primary-gradient" style="font-size: 0.8rem; padding: 8px 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer;">
+      🧮 <span x-text="showLocalCalculator ? 'Hide Calculator' : 'Open Calculator'"></span>
+    </button>
+  </div>
+
+
+  <!-- Collapsible Calculator Block -->
+  <div x-show="showLocalCalculator" style="margin-bottom: 24px; border: 1px solid var(--delays-border); border-radius: 12px; overflow: hidden; background: #fafbfd; box-shadow: 0 4px 12px rgba(0,0,0,0.02); padding: 20px;" x-data="{
+    calcCalTime: 720,
+    calcShutdown: 24,
+    calcDowntime: 12,
+    calcFailures: 3,
+    
+    formulaMTTR_num: 'downtime',
+    formulaMTTR_den: 'failures',
+    
+    formulaMTBF_num: 'uptime',
+    formulaMTBF_den: 'failures',
+    
+    formulaAvailability_num: 'mtbf',
+    formulaAvailability_den: 'mtbf + mttr',
+    formulaAvailability_mult: '100',
+    
+    evaluateFormula(formulaStr, scope) {
+      try {
+        let expr = formulaStr.toLowerCase().replace(/[^a-z0-9+\-*/().\s]/g, '');
+        expr = expr.replace(/\buptime\b/g, scope.uptime);
+        expr = expr.replace(/\bdowntime\b/g, scope.downtime);
+        expr = expr.replace(/\bshutdown\b/g, scope.shutdown);
+        expr = expr.replace(/\bfailures\b/g, scope.failures);
+        expr = expr.replace(/\bcalendar\b/g, scope.calendar);
+        expr = expr.replace(/\bmttr\b/g, scope.mttr || 0);
+        expr = expr.replace(/\bmtbf\b/g, scope.mtbf || 0);
+        
+        let res = Function('return (' + expr + ')')();
+        return isNaN(res) || !isFinite(res) ? 0 : res;
+      } catch(e) {
+        return 0;
+      }
+    },
+    
+    get calcUptime() {
+      return Math.max(this.calcCalTime - this.calcShutdown - this.calcDowntime, 0);
+    },
+    
+    get calcMTTR() {
+      let scope = {
+        calendar: this.calcCalTime,
+        shutdown: this.calcShutdown,
+        downtime: this.calcDowntime,
+        failures: this.calcFailures,
+        uptime: this.calcUptime
+      };
+      let formula = '(' + this.formulaMTTR_num + ') / (' + this.formulaMTTR_den + ')';
+      return this.evaluateFormula(formula, scope);
+    },
+    
+    get calcMTBF() {
+      let scope = {
+        calendar: this.calcCalTime,
+        shutdown: this.calcShutdown,
+        downtime: this.calcDowntime,
+        failures: this.calcFailures,
+        uptime: this.calcUptime
+      };
+      let formula = '(' + this.formulaMTBF_num + ') / (' + this.formulaMTBF_den + ')';
+      return this.evaluateFormula(formula, scope);
+    },
+    
+    get calcAvailability() {
+      let scope = {
+        calendar: this.calcCalTime,
+        shutdown: this.calcShutdown,
+        downtime: this.calcDowntime,
+        failures: this.calcFailures,
+        uptime: this.calcUptime,
+        mttr: this.calcMTTR,
+        mtbf: this.calcMTBF
+      };
+      let formula = '(' + this.formulaAvailability_num + ') / (' + this.formulaAvailability_den + ') * (' + this.formulaAvailability_mult + ')';
+      return this.evaluateFormula(formula, scope);
+    }
+  }">
+    <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px;">
+      <!-- Left: Formulas and info -->
+      <div style="border-right: 1px solid var(--delays-border); padding-right: 20px;">
+        <h4 style="color: var(--delays-primary); margin: 0 0 16px 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">Edit Formula Mathematical Models</h4>
+        
+        <div style="display: flex; flex-direction: column; gap: 18px;">
+          <!-- 1. MTTR Formula Box -->
+          <div style="background: white; border-radius: 8px; border: 1px solid #E5E7EB; padding: 12px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
+            <strong style="color: var(--delays-accent); font-size: 0.82rem; display: block; margin-bottom: 8px; text-transform: uppercase;">1. MTTR (Mean Time To Repair)</strong>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-family: monospace; font-size: 0.9rem; color: #475569; font-weight: bold; white-space: nowrap;">MTTR =</span>
+              <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                <input type="text" x-model="formulaMTTR_num" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-bottom: 2px;">
+                <div style="width: 100%; height: 2px; background: #64748b; margin: 4px 0;"></div>
+                <input type="text" x-model="formulaMTTR_den" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-top: 2px;">
+              </div>
+            </div>
+            <span style="font-size: 0.7rem; color: #64748b; margin-top: 8px; display: block;">Variables: <code>downtime</code>, <code>failures</code>, <code>calendar</code>, <code>shutdown</code>, <code>uptime</code></span>
+          </div>
+          
+          <!-- 2. MTBF Formula Box -->
+          <div style="background: white; border-radius: 8px; border: 1px solid #E5E7EB; padding: 12px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
+            <strong style="color: var(--delays-accent); font-size: 0.82rem; display: block; margin-bottom: 8px; text-transform: uppercase;">2. MTBF (Mean Time Between Failures)</strong>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-family: monospace; font-size: 0.9rem; color: #475569; font-weight: bold; white-space: nowrap;">MTBF =</span>
+              <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                <input type="text" x-model="formulaMTBF_num" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-bottom: 2px;">
+                <div style="width: 100%; height: 2px; background: #64748b; margin: 4px 0;"></div>
+                <input type="text" x-model="formulaMTBF_den" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-top: 2px;">
+              </div>
+            </div>
+            <span style="font-size: 0.7rem; color: #64748b; margin-top: 8px; display: block;">Variables: <code>uptime</code>, <code>failures</code>, <code>calendar</code>, <code>shutdown</code>, <code>downtime</code></span>
+          </div>
+          
+          <!-- 3. Availability Formula Box -->
+          <div style="background: white; border-radius: 8px; border: 1px solid #E5E7EB; padding: 12px 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
+            <strong style="color: var(--delays-accent); font-size: 0.82rem; display: block; margin-bottom: 8px; text-transform: uppercase;">3. Operational Availability Formula</strong>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-family: monospace; font-size: 0.9rem; color: #475569; font-weight: bold; white-space: nowrap;">Avail =</span>
+              <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                <input type="text" x-model="formulaAvailability_num" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-bottom: 2px;">
+                <div style="width: 100%; height: 2px; background: #64748b; margin: 4px 0;"></div>
+                <input type="text" x-model="formulaAvailability_den" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 100%; outline: none; margin-top: 2px;">
+              </div>
+              <span style="font-family: monospace; font-size: 1.1rem; color: #475569; font-weight: bold;">&times;</span>
+              <input type="text" x-model="formulaAvailability_mult" class="filter-input" style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; background: #F8FAFC; padding: 6px 10px; border-radius: 6px; border: 1px dashed #cbd5e1; color: #0f172a; width: 60px; outline: none; margin-bottom: 0;">
+            </div>
+            <span style="font-size: 0.7rem; color: #64748b; margin-top: 8px; display: block;">Variables: <code>mtbf</code>, <code>mttr</code>, <code>uptime</code>, <code>downtime</code>, <code>calendar</code>, <code>shutdown</code></span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Right: Calculator Controls -->
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <h4 style="color: var(--delays-primary); margin: 0 0 4px 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">Live Simulator</h4>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="filter-group" style="margin-bottom: 0;">
+            <label class="filter-label" style="margin-bottom: 4px;">Total Calendar Time (Hrs)</label>
+            <input type="number" min="0" x-model.number="calcCalTime" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
+          </div>
+          <div class="filter-group" style="margin-bottom: 0;">
+            <label class="filter-label" style="margin-bottom: 4px;">Planned Shutdown (Hrs)</label>
+            <input type="number" min="0" x-model.number="calcShutdown" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
+          </div>
+          <div class="filter-group" style="margin-bottom: 0;">
+            <label class="filter-label" style="margin-bottom: 4px;">Unplanned Downtime (Hrs)</label>
+            <input type="number" min="0" x-model.number="calcDowntime" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
+          </div>
+          <div class="filter-group" style="margin-bottom: 0;">
+            <label class="filter-label" style="margin-bottom: 4px;">No. of Failures (Nos.)</label>
+            <input type="number" min="1" x-model.number="calcFailures" class="filter-input" style="width: 100%; border: 1px solid var(--delays-border); padding: 8px 12px; border-radius: 6px;">
+          </div>
+        </div>
+        
+        <!-- Result Panel -->
+        <div style="margin-top: 8px; background: white; border: 1px solid var(--delays-border); border-radius: 8px; padding: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; text-align: center;">
+          <div>
+            <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">Total Uptime</span>
+            <strong style="font-size: 1.1rem; color: var(--delays-primary); font-family: 'JetBrains Mono', monospace;" x-text="calcUptime.toFixed(1) + ' hrs'"></strong>
+          </div>
+          <div>
+            <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">MTTR</span>
+            <strong style="font-size: 1.1rem; color: var(--delays-accent); font-family: 'JetBrains Mono', monospace;" x-text="calcMTTR.toFixed(2) + ' hrs'"></strong>
+          </div>
+          <div>
+            <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">MTBF</span>
+            <strong style="font-size: 1.1rem; color: var(--delays-accent); font-family: 'JetBrains Mono', monospace;" x-text="calcMTBF.toFixed(1) + ' hrs'"></strong>
+          </div>
+          <div>
+            <span style="display: block; font-size: 0.72rem; text-transform: uppercase; color: #64748b; margin-bottom: 4px; font-weight: 600;">Availability</span>
+            <strong style="font-size: 1.1rem; font-family: 'JetBrains Mono', monospace;" :style="{ color: calcAvailability >= 98.0 ? '#16a34a' : (calcAvailability >= 95.0 ? '#ea580c' : '#dc2626') }" x-text="calcAvailability.toFixed(2) + '%'"></strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="delays-table">
+      <thead>
+        <tr>
+          <th style="text-align: left;">Sub Area</th>
+          <th style="text-align: left;">Equipment</th>
+          <th style="text-align: right; width: 120px;">Shutdown (HRS)</th>
+          <th style="text-align: right; width: 120px;">downtime (HRS)</th>
+          <th style="text-align: right; width: 130px;">No. of failure (Nos.)</th>
+          <th style="text-align: right; width: 130px;">Repeatability (Nos.)</th>
+          <th style="text-align: right; width: 100px;">MTTR (Hrs)</th>
+          <th style="text-align: right; width: 100px;">MTBF(Hrs)</th>
+          <th style="text-align: right; width: 100px;">Availability</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="(item, index) in filteredItems" :key="item.area + '-' + item.equipment">
+          <tr class="hover-row">
+            <td style="text-align: left;"><b x-text="item.area"></b></td>
+            <td style="text-align: left;" x-text="item.equipment"></td>
+            <td style="text-align: right; width: 120px; vertical-align: middle;">
+              <input type="number" 
+                     step="0.1" 
+                     min="0" 
+                     x-model.number="item.shutdown_hrs" 
+                     @input="recalculateRow(item)" 
+                     @change="saveShutdown(item)"
+                     class="font-mono" 
+                     style="text-align: right; width: 80px; padding: 4px 8px; border: 1px dashed var(--delays-border, #cbd5e1); border-radius: 4px; background: transparent; color: inherit; font-weight: 600; outline: none; transition: border-color 0.2s;"
+                     onfocus="this.style.borderColor='var(--delays-primary, #F47920)'; this.style.borderStyle='solid';"
+                     onblur="this.style.borderColor='var(--delays-border, #cbd5e1)'; this.style.borderStyle='dashed';"
+                     :disabled="!{{ can_edit|yesno:'true,false' }}">
+            </td>
+            <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="parseFloat(item.downtime_hrs || 0).toFixed(1)"></td>
+            <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="item.failures"></td>
+            <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="item.repeatability"></td>
+            <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="parseFloat(item.mttr || 0).toFixed(1)"></td>
+            <td style="text-align: right; font-weight: 600;" class="font-mono" x-text="parseFloat(item.mtbf || 0).toFixed(1)"></td>
+            <td style="text-align: right; font-weight: bold;" class="font-mono"
+                :style="{ color: item.availability >= 98.0 ? '#16a34a' : (item.availability >= 95.0 ? '#ea580c' : '#dc2626') }"
+                x-text="parseFloat(item.availability || 0).toFixed(2) + '%'">
+            </td>
+          </tr>
+        </template>
+        <!-- Fallback if filtered list is empty -->
+        <template x-if="filteredItems.length === 0">
+          <tr>
+            <td colspan="9" style="text-align: center; color: var(--delays-muted, #6b7280); padding: 30px;">
+              No delay records match the filtered criteria.
+            </td>
+          </tr>
+        </template>
+      </tbody>
+      <tfoot style="border-top: 2px solid var(--delays-border, #cbd5e1); background: rgba(0,0,0,0.02); font-weight: bold;">
+        <!-- TOTAL row -->
+        <tr style="border-bottom: 1px solid var(--delays-border, #cbd5e1);">
+          <td colspan="2" style="text-align: left; padding: 10px;">TOTAL</td>
+          <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalShutdown.toFixed(1)"></td>
+          <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalDowntime.toFixed(1)"></td>
+          <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalFailures"></td>
+          <td style="text-align: right; padding: 10px;" class="font-mono" x-text="totalRepeatability"></td>
+          <td style="text-align: right; padding: 10px;" class="font-mono" x-text="overallMTTR.toFixed(1)"></td>
+          <td style="text-align: right; padding: 10px;" class="font-mono" x-text="overallMTBF.toFixed(1)"></td>
+          <td style="text-align: right; padding: 10px; color: var(--delays-primary, #F47920);" class="font-mono" x-text="overallAvailability.toFixed(2) + '%'"></td>
+        </tr>
+        <!-- AVERAGE row -->
+        <tr>
+          <td colspan="2" style="text-align: left; padding: 10px; color: var(--delays-muted, #6b7280);">AVERAGE</td>
+          <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgShutdown.toFixed(1)"></td>
+          <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgDowntime.toFixed(1)"></td>
+          <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgFailures.toFixed(1)"></td>
+          <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgRepeatability.toFixed(1)"></td>
+          <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgMTTR.toFixed(1)"></td>
+          <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgMTBF.toFixed(1)"></td>
+          <td style="text-align: right; padding: 10px; color: var(--delays-muted, #6b7280);" class="font-mono" x-text="avgAvailability.toFixed(2) + '%'"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<script>
+  function reliabilityAnalysis() {
+    return {
+      showLocalCalculator: false,
+      totalCalendarHrs: {{ total_calendar_hrs|default:720.0 }},
+      items: {{ mttr_mtbf_list_json|safe }},
+      
+      get filteredItems() {
+        return this.items;
+      },
+      
+      get totalShutdown() {
+        return this.filteredItems.reduce((sum, item) => sum + parseFloat(item.shutdown_hrs || 0), 0);
+      },
+      get totalDowntime() {
+        return this.filteredItems.reduce((sum, item) => sum + parseFloat(item.downtime_hrs || 0), 0);
+      },
+      get totalFailures() {
+        return this.filteredItems.reduce((sum, item) => sum + parseInt(item.failures || 0), 0);
+      },
+      get totalRepeatability() {
+        return this.filteredItems.reduce((sum, item) => sum + parseInt(item.repeatability || 0), 0);
+      },
+      get overallMTTR() {
+        const f = this.totalFailures;
+        return f > 0 ? this.totalDowntime / f : 0.0;
+      },
+      get overallMTBF() {
+        const f = this.totalFailures;
+        if (f === 0) return this.totalCalendarHrs;
+        const totalOpTime = this.filteredItems.reduce((sum, item) => {
+          const op = this.totalCalendarHrs - parseFloat(item.downtime_hrs || 0) - parseFloat(item.shutdown_hrs || 0);
+          return sum + Math.max(op, 0);
+        }, 0);
+        return totalOpTime / f;
+      },
+      get overallAvailability() {
+        let totalOpTime = 0;
+        let totalDivisor = 0;
+        this.filteredItems.forEach(item => {
+          const dt = parseFloat(item.downtime_hrs || 0);
+          const sh = parseFloat(item.shutdown_hrs || 0);
+          const op = Math.max(this.totalCalendarHrs - dt - sh, 0.0);
+          const div = Math.max(this.totalCalendarHrs - sh, 0.1);
+          totalOpTime += op;
+          totalDivisor += div;
+        });
+        if (totalDivisor <= 0.1) return 0.0;
+        const avail = (totalOpTime / totalDivisor) * 100.0;
+        return avail > 100.0 ? 100.0 : avail;
+      },
+      
+      get avgShutdown() {
+        const len = this.filteredItems.length;
+        return len > 0 ? this.totalShutdown / len : 0.0;
+      },
+      get avgDowntime() {
+        const len = this.filteredItems.length;
+        return len > 0 ? this.totalDowntime / len : 0.0;
+      },
+      get avgFailures() {
+        const len = this.filteredItems.length;
+        return len > 0 ? this.totalFailures / len : 0.0;
+      },
+      get avgRepeatability() {
+        const len = this.filteredItems.length;
+        return len > 0 ? this.totalRepeatability / len : 0.0;
+      },
+      get avgMTTR() {
+        const len = this.filteredItems.length;
+        if (len === 0) return 0.0;
+        const sumMTTR = this.filteredItems.reduce((sum, item) => sum + parseFloat(item.mttr || 0), 0);
+        return sumMTTR / len;
+      },
+      get avgMTBF() {
+        const len = this.filteredItems.length;
+        if (len === 0) return 0.0;
+        const sumMTBF = this.filteredItems.reduce((sum, item) => sum + parseFloat(item.mtbf || 0), 0);
+        return sumMTBF / len;
+      },
+      get avgAvailability() {
+        const len = this.filteredItems.length;
+        if (len === 0) return 0.0;
+        const sumAvail = this.filteredItems.reduce((sum, item) => sum + parseFloat(item.availability || 0), 0);
+        return sumAvail / len;
+      },
+      
+      recalculateRow(item) {
+        const dt = parseFloat(item.downtime_hrs || 0);
+        const sh = parseFloat(item.shutdown_hrs || 0);
+        const f = parseInt(item.failures || 0);
+        
+        item.mttr = f > 0 ? (dt / f) : 0.0;
+        
+        const op = Math.max(this.totalCalendarHrs - dt - sh, 0.0);
+        item.mtbf = f > 0 ? (op / f) : this.totalCalendarHrs;
+        
+        const div = Math.max(this.totalCalendarHrs - sh, 0.1);
+        let avail = (op / div) * 100.0;
+        if (avail > 100.0) avail = 100.0;
+        item.availability = avail;
+      },
+      
+      saveShutdown(item) {
+        const sh = parseFloat(item.shutdown_hrs || 0);
+        fetch('/delays/department/{{ department.id }}/save-shutdown/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify({
+            sub_area: item.area,
+            equipment: item.equipment,
+            shutdown_hrs: sh
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            console.log('Shutdown hours saved successfully:', data.shutdown_hrs);
+          } else {
+            console.error('Error saving shutdown hours:', data.message);
+          }
+        })
+        .catch(err => {
+          console.error('Network error saving shutdown hours:', err);
+        });
+      }
+    };
+  }
+</script>

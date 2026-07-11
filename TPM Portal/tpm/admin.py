@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from tpm.models import User, Department, PillarEntry, KPIValue, Workstation, WorkstationKPI, WorkstationValue
+from tpm.models import User, Department, PillarEntry, KPIValue, Workstation, WorkstationKPI, WorkstationValue, OPLSheet
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
@@ -31,6 +31,10 @@ class WorkstationValueAdmin(admin.ModelAdmin):
     list_display = ('workstation_kpi', 'month', 'year', 'actual', 'remarks')
     list_filter = ('month', 'year', 'workstation_kpi__workstation__department')
 
+class OPLSheetAdmin(admin.ModelAdmin):
+    list_display = ('opl_no', 'theme', 'department', 'pillar', 'lesson_type', 'prepared_by', 'created_at')
+    list_filter = ('department', 'pillar', 'lesson_type')
+
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Department)
 admin.site.register(PillarEntry, PillarEntryAdmin)
@@ -38,3 +42,4 @@ admin.site.register(KPIValue)
 admin.site.register(Workstation, WorkstationAdmin)
 admin.site.register(WorkstationKPI)
 admin.site.register(WorkstationValue, WorkstationValueAdmin)
+admin.site.register(OPLSheet, OPLSheetAdmin)

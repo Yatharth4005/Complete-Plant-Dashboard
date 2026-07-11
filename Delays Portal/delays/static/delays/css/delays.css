@@ -338,7 +338,7 @@
 .filter-label {
   font-size: 0.75rem;
   font-weight: 700;
-  color: var(--delays-muted);
+  color: var(--delays-primary);
   text-transform: uppercase;
 }
 

@@ -59,12 +59,13 @@
               <td class="mono" style="text-align: right; font-weight: 600;">{{ kpi.commitment|default:"—" }}</td>
               <td class="mono" style="text-align: right;">
                 {% if filter_type == 'range' or not can_edit %}
-                  <span>{{ kpi.actual|default:"—" }}</span>
+                  <span>{% if kpi.actual is not None %}{{ kpi.actual }}{% else %}—{% endif %}</span>
                 {% else %}
                   <input type="number" name="actual_{{ kpi.id }}" step="any"
-                         value="{{ kpi.actual|default:'' }}"
+                         value="{% if kpi.actual is not None %}{{ kpi.actual }}{% endif %}"
                          class="input-mono" style="text-align: right; width: 100%; max-width: 100px;"
-                         placeholder="Enter actual">
+                         placeholder="Not Filled"
+                         :style="{% if kpi.actual == 0 %} 'background-color: #fff7ed; border-color: #fdba74; color: #ea580c; font-weight: bold;' {% else %} '' {% endif %}">
                 {% endif %}
               </td>
               <td style="text-align: center;">

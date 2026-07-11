@@ -19,7 +19,7 @@ class DelayRecordForm(forms.ModelForm):
     equipment = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
     sub_equipment = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
     shift_incharge = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
-    action = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'input-mono'}))
+    action = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'input-mono', 'rows': 2, 'placeholder': 'Action taken to resolve the delay'}))
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'input-mono', 'rows': 3, 'placeholder': 'Detailed description of the delay/breakdown'}))
     duration_mins = forms.FloatField(
         required=True,
@@ -84,24 +84,18 @@ class DelayRecordForm(forms.ModelForm):
                 display_name = f"{opt.value} ({opt.parent_value})" if opt.parent_value else opt.value
                 equip_list.append((opt.value, display_name))
             
-            if not equip_list:
-                db_equipments = sorted(list(DelayRecord.objects.filter(department=department).exclude(equipment__isnull=True).exclude(equipment='').exclude(equipment='NIL').values_list('equipment', flat=True).distinct()))
-                equip_list = [(eq, eq) for eq in db_equipments]
-            else:
-                equip_list.sort(key=lambda x: x[0])
+            equip_list.sort(key=lambda x: x[0])
                 
-            # Fetch sub-agencies from dropdown options + unique past values
+            # Fetch sub-agencies from dropdown options
             sub_agencies_set = set(DelayDropdownOption.objects.filter(
                 department=department, category__iexact='Sub-Agency'
             ).values_list('value', flat=True).distinct())
-            sub_agencies_set.update(DelayRecord.objects.filter(department=department).exclude(sub_agency__isnull=True).exclude(sub_agency='').values_list('sub_agency', flat=True).distinct())
             sub_agency_list = sorted([x for x in sub_agencies_set if x])
 
-            # Fetch sub-areas from dropdown options + unique past values
+            # Fetch sub-areas from dropdown options
             sub_areas_set = set(DelayDropdownOption.objects.filter(
                 department=department, category__iexact='Sub-Area'
             ).values_list('value', flat=True).distinct())
-            sub_areas_set.update(DelayRecord.objects.filter(department=department).exclude(sub_area__isnull=True).exclude(sub_area='').values_list('sub_area', flat=True).distinct())
             sub_area_list = sorted([x for x in sub_areas_set if x])
 
             # Fetch sub-equipments from dropdown options only
@@ -110,12 +104,11 @@ class DelayRecordForm(forms.ModelForm):
             ).values_list('value', flat=True).distinct())
             sub_equip_list = sorted([x for x in sub_equip_set if x])
 
-            # Fetch shift incharges from dropdown options + unique past values
+            # Fetch shift incharges from dropdown options
             incharge_opts = DelayDropdownOption.objects.filter(
                 department=department, category__iexact='Shift Incharge'
             )
             incharge_list = []
-            incharge_names_with_details = set()
             for opt in incharge_opts:
                 if opt.parent_value and '|' in opt.parent_value:
                     parts = opt.parent_value.split('|')
@@ -125,12 +118,6 @@ class DelayRecordForm(forms.ModelForm):
                 else:
                     display_name = opt.value
                 incharge_list.append((opt.value, display_name))
-                incharge_names_with_details.add(opt.value.strip().lower())
-                
-            db_incharges = sorted(list(DelayRecord.objects.filter(department=department).exclude(shift_incharge__isnull=True).exclude(shift_incharge='').values_list('shift_incharge', flat=True).distinct()))
-            for inc in db_incharges:
-                if inc.strip().lower() not in incharge_names_with_details:
-                    incharge_list.append((inc, inc))
             incharge_list.sort(key=lambda x: x[1].lower())
             
         # Internal Choices
@@ -152,31 +139,27 @@ class DelayRecordForm(forms.ModelForm):
         self.fields['sub_equipment'].choices = [('', 'Select Sub Equipment')] + [(se, se) for se in sub_equip_list]
         self.fields['shift_incharge'].choices = [('', 'Select Shift Incharge')] + incharge_list
         
-        # Fetch Action dropdown options
-        action_opts = []
-        if department:
-            action_opts = sorted(list(set(DelayDropdownOption.objects.filter(
-                department=department, category__iexact='Action'
-            ).values_list('value', flat=True).distinct())))
-        self.fields['action'].choices = [('', 'Select Action')] + [(act, act) for act in action_opts]
-        
         # If editing an existing instance, preserve values and set initial agency_type
         if self.instance and self.instance.pk:
             self.initial['agency_type'] = self.instance.agency_type or 'Internal'
-            if self.instance.agency and (self.instance.agency, self.instance.agency) not in self.fields['agency'].choices:
-                self.fields['agency'].choices.append((self.instance.agency, self.instance.agency))
-            if self.instance.equipment and not any(c[0] == self.instance.equipment for c in self.fields['equipment'].choices):
-                self.fields['equipment'].choices.append((self.instance.equipment, self.instance.equipment))
-            if self.instance.sub_agency and (self.instance.sub_agency, self.instance.sub_agency) not in self.fields['sub_agency'].choices:
-                self.fields['sub_agency'].choices.append((self.instance.sub_agency, self.instance.sub_agency))
-            if self.instance.sub_area and (self.instance.sub_area, self.instance.sub_area) not in self.fields['sub_area'].choices:
-                self.fields['sub_area'].choices.append((self.instance.sub_area, self.instance.sub_area))
-            if self.instance.sub_equipment and (self.instance.sub_equipment, self.instance.sub_equipment) not in self.fields['sub_equipment'].choices:
-                self.fields['sub_equipment'].choices.append((self.instance.sub_equipment, self.instance.sub_equipment))
-            if self.instance.shift_incharge and (self.instance.shift_incharge, self.instance.shift_incharge) not in self.fields['shift_incharge'].choices:
-                self.fields['shift_incharge'].choices.append((self.instance.shift_incharge, self.instance.shift_incharge))
-            if self.instance.action and (self.instance.action, self.instance.action) not in self.fields['action'].choices:
-                self.fields['action'].choices.append((self.instance.action, self.instance.action))
+            
+            def add_choice_if_missing(field_name, val):
+                if not val:
+                    return
+                val_str = str(val).strip()
+                if not val_str:
+                    return
+                choices = self.fields[field_name].choices
+                # Check case-insensitively if val_str is already in the choice values
+                if not any(str(c[0]).strip().lower() == val_str.lower() for c in choices):
+                    self.fields[field_name].choices.append((val_str, val_str))
+
+            add_choice_if_missing('agency', self.instance.agency)
+            add_choice_if_missing('equipment', self.instance.equipment)
+            add_choice_if_missing('sub_agency', self.instance.sub_agency)
+            add_choice_if_missing('sub_area', self.instance.sub_area)
+            add_choice_if_missing('sub_equipment', self.instance.sub_equipment)
+            add_choice_if_missing('shift_incharge', self.instance.shift_incharge)
                 
     def clean(self):
         cleaned_data = super().clean()

@@ -1,11 +1,14 @@
 <div style="animation: fadeIn 0.3s ease-out;" x-data="{ paretoType: '{{ pareto_type|default:"time" }}' }">
 
   <div style="margin-bottom: 20px;">
-    <h3 style="color: var(--delays-primary); margin: 0 0 6px 0;">📊 Pareto Analysis (80/20 Rule)</h3>
+    <h3 style="color: var(--delays-primary); margin: 0 0 6px 0;">📊 Pareto Analysis (80/20 Rule) <span style="font-size: 0.85rem; font-weight: normal; color: var(--delays-muted);">{{ date_period_bracket }}</span></h3>
     <p style="color: var(--delays-muted); font-size: 0.85rem; margin: 0;">
       The Pareto principle states that roughly 80% of downtime results from 20% of the causes. Highlighted below are the "Vital Few" bottleneck agencies and {% if is_description %}delay reasons{% else %}equipment{% endif %} that should be prioritized for maintenance. Click on an agency (either in the chart or the table) to drill down into its specific bottlenecks.
     </p>
   </div>
+
+  {% url 'delays:pareto_overall' department.id as pareto_url %}
+  {% include "delays/partials/_delay_filters.html" with filter_tab_id="pareto" hx_get_url=pareto_url hx_target="#pareto-tab-container" %}
 
   <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: start; margin-bottom: 24px;">
     <!-- Pareto Chart -->
@@ -14,7 +17,7 @@
       <!-- Flex Header containing Title and Select Dropdown -->
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--delays-border); padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
         <h4 style="font-size: 0.95rem; font-weight: bold; color: var(--delays-primary); margin: 0; padding: 0; display: flex; align-items: center; gap: 6px;">
-          📈 Agency Pareto Chart ( <span x-text="paretoType === 'time' ? 'Cumulative Downtime' : 'Event Frequency'">Cumulative Downtime</span> )
+          📈 Agency Pareto Chart ( <span x-text="paretoType === 'time' ? 'Cumulative Downtime' : 'Event Frequency'">Cumulative Downtime</span> ) <span style="font-size: 0.85rem; font-weight: normal; color: var(--delays-muted);">{{ date_period_bracket }}</span>
         </h4>
         
         <select x-model="paretoType" @change="window.updateParetoChart(paretoType)" class="filter-input input-mono" style="height: 30px; padding: 2px 8px; font-size: 0.8rem; border-radius: 6px; width: 165px; cursor: pointer; border: 1px solid var(--delays-border); background: white; color: var(--delays-text); font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); outline: none;">

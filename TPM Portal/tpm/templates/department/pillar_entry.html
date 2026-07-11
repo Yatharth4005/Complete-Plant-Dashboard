@@ -54,6 +54,13 @@
                 @click="activeTab = 'kaizen';">
           📋 Kaizen Sheet
         </button>
+        <button class="tab-btn" id="btn-opl" :class="{ 'active': activeTab === 'opl' }"
+                hx-get="{% url 'opl_list_partial' dept.id pillar_id %}"
+                hx-target="#tab-content"
+                hx-swap="innerHTML"
+                @click="activeTab = 'opl';">
+          📋 OPL Sheet
+        </button>
         
         {% if pillar_id == 'JH' %}
         <div x-data="{ open: false }" style="position: relative; display: inline-block;" @click.outside="open = false">
@@ -101,6 +108,8 @@
           {% include "partials/_analytics_charts.html" %}
         {% elif active_tab == 'kaizen' %}
           {% include "partials/_kaizen_list.html" %}
+        {% elif active_tab == 'opl' %}
+          {% include "partials/_opl_list.html" %}
         {% elif active_tab == 'jh-master-equip' %}
           {% include "partials/_jh_master_equipments.html" %}
         {% elif active_tab == 'jh-master-machines' %}

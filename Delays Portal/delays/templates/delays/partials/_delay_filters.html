@@ -1,0 +1,100 @@
+<form id="filter-form-{{ filter_tab_id }}" 
+      hx-get="{{ hx_get_url }}" 
+      hx-trigger="change, keyup changed delay:300ms" 
+      hx-target="{{ hx_target }}"
+      class="filter-bar"
+      style="margin-bottom: 20px;">
+  
+  <div class="filter-group col-search">
+    <label class="filter-label">Search Delay Details</label>
+    <input type="text" name="q" placeholder="Search equipment, agency..." class="filter-input input-mono" value="{{ q_val|default:'' }}">
+  </div>
+  
+  <div class="filter-group">
+    <label class="filter-label">Agency Type</label>
+    <select name="agency_type" id="filter_agency_type_{{ filter_tab_id }}" class="filter-input input-mono">
+      <option value="">All Types</option>
+      <option value="Internal" {% if agency_type_val == 'Internal' %}selected{% endif %}>Internal</option>
+      <option value="External" {% if agency_type_val == 'External' %}selected{% endif %}>External</option>
+    </select>
+  </div>
+  
+  <div class="filter-group">
+    <label class="filter-label">Agency</label>
+    <select name="agency" id="filter_agency_{{ filter_tab_id }}" class="filter-input input-mono">
+      <option value="">All Agencies</option>
+    </select>
+  </div>
+  
+  <div class="filter-group">
+    <label class="filter-label">Area</label>
+    <select name="sub_agency" class="filter-input input-mono">
+      <option value="">All Areas</option>
+      {% for sa in sub_agencies %}
+        <option value="{{ sa }}" {% if sub_agency_val == sa %}selected{% endif %}>{{ sa }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <input type="hidden" name="date_start" value="{{ date_start }}">
+  <input type="hidden" name="date_end" value="{{ date_end }}">
+</form>
+
+<script>
+  (function() {
+    const tabId = "{{ filter_tab_id }}";
+    const filterAgencyType = document.getElementById('filter_agency_type_' + tabId);
+    const filterAgency = document.getElementById('filter_agency_' + tabId);
+    if (!filterAgencyType || !filterAgency) return;
+    
+    const internalAgencies = [
+      {% for a in agencies %}
+        "{{ a|escapejs }}",
+      {% endfor %}
+    ];
+    
+    const externalAgencies = [
+      {% for d in external_departments %}
+        "{{ d.name|escapejs }}",
+      {% endfor %}
+    ];
+    
+    function updateFilterAgencyOptions() {
+      const type = filterAgencyType.value;
+      const currentValue = "{{ agency_val|escapejs }}";
+      
+      filterAgency.innerHTML = '';
+      
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = type === 'External' ? 'All External' : (type === 'Internal' ? 'All Internal' : 'All Agencies');
+      filterAgency.appendChild(defaultOpt);
+      
+      let list = [];
+      if (type === 'Internal') {
+        list = internalAgencies;
+      } else if (type === 'External') {
+        list = externalAgencies;
+      } else {
+        list = [...internalAgencies, ...externalAgencies];
+      }
+      
+      list.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item;
+        opt.textContent = item;
+        if (item === currentValue) {
+          opt.selected = true;
+        }
+        filterAgency.appendChild(opt);
+      });
+    }
+    
+    filterAgencyType.addEventListener('change', function() {
+      updateFilterAgencyOptions();
+      filterAgency.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    
+    updateFilterAgencyOptions();
+  })();
+</script>

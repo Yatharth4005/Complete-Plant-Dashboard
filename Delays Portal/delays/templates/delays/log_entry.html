@@ -200,6 +200,27 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
+    // Handle Enter key navigation instead of submitting the form
+    const form = document.querySelector('.log-entry-form');
+    if (form) {
+      form.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          const target = e.target;
+          if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.type === 'submit') {
+            return;
+          }
+          
+          e.preventDefault(); // Prevent form submit on Enter
+          
+          // Find all focusable elements in the form
+          const focusables = Array.from(form.querySelectorAll('input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'));
+          const index = focusables.indexOf(target);
+          if (index > -1 && index < focusables.length - 1) {
+            focusables[index + 1].focus(); // Focus next field
+          }
+        }
+      });
+    }
 
     // Dynamic internal/external agency toggle logic
     const agencyTypeSelect = document.getElementById('id_agency_type');

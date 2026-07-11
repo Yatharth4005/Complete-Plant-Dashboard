@@ -1364,30 +1364,26 @@ def download_pdf(request, dept_id, capa_id):
     return response
 
 
+def is_numeric_value(val):
+    try:
+        float(val)
+        return True
+    except ValueError:
+        return False
+
 def get_dropdown_resources(active_dept):
-    from delays.models import DelayDropdownOption, DelayRecord
+    from delays.models import DelayDropdownOption
     incharge_opts = DelayDropdownOption.objects.filter(
         department=active_dept, category__iexact='Shift Incharge'
     ).values_list('value', flat=True).distinct()
     incharge_names = set(incharge_opts)
     
-    db_incharges = DelayRecord.objects.filter(department=active_dept).exclude(shift_incharge__isnull=True).exclude(shift_incharge='').values_list('shift_incharge', flat=True).distinct()
-    incharge_names.update(db_incharges)
+    shift_incharges_list = sorted(list(set(
+        name.strip() for name in incharge_names 
+        if name and name.strip() and not is_numeric_value(name.strip())
+    )))
     
-    shift_incharges_list = sorted(list(set(name.strip() for name in incharge_names if name and name.strip())))
-    
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-    system_users = User.objects.filter(is_active=True).order_by('first_name', 'last_name', 'username')
-    
-    user_choices = []
-    for u in system_users:
-        display_name = u.get_display_name() if hasattr(u, 'get_display_name') else f"{u.first_name} {u.last_name}".strip()
-        if not display_name:
-            display_name = u.username
-        user_choices.append(display_name.strip())
-        
-    user_choices = sorted(list(set(name for name in user_choices if name)))
+    user_choices = shift_incharges_list
     
     return {
         'shift_incharges': shift_incharges_list,
