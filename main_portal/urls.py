@@ -13,6 +13,7 @@ urlpatterns = [
     path('safety/', include('Safety.urls', namespace='safety')),
     path('hod-kpi/', include('hod_kpi.urls', namespace='hod_kpi')),
     path('quality/', include('quality.urls', namespace='quality')),
+    path('smed/', include('smed.urls', namespace='smed')),
     path('admin/', admin.site.urls),
 ]
 

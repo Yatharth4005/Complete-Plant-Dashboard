@@ -627,6 +627,40 @@ def dept_overview(request, dept_id):
     top_agency_freq = agency_frequency_sorted[0][0] if agency_frequency_sorted else "N/A"
     top_agency_freq_count = agency_frequency_sorted[0][1] if agency_frequency_sorted else 0
     
+    # Top Internal/External calculations
+    internal_recs = all_records.filter(agency_type='Internal')
+    external_recs = all_records.filter(agency_type='External')
+    
+    # Internal Time-based
+    internal_breakdown = internal_recs.values('agency').annotate(total=Sum('duration_mins')).order_by('-total')
+    top_internal_agency = internal_breakdown[0]['agency'] if internal_breakdown else "N/A"
+    top_internal_agency_mins = round(internal_breakdown[0]['total'], 1) if internal_breakdown else 0.0
+    
+    # External Time-based
+    external_breakdown = external_recs.values('agency').annotate(total=Sum('duration_mins')).order_by('-total')
+    top_external_agency = external_breakdown[0]['agency'] if external_breakdown else "N/A"
+    top_external_agency_mins = round(external_breakdown[0]['total'], 1) if external_breakdown else 0.0
+    
+    # Internal Freq-based
+    internal_agency_counts = {}
+    for r in internal_recs:
+        ag = (r.agency or '').strip()
+        if ag:
+            internal_agency_counts[ag] = internal_agency_counts.get(ag, 0) + 1
+    internal_agency_frequency_sorted = sorted(internal_agency_counts.items(), key=lambda x: x[1], reverse=True)
+    top_internal_agency_freq = internal_agency_frequency_sorted[0][0] if internal_agency_frequency_sorted else "N/A"
+    top_internal_agency_freq_count = internal_agency_frequency_sorted[0][1] if internal_agency_frequency_sorted else 0
+    
+    # External Freq-based
+    external_agency_counts = {}
+    for r in external_recs:
+        ag = (r.agency or '').strip()
+        if ag:
+            external_agency_counts[ag] = external_agency_counts.get(ag, 0) + 1
+    external_agency_frequency_sorted = sorted(external_agency_counts.items(), key=lambda x: x[1], reverse=True)
+    top_external_agency_freq = external_agency_frequency_sorted[0][0] if external_agency_frequency_sorted else "N/A"
+    top_external_agency_freq_count = external_agency_frequency_sorted[0][1] if external_agency_frequency_sorted else 0
+    
     agency_pareto_freq = []
     running_counts = 0
     for idx, (ag, count) in enumerate(agency_frequency_sorted):
@@ -700,14 +734,33 @@ def dept_overview(request, dept_id):
     internal_list = [{'name': name, 'mins': round(mins, 1)} for name, mins in sorted_internal]
 
     internal_summaries = []
-    for item in internal_list[:3]:
-        recs = internal_recs.filter(equipment__icontains=item['name']).exclude(description__isnull=True).exclude(description='').order_by('-duration_mins')[:2]
-        reasons = [r.description for r in recs if r.description]
+    internal_table_data = []
+    for item in internal_list:
+        recs = internal_recs.filter(equipment__icontains=item['name'])
+        
+        # Find the agency with the most downtime (mins) for this equipment
+        agency_downtimes = recs.exclude(
+            Q(agency__isnull=True) | Q(agency='') | Q(agency='-') | Q(agency='NA') | Q(agency='None') | Q(agency='NIL')
+        ).values('agency').annotate(total_mins=Sum('duration_mins')).order_by('-total_mins')
+        
+        top_agency = "N/A"
+        if agency_downtimes.exists():
+            top_agency = agency_downtimes[0]['agency'].strip()
+            
+        recs_with_desc = recs.exclude(description__isnull=True).exclude(description='').order_by('-duration_mins')[:2]
+        reasons = [r.description for r in recs_with_desc if r.description]
         if reasons:
             internal_summaries.append({
                 'equipment': item['name'],
                 'reasons': reasons
             })
+        reason_single = reasons[0] if reasons else "No key breakdowns recorded"
+        internal_table_data.append({
+            'name': item['name'],
+            'mins': item['mins'],
+            'reason': reason_single,
+            'top_agency': top_agency
+        })
 
     # External Agency Bottlenecks
     external_recs = all_records.filter(agency_type='External')
@@ -725,14 +778,33 @@ def dept_overview(request, dept_id):
     external_list = [{'name': name, 'mins': round(mins, 1)} for name, mins in sorted_external]
 
     external_summaries = []
-    for item in external_list[:3]:
-        recs = external_recs.filter(agency__icontains=item['name']).exclude(description__isnull=True).exclude(description='').order_by('-duration_mins')[:2]
-        reasons = [r.description for r in recs if r.description]
+    external_table_data = []
+    for item in external_list:
+        recs = external_recs.filter(agency__icontains=item['name'])
+        
+        # Find the equipment with the most downtime (mins) for this agency
+        eq_downtimes = recs.exclude(
+            Q(equipment__isnull=True) | Q(equipment='') | Q(equipment='-') | Q(equipment='NA') | Q(equipment='None') | Q(equipment='NIL')
+        ).values('equipment').annotate(total_mins=Sum('duration_mins')).order_by('-total_mins')
+        
+        top_eq = "N/A"
+        if eq_downtimes.exists():
+            top_eq = clean_equipment_name(eq_downtimes[0]['equipment']) or "General"
+            
+        recs_with_desc = recs.exclude(description__isnull=True).exclude(description='').order_by('-duration_mins')[:2]
+        reasons = [r.description for r in recs_with_desc if r.description]
         if reasons:
             external_summaries.append({
                 'agency': item['name'],
                 'reasons': reasons
             })
+        reason_single = reasons[0] if reasons else "No key breakdowns recorded"
+        external_table_data.append({
+            'name': item['name'],
+            'mins': item['mins'],
+            'reason': reason_single,
+            'top_equipment': top_eq
+        })
 
     import json
     internal_labels_json = json.dumps([x['name'] for x in internal_list])
@@ -995,8 +1067,10 @@ def dept_overview(request, dept_id):
         'capa_reports': capa_reports,
         'internal_list': internal_list,
         'internal_summaries': internal_summaries,
+        'internal_table_data': internal_table_data,
         'external_list': external_list,
         'external_summaries': external_summaries,
+        'external_table_data': external_table_data,
         'internal_labels_json': internal_labels_json,
         'internal_data_json': internal_data_json,
         'external_labels_json': external_labels_json,
@@ -1016,6 +1090,16 @@ def dept_overview(request, dept_id):
         'top_agency': top_agency,
         'top_agency_mins': round(top_agency_mins, 1),
         'avg_duration': round(avg_duration, 1),
+        'top_internal_agency': top_internal_agency,
+        'top_internal_agency_mins': top_internal_agency_mins,
+        'top_external_agency': top_external_agency,
+        'top_external_agency_mins': top_external_agency_mins,
+        'top_internal_agency_freq': top_internal_agency_freq,
+        'top_internal_agency_freq_count': top_internal_agency_freq_count,
+        'top_external_agency_freq': top_external_agency_freq,
+        'top_external_agency_freq_count': top_external_agency_freq_count,
+        'total_equipments_downtime': len(sorted_py_eqs_pareto),
+        'total_equip_events': total_equip_counts,
         
         # Charts (serialize to JSON safely)
         'agency_labels_json': json.dumps(agency_labels),
@@ -1917,6 +2001,40 @@ def pareto_overall(request, dept_id):
             'is_vital': cum_percent <= 85.0 or idx == 0
         })
 
+    # Top Internal/External calculations
+    internal_recs = records.filter(agency_type='Internal')
+    external_recs = records.filter(agency_type='External')
+    
+    # Internal Time-based
+    internal_breakdown = internal_recs.values('agency').annotate(total=Sum('duration_mins')).order_by('-total')
+    top_internal_agency = internal_breakdown[0]['agency'] if internal_breakdown else "N/A"
+    top_internal_agency_mins = round(internal_breakdown[0]['total'], 1) if internal_breakdown else 0.0
+    
+    # External Time-based
+    external_breakdown = external_recs.values('agency').annotate(total=Sum('duration_mins')).order_by('-total')
+    top_external_agency = external_breakdown[0]['agency'] if external_breakdown else "N/A"
+    top_external_agency_mins = round(external_breakdown[0]['total'], 1) if external_breakdown else 0.0
+    
+    # Internal Freq-based
+    internal_agency_counts = {}
+    for r in internal_recs:
+        ag = (r.agency or '').strip()
+        if ag:
+            internal_agency_counts[ag] = internal_agency_counts.get(ag, 0) + 1
+    internal_agency_frequency_sorted = sorted(internal_agency_counts.items(), key=lambda x: x[1], reverse=True)
+    top_internal_agency_freq = internal_agency_frequency_sorted[0][0] if internal_agency_frequency_sorted else "N/A"
+    top_internal_agency_freq_count = internal_agency_frequency_sorted[0][1] if internal_agency_frequency_sorted else 0
+    
+    # External Freq-based
+    external_agency_counts = {}
+    for r in external_recs:
+        ag = (r.agency or '').strip()
+        if ag:
+            external_agency_counts[ag] = external_agency_counts.get(ag, 0) + 1
+    external_agency_frequency_sorted = sorted(external_agency_counts.items(), key=lambda x: x[1], reverse=True)
+    top_external_agency_freq = external_agency_frequency_sorted[0][0] if external_agency_frequency_sorted else "N/A"
+    top_external_agency_freq_count = external_agency_frequency_sorted[0][1] if external_agency_frequency_sorted else 0
+
     top_agency = agency_pareto[0]['agency'] if agency_pareto else "N/A"
     top_agency_mins = agency_pareto[0]['mins'] if agency_pareto else 0.0
 
@@ -1930,6 +2048,14 @@ def pareto_overall(request, dept_id):
         'top_agency_mins': top_agency_mins,
         'top_agency_freq': top_agency_freq,
         'top_agency_freq_count': top_agency_freq_count,
+        'top_internal_agency': top_internal_agency,
+        'top_internal_agency_mins': top_internal_agency_mins,
+        'top_external_agency': top_external_agency,
+        'top_external_agency_mins': top_external_agency_mins,
+        'top_internal_agency_freq': top_internal_agency_freq,
+        'top_internal_agency_freq_count': top_internal_agency_freq_count,
+        'top_external_agency_freq': top_external_agency_freq,
+        'top_external_agency_freq_count': top_external_agency_freq_count,
         'is_description': is_description,
         'pareto_type': pareto_type,
         'agencies': autocompletes['agencies'],

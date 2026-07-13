@@ -1,0 +1,155 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block title %}SMED Changeover History - {{ template.name }}{% endblock %}
+
+{% block breadcrumb_items %}
+<span class="breadcrumb-sep">›</span>
+<a href="{% url 'portal:dept_hub' department.id %}">{{ department.code }}</a>
+<span class="breadcrumb-sep">›</span>
+<a href="{% url 'smed:smed_dashboard' department.id %}?template_id={{ template.id }}">SMED Changeover</a>
+<span class="breadcrumb-sep">›</span>
+<span class="breadcrumb-current">History</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" x-data="{ showDeleteConfirm: false, deleteUrl: '', dateStr: '' }">
+<style>
+  .smed-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .smed-modal-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    width: 100%;
+    max-width: 440px;
+    padding: 24px;
+  }
+</style>
+  
+  <div style="background: var(--jspl-navy); color: white; padding: 24px; border-radius: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h3 style="color: white; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+        ⏱ SMED Changeover Run History — {{ department.name }}
+      </h3>
+      <p style="color: #94a3b8; font-size: 0.9rem; margin: 4px 0 12px 0;">
+        Template: {{ template.name|cut:"SMED " }}
+      </p>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <div style="display: inline-flex; align-items: center; gap: 8px; background: #fffbeb; border: 1px solid #fde68a; color: #d97706; padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 0.82rem;">
+          🗓️ 1. Planned Schedule
+        </div>
+        <span style="color: #475569; font-weight: 700;">+</span>
+        <div style="display: inline-flex; align-items: center; gap: 8px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 0.82rem;">
+          ⏱️ 2. Actual Tracking
+        </div>
+      </div>
+    </div>
+    <div>
+      <a href="{% url 'smed:smed_dashboard' department.id %}?template_id={{ template.id }}" style="height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 0.85rem; border-radius: 8px; text-decoration: none; color: #0f172a !important; background: white; border: none; padding: 0 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s;">
+        ← Back to Workspace
+      </a>
+    </div>
+  </div>
+
+  <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.02); width: 100%;">
+    <table class="table table-hover" style="margin: 0; vertical-align: middle; width: 100% !important; table-layout: fixed;">
+      <thead style="background: #f8fafc;">
+        <tr>
+          <th style="padding: 14px 18px; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #cbd5e1; width: 13%;">Date</th>
+          <th style="padding: 14px 18px; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #cbd5e1; text-align: center; width: 19%;">Total Planned Time</th>
+          <th style="padding: 14px 18px; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #cbd5e1; text-align: center; width: 19%;">Total Actual Time</th>
+          <th style="padding: 14px 18px; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #cbd5e1; text-align: center; width: 13%;">Extra Time (Overrun)</th>
+          <th style="padding: 14px 18px; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #cbd5e1; text-align: center; width: 10%;">Compliance Rate</th>
+          <th style="padding: 14px 18px; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #cbd5e1; text-align: center; width: 9%;">Status</th>
+          <th style="padding: 14px 18px; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #cbd5e1; text-align: center; width: 9%;">Lock Status</th>
+          <th style="padding: 14px 18px; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #cbd5e1; text-align: right; width: 18%;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td style="padding: 14px 18px; font-weight: 600; color: var(--jspl-navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ r.date|date:"d-M-Y" }}</td>
+          <td style="padding: 14px 18px; text-align: center; font-family: monospace; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            {{ r.planned_time_formatted }}
+          </td>
+          <td style="padding: 14px 18px; text-align: center; font-family: monospace; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            {{ r.actual_time_formatted }}
+          </td>
+          <td style="padding: 14px 18px; text-align: center; font-family: monospace; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; {% if r.extra_time > 0 %}color: #dc2626; font-weight: bold;{% endif %}">
+            {{ r.extra_time }} mins
+          </td>
+          <td style="padding: 14px 18px; text-align: center; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ r.compliance_percentage|floatformat:1 }}%</td>
+          <td style="padding: 14px 18px; text-align: center;">
+            {% if r.status == 'In-LIMIT' %}
+            <span style="background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.72rem; display: inline-block;">In-LIMIT</span>
+            {% else %}
+            <span style="background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.72rem; display: inline-block;">BREACHED</span>
+            {% endif %}
+          </td>
+          <td style="padding: 14px 18px; text-align: center;">
+            {% if r.is_locked %}
+            <span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.72rem; display: inline-block;">🔒 Locked</span>
+            {% else %}
+            <span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.72rem; display: inline-block;">📝 Draft</span>
+            {% endif %}
+          </td>
+          <td style="padding: 14px 18px; text-align: right; white-space: nowrap;">
+            <div style="display: inline-flex; gap: 8px; align-items: center; justify-content: flex-end; width: 100%;">
+              {% if r.is_locked %}
+              <a href="{% url 'smed:smed_dashboard' department.id %}?template_id={{ template.id }}&date={{ r.date|date:'Y-m-d' }}" class="btn" style="padding: 6px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; background-color: #64748b; color: white; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                View Sheet
+              </a>
+              {% else %}
+              <a href="{% url 'smed:smed_dashboard' department.id %}?template_id={{ template.id }}&date={{ r.date|date:'Y-m-d' }}" class="btn" style="padding: 6px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; background-color: #16a34a; color: white; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                Edit Sheet
+              </a>
+              {% endif %}
+              
+              {% if is_admin %}
+              <button type="button" class="btn" style="padding: 6px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 8px; background-color: #dc2626; color: white; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer;" @click="deleteUrl = '{% url 'smed:delete_smed_run' department.id r.id %}'; dateStr = '{{ r.date|date:'d-M-Y' }}'; showDeleteConfirm = true;">
+                Delete
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center py-5 text-muted">No historical SMED changeovers found for this template.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  <!-- Custom Confirmation Dialog Modal -->
+  <div class="smed-modal-overlay" x-show="showDeleteConfirm" x-transition.opacity style="display: none;">
+    <div class="smed-modal-card" @click.away="showDeleteConfirm = false" style="text-align: left;">
+      <h4 style="margin: 0 0 12px 0; color: #0f172a; font-weight: 700; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+        ⚠️ Confirm Deletion
+      </h4>
+      <p style="margin: 0 0 20px 0; font-size: 0.88rem; color: #475569; line-height: 1.5;">
+        Are you sure you want to delete the SMED changeover run sheet for <strong x-text="dateStr" style="color: #0f172a;"></strong>? This action cannot be undone.
+      </p>
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn" style="height: 36px; padding: 0 16px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; cursor: pointer;" @click="showDeleteConfirm = false">Cancel</button>
+        <form :action="deleteUrl" method="POST" style="margin: 0;">
+          {% csrf_token %}
+          <button type="submit" class="btn" style="height: 36px; padding: 0 16px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; background-color: #dc2626; color: white; border: none; cursor: pointer; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);">Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

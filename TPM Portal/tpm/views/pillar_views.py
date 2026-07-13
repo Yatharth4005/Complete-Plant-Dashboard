@@ -932,10 +932,10 @@ def get_analytics_context(request, dept, pillar_id):
         range_months = get_months_in_range(from_month, from_year, to_month, to_year)
     else:
         range_months = [{
-            'month': m,
+            'month': month,
             'year': year,
-            'label': months_labels_short[m-1]
-        } for m in range(1, month + 1)]
+            'label': months_labels_short[month-1]
+        }]
         
     chart_labels = [rm['label'] for rm in range_months]
     

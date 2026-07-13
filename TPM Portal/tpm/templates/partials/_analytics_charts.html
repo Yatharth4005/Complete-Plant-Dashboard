@@ -18,7 +18,7 @@
 
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
     <div style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
-      <h3 style="margin-bottom: 15px;">Pillar KPI Achievement (%)</h3>
+      <h3 style="margin-bottom: 15px;">Pillar KPI Achievement (%) ({{ period_label }})</h3>
       <div style="position: relative; height: 350px;">
         <canvas id="kpiBarChart"></canvas>
       </div>
@@ -170,10 +170,53 @@
             borderRadius: 4
           }]
         },
+        plugins: [{
+          id: 'datalabels_custom',
+          afterDatasetsDraw(chart, args, pluginOptions) {
+            const { ctx, scales: { x, y } } = chart;
+            ctx.save();
+            ctx.font = 'bold 11px Sora, sans-serif';
+            ctx.textBaseline = 'middle';
+            
+            chart.data.datasets.forEach((dataset, i) => {
+              const meta = chart.getDatasetMeta(i);
+              meta.data.forEach((bar, index) => {
+                const value = dataset.data[index];
+                if (value !== null && value !== undefined) {
+                  const valString = parseFloat(value).toFixed(1) + '%';
+                  
+                  // Cap the text position at the chart area right boundary to handle values >= 100%
+                  const rightBound = chart.chartArea.right;
+                  const posX = Math.min(bar.x, rightBound);
+                  
+                  if (value >= 80) {
+                    // Draw inside the bar in white
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'right';
+                    const xPos = posX - 8; // Offset 8px to the left of the bar's end position
+                    ctx.fillText(valString, xPos, bar.y);
+                  } else {
+                    // Draw outside the bar in slate 800
+                    ctx.fillStyle = '#1e293b';
+                    ctx.textAlign = 'left';
+                    const xPos = posX + 6; // Offset 6px to the right of the bar's end position
+                    ctx.fillText(valString, xPos, bar.y);
+                  }
+                }
+              });
+            });
+            ctx.restore();
+          }
+        }],
         options: {
           responsive: true,
           maintainAspectRatio: false,
           indexAxis: 'y',
+          layout: {
+            padding: {
+              right: 45 // Leave right margin space so the datalabels text is not cut off
+            }
+          },
           plugins: {
             legend: { display: false },
             tooltip: {

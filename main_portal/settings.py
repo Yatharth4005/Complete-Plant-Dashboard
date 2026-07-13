@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'Safety',
     'hod_kpi',
     'quality',
+    'smed',
 ]
 
 MIDDLEWARE = [

@@ -42,10 +42,16 @@
       
       <!-- Time-based Priorities -->
       <div x-show="paretoType === 'time'">
-        <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Agency Bottleneck</h5>
-        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden;" onclick="drillDownPareto('{{ top_agency|escapejs }}')" title="Drill down to {{ top_agency }}">
-          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_agency }}</span>
-          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_agency_mins }} mins</span>
+        <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Internal Agency Bottleneck</h5>
+        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 10px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden; margin-bottom: 12px;" onclick="drillDownPareto('{{ top_internal_agency|escapejs }}')" title="Drill down to {{ top_internal_agency }}">
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_internal_agency }}</span>
+          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_internal_agency_mins }} mins</span>
+        </div>
+
+        <h5 style="margin: 12px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top External Agency Bottleneck</h5>
+        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #16a34a; padding: 10px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; color: #166534; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden;" onclick="drillDownPareto('{{ top_external_agency|escapejs }}')" title="Drill down to {{ top_external_agency }}">
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_external_agency }}</span>
+          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_external_agency_mins }} mins</span>
         </div>
 
         <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top {% if is_description %}Delay Reason{% else %}Equipment{% endif %} Bottlenecks (Vital Few)</h5>
@@ -63,10 +69,16 @@
 
       <!-- Frequency-based Priorities -->
       <div x-show="paretoType === 'frequency'">
-        <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Agency by Frequency</h5>
-        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden;" onclick="drillDownPareto('{{ top_agency_freq|escapejs }}')" title="Drill down to {{ top_agency_freq }}">
-          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_agency_freq }}</span>
-          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_agency_freq_count }} events</span>
+        <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Internal Agency by Frequency</h5>
+        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 10px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden; margin-bottom: 12px;" onclick="drillDownPareto('{{ top_internal_agency_freq|escapejs }}')" title="Drill down to {{ top_internal_agency_freq }}">
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_internal_agency_freq }}</span>
+          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_internal_agency_freq_count }} events</span>
+        </div>
+
+        <h5 style="margin: 12px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top External Agency by Frequency</h5>
+        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #16a34a; padding: 10px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; color: #166534; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden;" onclick="drillDownPareto('{{ top_external_agency_freq|escapejs }}')" title="Drill down to {{ top_external_agency_freq }}">
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_external_agency_freq }}</span>
+          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_external_agency_freq_count }} events</span>
         </div>
 
         <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top {% if is_description %}Delay Reason{% else %}Equipment{% endif %} by Frequency (Vital Few)</h5>

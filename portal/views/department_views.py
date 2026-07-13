@@ -76,6 +76,8 @@ def enter_module(request, dept_id, module_key):
         target_url = '/delays/department/{dept_id}/'.format(dept_id=dept_id)
     elif module.key.upper() == 'CHECKLIST':
         target_url = '/delays/department/{dept_id}/?tab=checklist_summary'.format(dept_id=dept_id)
+    elif module.key.upper() == 'SMED':
+        target_url = '/smed/department/{dept_id}/'.format(dept_id=dept_id)
     else:
         target_url = module.redirect_url_template.format(dept_id=dept_id)
     
