@@ -116,7 +116,7 @@ class Command(BaseCommand):
                 'description': 'Manage department shift checklists, inspections, and actions',
                 'icon': 'clipboard-list',
                 'color_class': 'module-checklist',
-                'redirect_url_template': '/delays/department/{dept_id}/?tab=checklist_summary',
+                'redirect_url_template': '/delays/department/{dept_id}/?tab=checklist_schedule',
                 'sort_order': 7,
             },
             {

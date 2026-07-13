@@ -289,7 +289,7 @@
   {% if active_tab == 'checklist_summary' or active_tab == 'manual_checklist' or active_tab == 'checklist_schedule' or active_tab == 'checklist_calendar' or active_tab == 'checklist_status' or is_manage_options_page and request.GET.module == 'checklist' %}
     <div class="main-tabs-container">
       <!-- 4. Checklist -->
-      <a href="{% url 'delays:dept_overview' dept.id %}?tab=checklist_summary{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
+      <a href="{% url 'delays:dept_overview' dept.id %}?tab=checklist_schedule{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
          class="main-tab-link theme-emerald active">
         📋 Checklist
       </a>

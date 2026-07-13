@@ -9,7 +9,7 @@ def create_checklist_module(apps, schema_editor):
             'description': 'Manage department shift checklists, inspections, and actions',
             'icon': 'clipboard-list',
             'color_class': 'module-checklist',
-            'redirect_url_template': '/delays/department/{dept_id}/?tab=checklist_summary',
+            'redirect_url_template': '/delays/department/{dept_id}/?tab=checklist_schedule',
             'is_active': True,
             'sort_order': 6,
         }

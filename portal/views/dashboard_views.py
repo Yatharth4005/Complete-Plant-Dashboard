@@ -119,7 +119,7 @@ def overall_plant_dashboard(request):
             'description': 'Manage department shift checklists, inspections, and actions',
             'icon': 'clipboard-list',
             'color_class': 'module-checklist',
-            'url': '/delays/department/0/?tab=checklist_summary',
+            'url': '/delays/department/0/?tab=checklist_schedule',
         },
         {
             'key': 'FMEA',
