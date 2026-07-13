@@ -1170,7 +1170,7 @@
                 <th style="text-align: left; width: 140px;">Sub-Area</th>
                 <th style="text-align: center; width: 110px;">Status</th>
                 <th style="text-align: center; width: 120px;">Frequency</th>
-                <th style="text-align: left; width: 260px;">Assigned Shift Incharge</th>
+                <th style="text-align: left; width: 280px;">Assigned Shift Incharge</th>
               </tr>
             </thead>
             <tbody>
@@ -1216,7 +1216,7 @@
 
                 <!-- Shift Incharge with inline edit dropdown -->
                 <td x-data="{ editing: false, val: '{{ item.shift_incharge|escapejs }}' === '—' ? '' : '{{ item.shift_incharge|escapejs }}' }"
-                    style="vertical-align: middle; padding: 12px 16px;">
+                    style="vertical-align: middle; padding: 12px 8px;">
                   
                   <!-- View Mode -->
                   <div x-show="!editing" style="display: flex; align-items: center; gap: 10px;">
@@ -1242,7 +1242,7 @@
                                 x-text="val.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase()"></span>
                           <span x-text="val"></span>
                         </span>
-                        {% if can_edit or is_admin %}
+                        {% if is_admin %}
                         <button @click="editing = true" class="incharge-edit-btn" style="padding: 4px 8px !important; font-size: 0.7rem !important;">
                           ✏️ Edit
                         </button>
@@ -1253,13 +1253,13 @@
 
                   <!-- Edit Mode -->
                   {% if can_edit or is_admin %}
-                  <div x-show="editing" style="display: flex; align-items: center; gap: 6px; width: 100%;">
+                  <div x-show="editing" style="display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; width: 100%; max-width: max-content; justify-content: flex-start;">
                     <select x-model="val"
-                            style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 8px; font-size: 0.8rem; outline: none; background: white; width: 140px; cursor: pointer; height: 30px; font-family: inherit;">
+                            style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 8px; font-size: 0.8rem; outline: none; background: white; width: 150px; cursor: pointer; height: 30px; font-family: inherit;">
                       <option value="">Select Shift Incharge</option>
-                      {% for u in users %}
-                        <option value="{{ u.get_display_name }}" {% if item.shift_incharge == u.get_display_name %}selected{% endif %}>
-                          {{ u.get_display_name }} ({{ u.username }})
+                      {% for inc in incharges %}
+                        <option value="{{ inc }}" {% if item.shift_incharge == inc %}selected{% endif %}>
+                          {{ inc }}
                         </option>
                       {% endfor %}
                     </select>
@@ -1270,11 +1270,11 @@
                                 body: JSON.stringify({ shift_incharge: val })
                               }).then(r => r.json()).then(d => { if(d.status === 'success') editing = false; else alert(d.message || 'Error'); }).catch(() => alert('Network error'));
                             "
-                            style="background: #16a34a !important; color: white !important; border: none !important; border-radius: 6px !important; width: 30px !important; height: 30px !important; cursor: pointer !important; font-size: 0.85rem !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; line-height: 1 !important; padding: 0 !important; transition: background 0.15s ease;">
+                            style="background: #16a34a !important; color: white !important; border: none !important; border-radius: 6px !important; width: 30px !important; height: 30px !important; cursor: pointer !important; font-size: 0.85rem !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; line-height: 1 !important; padding: 0 !important; transition: background 0.15s ease; flex-shrink: 0;">
                       ✓
                     </button>
                     <button @click="editing = false; val = '{{ item.shift_incharge|escapejs }}' === '—' ? '' : '{{ item.shift_incharge|escapejs }}'"
-                            style="background: #f3f4f6 !important; color: #374151 !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; width: 30px !important; height: 30px !important; cursor: pointer !important; font-size: 0.85rem !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; line-height: 1 !important; padding: 0 !important; transition: all 0.15s ease;">
+                            style="background: #f3f4f6 !important; color: #374151 !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; width: 30px !important; height: 30px !important; cursor: pointer !important; font-size: 0.85rem !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; line-height: 1 !important; padding: 0 !important; transition: all 0.15s ease; flex-shrink: 0;">
                       ✕
                     </button>
                   </div>

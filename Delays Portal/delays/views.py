@@ -2935,6 +2935,12 @@ def update_checklist_schedule_incharge(request, dept_id, schedule_id):
         ).order_by('-date', '-id').first()
         
         if latest:
+            # If shift_incharge is already assigned, only admins can edit or reassign it
+            is_admin = request.user.is_superuser or getattr(request.user, 'is_plant_admin', False)
+            if latest.shift_incharge and latest.shift_incharge.strip() not in ['', '—'] and latest.shift_incharge != shift_incharge:
+                if not is_admin:
+                    return JsonResponse({'status': 'error', 'message': 'Only plant administrators can edit or reassign an already assigned shift incharge.'}, status=403)
+            
             latest.shift_incharge = shift_incharge
             latest.save(update_fields=['shift_incharge'])
         
