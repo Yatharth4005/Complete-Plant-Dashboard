@@ -1398,15 +1398,45 @@ def upload_file(request, dept_id):
             status='FAILED' # Default until parsed
         )
         
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('HX-Request')
+        
         try:
             success = parse_excel_file(upload)
             if success:
-                messages.success(request, f"File successfully uploaded! {upload.error_message}")
+                msg = f"File successfully uploaded! {upload.error_message}"
+                if is_ajax:
+                    return JsonResponse({'status': 'success', 'message': msg})
+                messages.success(request, msg)
             else:
-                messages.error(request, f"Upload parsing failed: {upload.error_message}")
+                msg = f"Upload parsing failed: {upload.error_message}"
+                # Clean up failed upload file and delete database registry
+                if upload.file and os.path.exists(upload.file.path):
+                    try:
+                        os.remove(upload.file.path)
+                    except Exception:
+                        pass
+                upload.delete()
+                
+                if is_ajax:
+                    return JsonResponse({'status': 'error', 'message': msg})
+                messages.error(request, msg)
         except Exception as e:
-            messages.error(request, f"System error occurred during parsing: {str(e)}")
+            msg = f"System error occurred during parsing: {str(e)}"
+            # Clean up failed upload file and delete database registry
+            if upload.file and os.path.exists(upload.file.path):
+                try:
+                    os.remove(upload.file.path)
+                except Exception:
+                    pass
+            upload.delete()
             
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': msg})
+            messages.error(request, msg)
+            
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('HX-Request'):
+        return JsonResponse({'status': 'error', 'message': 'No file uploaded'}, status=400)
+        
     return redirect(f"{reverse('delays:dept_overview', args=[dept_id])}?tab=uploads")
 
 

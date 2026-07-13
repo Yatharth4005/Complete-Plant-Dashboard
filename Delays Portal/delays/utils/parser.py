@@ -340,6 +340,41 @@ def clean_parsed_fields(desc, agency, sub_agency=None, equipment=None, sub_equip
     return clean_desc, clean_agency, clean_sub_agency, clean_equip, clean_sub_equip
 
 
+def is_duplicate_record(department, row_date, duration, agency, sub_area, equipment, sub_equipment):
+    from django.db.models import Q
+    qs = DelayRecord.objects.filter(
+        department=department,
+        date=row_date,
+        duration_mins=duration
+    )
+    
+    # Check agency
+    if agency:
+        qs = qs.filter(agency=agency)
+    else:
+        qs = qs.filter(Q(agency='') | Q(agency__isnull=True))
+        
+    # Check sub_area
+    if sub_area:
+        qs = qs.filter(sub_area=sub_area)
+    else:
+        qs = qs.filter(Q(sub_area='') | Q(sub_area__isnull=True))
+        
+    # Check equipment
+    if equipment:
+        qs = qs.filter(equipment=equipment)
+    else:
+        qs = qs.filter(Q(equipment='') | Q(equipment__isnull=True))
+        
+    # Check sub_equipment
+    if sub_equipment:
+        qs = qs.filter(sub_equipment=sub_equipment)
+    else:
+        qs = qs.filter(Q(sub_equipment='') | Q(sub_equipment__isnull=True))
+        
+    return qs.exists()
+
+
 def sheet_to_rows(sheet, is_xlsx=True):
     """
     Unified utility to extract all sheet cells as a list of lists of values.
@@ -449,6 +484,17 @@ def parse_sms3_sheet(rows, sheet_name, department, upload):
         desc, agency, _, _, _ = clean_parsed_fields(desc, agency)
         clean_agency_opt = get_or_create_dropdown_option(department, 'Agency', agency)
         
+        if is_duplicate_record(
+            department=department,
+            row_date=sheet_date,
+            duration=duration,
+            agency=clean_agency_opt or agency,
+            sub_area=None,
+            equipment=None,
+            sub_equipment=None
+        ):
+            continue
+            
         # Save record
         DelayRecord.objects.create(
             upload=upload,
@@ -568,6 +614,17 @@ def parse_rail_mill_sheet(rows, sheet_name, department, upload):
         clean_equipment_opt = get_or_create_dropdown_option(department, 'Equipment', equipment)
         clean_sub_equipment_opt = get_or_create_dropdown_option(department, 'Sub-Equipment', sub_equipment)
         clean_incharge_opt = get_or_create_dropdown_option(department, 'Shift Incharge', str(shift_incharge).strip() if shift_incharge else None)
+
+        if is_duplicate_record(
+            department=department,
+            row_date=row_date,
+            duration=duration,
+            agency=clean_agency_opt or agency,
+            sub_area=None,
+            equipment=clean_equipment_opt or equipment,
+            sub_equipment=clean_sub_equipment_opt or sub_equipment
+        ):
+            continue
 
         # Save record
         DelayRecord.objects.create(
@@ -974,6 +1031,17 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
         clean_sub_equipment_opt = get_or_create_dropdown_option(department, 'Sub-Equipment', sub_equipment)
         clean_incharge_opt = get_or_create_dropdown_option(department, 'Shift Incharge', incharge.strip() if incharge else None)
 
+        if is_duplicate_record(
+            department=department,
+            row_date=row_date,
+            duration=duration,
+            agency=clean_agency_opt or agency,
+            sub_area=clean_sub_area_opt or sub_area,
+            equipment=clean_equipment_opt or equipment,
+            sub_equipment=clean_sub_equipment_opt or sub_equipment
+        ):
+            continue
+
         # Save record
         DelayRecord.objects.create(
             upload=upload,
@@ -1083,12 +1151,21 @@ def parse_excel_file(upload_instance):
                         count = parse_generic_sheet(rows, sh_name, department, upload_instance)
                         total_records += count
                         
+            # If zero new records were created, it means the Excel file contains only duplicate entries
+            if total_records == 0:
+                raise ValueError("Overlapping dates detected. Delay records for these dates are already filled. Cannot upload.")
+            
             # Update upload status
             upload_instance.status = 'SUCCESS'
             upload_instance.error_message = f"Successfully parsed {total_records} delay records."
             upload_instance.save()
             return True
             
+    except ValueError as ve:
+        upload_instance.status = 'FAILED'
+        upload_instance.error_message = str(ve)
+        upload_instance.save()
+        return False
     except Exception as e:
         upload_instance.status = 'FAILED'
         upload_instance.error_message = f"Error during parsing: {str(e)}"
