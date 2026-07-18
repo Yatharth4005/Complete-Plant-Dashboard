@@ -30,7 +30,7 @@
     }
   </style>
 
-  <form method="POST" class="log-entry-form" style="background: white; padding: 28px; border-radius: var(--radius-lg); border: 1px solid var(--delays-border); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
+  <form method="POST" action="?next={{ next_url|urlencode }}" class="log-entry-form" style="background: white; padding: 28px; border-radius: var(--radius-lg); border: 1px solid var(--delays-border); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
     {% csrf_token %}
     
     <div class="form-columns-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
@@ -82,7 +82,12 @@
           {% endif %}
         </div>
         
-        <div class="form-field-group" style="margin-top: 15px;">
+        <div class="form-field-group" style="display: flex; align-items: center; gap: 8px; margin-top: 15px;">
+          {{ form.has_production_loss }}
+          <label for="id_has_production_loss" style="font-size: 0.85rem; font-weight: 600; color: var(--jspl-navy); cursor: pointer; margin: 0; display: inline-flex; align-items: center;">Calculate Production Loss</label>
+        </div>
+
+        <div class="form-field-group" id="production-loss-container" style="margin-top: 15px;">
           <label class="field-label" style="font-weight: 600; color: var(--jspl-navy);">Production Loss (Tons)</label>
           {{ form.production_loss }}
           {% if form.production_loss.errors %}
@@ -177,22 +182,27 @@
     </div>
 
     <!-- Action Buttons -->
-    <div class="form-actions-panel" style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--delays-border); padding-top: 20px;">
-      <a href="{{ next_url }}" class="btn btn-secondary" style="border: 1px solid var(--delays-border); padding: 8px 16px; border-radius: var(--radius-md); text-decoration: none; color: var(--jspl-navy); font-weight: 500;">Cancel</a>
-      
-      {% if is_edit and record %}
-        <button type="submit" name="action_type" value="capa" class="btn" style="background: linear-gradient(90deg, #7c3aed 0%, #6d28d9 100%); color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(124, 58, 237, 0.2); transition: all 0.2s ease;">
-          Go to CAPA Form ➔
+    <div class="form-actions-panel" style="margin-top: 32px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--delays-border); padding-top: 20px;">
+      <!-- Left side: CAPA Action -->
+      <div>
+        {% if is_edit and record %}
+          <button type="submit" name="action_type" value="capa" class="btn" style="background: linear-gradient(90deg, #7c3aed 0%, #6d28d9 100%); color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(124, 58, 237, 0.2); transition: all 0.2s ease;">
+            Go to CAPA Form ➔
+          </button>
+        {% elif not is_edit %}
+          <button type="submit" name="action_type" value="capa" class="btn" style="background: linear-gradient(90deg, #7c3aed 0%, #6d28d9 100%); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);">
+            📋 Save & Fill CAPA
+          </button>
+        {% endif %}
+      </div>
+
+      <!-- Right side: Cancel & Submit -->
+      <div style="display: flex; gap: 12px;">
+        <a href="{{ next_url }}" class="btn btn-secondary" style="border: 1px solid var(--delays-border); padding: 8px 16px; border-radius: var(--radius-md); text-decoration: none; color: var(--jspl-navy); font-weight: 500;">Cancel</a>
+        <button type="submit" name="action_type" value="save" class="btn btn-primary-gradient" style="background: linear-gradient(90deg, #F47920 0%, #E05300 100%); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer;">
+          {% if is_edit %}Update Log Entry{% else %}Submit Delay Log{% endif %}
         </button>
-      {% elif not is_edit %}
-        <button type="submit" name="action_type" value="capa" class="btn" style="background: linear-gradient(90deg, #7c3aed 0%, #6d28d9 100%); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);">
-          📋 Save & Fill CAPA
-        </button>
-      {% endif %}
-      
-      <button type="submit" name="action_type" value="save" class="btn btn-primary-gradient" style="background: linear-gradient(90deg, #F47920 0%, #E05300 100%); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer;">
-        {% if is_edit %}Update Log Entry{% else %}Submit Delay Log{% endif %}
-      </button>
+      </div>
     </div>
   </form>
 </div>
@@ -302,6 +312,40 @@
     const startTimeInput = document.getElementById('id_start_time');
     const endTimeInput = document.getElementById('id_end_time');
     const durationInput = document.getElementById('id_duration_mins');
+    const productionLossInput = document.getElementById('id_production_loss');
+
+    const hasProductionLossCheckbox = document.getElementById('id_has_production_loss');
+
+    function updateProductionLoss(alwaysRecalculate = false) {
+      if (!durationInput || !productionLossInput) return;
+      
+      const hasLoss = hasProductionLossCheckbox ? hasProductionLossCheckbox.checked : true;
+      const container = document.getElementById('production-loss-container');
+      if (container) {
+        container.style.display = hasLoss ? '' : 'none';
+      }
+      
+      if (hasLoss) {
+        productionLossInput.removeAttribute('readonly');
+        const durationVal = parseFloat(durationInput.value);
+        if (!isNaN(durationVal)) {
+          const loss = (durationVal / 43.0) * 102.0;
+          const currentVal = parseFloat(productionLossInput.value);
+          if (alwaysRecalculate || !productionLossInput.value || isNaN(currentVal) || currentVal === 0) {
+            productionLossInput.value = loss.toFixed(2);
+          }
+        } else if (alwaysRecalculate || !productionLossInput.value) {
+          productionLossInput.value = '0.00';
+        }
+      } else {
+        productionLossInput.value = '';
+        productionLossInput.setAttribute('readonly', 'readonly');
+      }
+    }
+
+    if (hasProductionLossCheckbox) {
+      hasProductionLossCheckbox.addEventListener('change', () => updateProductionLoss(false));
+    }
 
     function parseDateTime(dateStr, timeStr) {
       if (!dateStr || !timeStr) return null;
@@ -327,6 +371,9 @@
       const d = String(dateObj.getDate()).padStart(2, '0');
       return `${y}-${m}-${d}`;
     }
+
+    // Run on initial load
+    updateProductionLoss();
 
     function syncDateTimeFields(trigger) {
       const startDateVal = dateInput.value;
@@ -431,6 +478,7 @@
           }
         }
       }
+      updateProductionLoss(true);
     }
 
     // Bind listeners

@@ -12,6 +12,7 @@ urlpatterns = [
     # Dashboards & Hubs
     path('dashboard/', dashboard_views.plant_dashboard, name='plant_dashboard'),
     path('dashboard/overall/', dashboard_views.overall_plant_dashboard, name='overall_plant_dashboard'),
+    path('dashboard/tpm-admin/', dashboard_views.tpm_admin_dashboard, name='tpm_admin_dashboard'),
     path('dashboard/capa/', dashboard_views.capa_reports, name='capa_reports'),
     path('department/<int:dept_id>/', department_views.dept_hub, name='dept_hub'),
     path('department/<int:dept_id>/module/<str:module_key>/enter/', department_views.enter_module, name='enter_module'),
@@ -39,4 +40,5 @@ urlpatterns = [
 
     # Notifications
     path('notifications/<int:notification_id>/mark-read/', dashboard_views.mark_notification_read, name='mark_notification_read'),
+    path('notifications/mark-all-read/', dashboard_views.mark_all_notifications_read, name='mark_all_notifications_read'),
 ]

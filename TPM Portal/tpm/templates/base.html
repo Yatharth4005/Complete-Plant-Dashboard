@@ -19,13 +19,13 @@
   <link rel="stylesheet" href="{% static 'css/tpm.css' %}?v=8">
 
   <!-- HTMX -->
-  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12" crossorigin="anonymous"></script>
 
   <!-- Alpine.js (defer) -->
-  <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+  <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer crossorigin="anonymous"></script>
 
   <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 
   <style>
     /* Notification Bell & Dropdown Styles */
@@ -63,6 +63,89 @@
       display: none !important;
     }
   </style>
+
+  <!-- Global Mobile Responsive Patch Styling -->
+  <style>
+    @media (max-width: 768px) {
+      /* Hides sidebar off-screen on mobile and slides it in when toggled */
+      #sidebar {
+        position: fixed !important;
+        top: 60px !important; /* height of topbar */
+        left: 0 !important;
+        bottom: 0 !important;
+        width: 260px !important;
+        height: calc(100vh - 60px) !important;
+        z-index: 1500 !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      }
+      
+      body.sidebar-mobile-open #sidebar {
+        transform: translateX(0) !important;
+      }
+
+      /* Force all inline CSS grid columns to collapse to a single column */
+      div[style*="grid-template-columns"], 
+      div[style*="grid-template-columns: 3fr 2fr"],
+      div[style*="grid-template-columns: 1fr 2fr"] {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+      }
+
+      /* Stack flex containers on mobile and adjust alignment */
+      div[style*="display: flex; justify-content: space-between"],
+      .delays-header-bar,
+      .dashboard-header-row {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+      }
+
+      /* Force scrollable responsive tables instead of stretching the screen */
+      .table-responsive, 
+      .table-container, 
+      div[style*="overflow-x: auto"] {
+        width: 100% !important;
+        overflow-x: auto !important;
+        display: block !important;
+        -webkit-overflow-scrolling: touch !important;
+        border-radius: 8px !important;
+        margin-bottom: 16px !important;
+      }
+      
+      table {
+        min-width: 600px !important; /* Allow comfortable swiping of columns */
+      }
+
+      /* Enforce proper mobile padding & width scaling to prevent zoom-outs */
+      html, body, #shell, #content {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+      }
+
+      /* Adjust card margins and internal padding */
+      .card {
+        padding: 16px !important;
+        margin-bottom: 12px !important;
+      }
+
+      /* Ensure all inputs expand to full container width on mobile */
+      input, select, textarea {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      
+      /* Make sure chart containers fit mobile dimensions */
+      div[style*="height: 320px"] {
+        height: 240px !important;
+      }
+    }
+  </style>
 </head>
 
 <body x-data="{ sidebarOpen: window.innerWidth > 768, isMobile: window.innerWidth <= 768 }"
@@ -98,11 +181,20 @@
         </button>
         <div class="notifications-dropdown" x-show="open" x-transition x-cloak 
           style="position: absolute; right: 0; top: 45px; width: 340px; background: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); box-shadow: var(--shadow-lg); overflow: hidden; z-index: 1000; display: block; text-align: left;">
-          <div class="notifications-dropdown-header" style="padding: 14px 18px; background: var(--jspl-gray); border-bottom: 1px solid var(--jspl-border); display: flex; justify-content: space-between; align-items: center;">
-            <strong style="color: var(--jspl-navy); font-size: 0.92rem; font-weight: 700;">Notifications</strong>
-            <span id="header-notification-count" style="font-size: 0.75rem; background: var(--jspl-light); color: var(--jspl-navy); padding: 3px 8px; border-radius: 4px; font-weight: 600;">
-              {{ header_notifications_count }} Unread
-            </span>
+          <div class="notifications-dropdown-header" style="padding: 14px 18px; background: var(--jspl-gray); border-bottom: 1px solid var(--jspl-border); display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+              <strong style="color: var(--jspl-navy); font-size: 0.92rem; font-weight: 700;">Notifications</strong>
+              <span id="header-notification-count" style="font-size: 0.75rem; background: var(--jspl-light); color: var(--jspl-navy); padding: 3px 8px; border-radius: 4px; font-weight: 600;">
+                {{ header_notifications_count }} Unread
+              </span>
+            </div>
+            {% if header_notifications_count > 0 %}
+            <div id="mark-all-read-container" style="text-align: right; width: 100%;">
+              <button class="mark-all-read-btn" @click.stop="markAllNotificationsRead()" style="background: none; border: none; color: var(--jspl-blue); font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline;">
+                Mark all as read
+              </button>
+            </div>
+            {% endif %}
           </div>
           <div class="notifications-list" id="notifications-list-container" style="max-height: 320px; overflow-y: auto;">
             {% if header_notifications %}
@@ -166,6 +258,10 @@
         <a href="{% url 'portal:overall_plant_dashboard' %}"
           class="sidebar-link {% if active_section == 'overall_dashboard' %}active{% endif %}">
           <span class="sidebar-icon">📊</span> Overall Plant Dashboard
+        </a>
+        <a href="{% url 'portal:tpm_admin_dashboard' %}"
+          class="sidebar-link {% if active_section == 'tpm_admin_dashboard' %}active{% endif %}">
+          <span class="sidebar-icon">⚙️</span> TPM Admin
         </a>
         {% endif %}
 
@@ -307,6 +403,52 @@
       })
       .catch(err => {
         console.error("Error communicating with server:", err);
+      });
+    }
+
+    function markAllNotificationsRead() {
+      const url = "{% url 'portal:mark_all_notifications_read' %}";
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          // Remove all notification items from DOM
+          const listContainer = document.getElementById('notifications-list-container');
+          if (listContainer) {
+            listContainer.innerHTML = `
+              <div id="no-notifications-placeholder" style="padding: 32px 24px; text-align: center; color: var(--jspl-muted); font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                <span style="font-size: 1.8rem; filter: grayscale(100%); opacity: 0.6;">🔔</span>
+                <span>All caught up! No unread notifications.</span>
+              </div>
+            `;
+          }
+          
+          // Remove badge and update text badge count
+          const badge = document.getElementById('header-notification-badge');
+          if (badge) {
+            badge.remove();
+          }
+          const textBadge = document.getElementById('header-notification-count');
+          if (textBadge) {
+            textBadge.innerText = `0 Unread`;
+          }
+          
+          // Remove "Mark all as read" button if it exists
+          const markAllBtn = document.querySelector('.mark-all-read-btn');
+          if (markAllBtn) {
+            markAllBtn.remove();
+          }
+        } else {
+          console.error("Failed to mark all notifications as read");
+        }
+      })
+      .catch(error => {
+        console.error("Error marking all notifications as read:", error);
       });
     }
 

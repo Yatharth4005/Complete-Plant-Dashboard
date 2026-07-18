@@ -1,7 +1,7 @@
 {% extends "portal/base.html" %}
 {% load static %}
 
-{% block title %}{{ department.name }} Hub — Jindal Steel Operations Portal{% endblock %}
+{% block title %}{% if "Hub" in department.name %}{{ department.name }}{% else %}{{ department.name }} Hub{% endif %} — Jindal Steel Operations Portal{% endblock %}
 
 {% block breadcrumb_items %}
   <span class="breadcrumb-sep">›</span>
@@ -15,7 +15,7 @@
   <div class="dept-hub-header card">
     <div class="dept-badge-large">{{ department.code }}</div>
     <div class="dept-header-info">
-      <h1>{{ department.name }} Hub</h1>
+      <h1>{% if "Hub" in department.name %}{{ department.name }}{% else %}{{ department.name }} Hub{% endif %}</h1>
       <p>Select an operations module below to launch its interface. Only approved modules are accessible.</p>
     </div>
   </div>

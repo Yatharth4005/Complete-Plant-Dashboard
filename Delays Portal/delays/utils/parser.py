@@ -505,6 +505,7 @@ def parse_sms3_sheet(rows, sheet_name, department, upload):
             duration_mins=duration,
             agency=clean_agency_opt or agency,
             description=desc,
+            has_production_loss=True,
         )
         records_created += 1
         
@@ -644,6 +645,7 @@ def parse_rail_mill_sheet(rows, sheet_name, department, upload):
             shift_incharge=clean_incharge_opt or (str(shift_incharge).strip() if shift_incharge else None),
             description=description,
             why=str(why).strip() if why else None,
+            has_production_loss=True,
         )
         records_created += 1
 
@@ -1063,6 +1065,7 @@ def parse_generic_sheet(rows, sheet_name, department, upload):
             why=why.strip() if why else None,
             agency_type=agency_type_clean,
             is_locked=False,
+            has_production_loss=True,
         )
         records_created += 1
         

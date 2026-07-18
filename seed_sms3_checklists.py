@@ -144,9 +144,9 @@ def seed_checklists():
                                 seed_option('Action', f"{col1_str} - {cp}", cl['name'], is_header=False)
                         
             elif cl["name"] == "Pump Vibration Checking":
-                for side in ["D.S", "N.D.S"]:
+                for side in ["D.S", "N.D.S", "ROTTED", "NORMAL"]:
                     seed_option('Action', side, cl['name'], is_header=True)
-                    for point in ["Horizontal", "Axial", "Vertical", "Temperature"]:
+                    for point in ["Horizontal", "Axial", "Vertical", "Temperature", "Pressure"]:
                         seed_option('Action', f"{side} - {point}", cl['name'], is_header=False)
                         
             elif cl["name"] == "Ladle Repairing":
@@ -218,17 +218,30 @@ def seed_checklists():
                 sheet = wb.sheet_by_index(0)
                 current_eq = ""
                 for r in range(5, sheet.nrows):
+                    sno = str(sheet.cell_value(r, 0)).strip()
                     eq = str(sheet.cell_value(r, 1)).strip()
                     detail = str(sheet.cell_value(r, 2)).strip()
                     if eq:
-                        if eq != current_eq:
+                        is_hdr = False
+                        if not sno or sno == "" or sno == "None":
+                            is_hdr = True
+                        elif not detail or detail == "" or detail == "None":
+                            eq_lower = eq.lower()
+                            if "flow" in eq_lower or "water" in eq_lower or "m3/hr" in eq_lower:
+                                is_hdr = True
+                            else:
+                                is_hdr = False
+                        
+                        if is_hdr:
                             current_eq = eq
-                            seed_option('Action', current_eq, cl['name'], is_header=True)
-                        if detail:
-                            seed_option('Action', f"{current_eq} - {detail}", cl['name'], is_header=False)
+                            seed_option('Action', eq, cl['name'], is_header=True)
+                        else:
+                            val_to_seed = f"{current_eq} - {eq}" if detail == "" else f"{eq} - {detail}"
+                            seed_option('Action', val_to_seed, cl['name'], is_header=False)
                         
             elif cl["name"] == "FES & Bag House":
                 sheet = wb.sheet_by_index(0)
+                current_hdr = "FES"
                 for r in range(2, sheet.nrows):
                     sno = str(sheet.cell_value(r, 0)).strip()
                     part = str(sheet.cell_value(r, 1)).strip()
@@ -247,20 +260,36 @@ def seed_checklists():
                         if "ENGINEER" in part or "OPERATOR" in part or "Remark" in part:
                             continue
                             
-                        seed_option('Action', part, cl['name'], is_header=is_hdr)
+                        if is_hdr:
+                            current_hdr = part
+                            seed_option('Action', part, cl['name'], is_header=True)
+                        else:
+                            seed_option('Action', f"{current_hdr} - {part}", cl['name'], is_header=False)
                         
             elif cl["name"] == "Ladle Refining Furnace (LRF)":
                 sheet = wb.sheet_by_index(0)
                 current_eq = ""
                 for r in range(4, sheet.nrows):
+                    sno = str(sheet.cell_value(r, 0)).strip()
                     eq = str(sheet.cell_value(r, 1)).strip()
                     detail = str(sheet.cell_value(r, 2)).strip()
                     if eq:
-                        if eq != current_eq:
+                        is_hdr = False
+                        if not sno or sno == "" or sno == "None":
+                            is_hdr = True
+                        elif not detail or detail == "" or detail == "None":
+                            eq_lower = eq.lower()
+                            if "flow" in eq_lower or "water" in eq_lower or "m3/hr" in eq_lower:
+                                is_hdr = True
+                            else:
+                                is_hdr = False
+                        
+                        if is_hdr:
                             current_eq = eq
-                            seed_option('Action', current_eq, cl['name'], is_header=True)
-                        if detail:
-                            seed_option('Action', f"{current_eq} - {detail}", cl['name'], is_header=False)
+                            seed_option('Action', eq, cl['name'], is_header=True)
+                        else:
+                            val_to_seed = f"{current_eq} - {eq}" if detail == "" else f"{eq} - {detail}"
+                            seed_option('Action', val_to_seed, cl['name'], is_header=False)
 
     print("Seeding SMS-3 daily checklists completed successfully!")
 

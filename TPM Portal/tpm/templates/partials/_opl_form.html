@@ -1,6 +1,7 @@
 <form hx-post="{% if opl %}{% url 'opl_save_id' dept.id pillar_id opl.id %}{% else %}{% url 'opl_save' dept.id pillar_id %}{% endif %}"
       hx-target="#tab-content"
       hx-encoding="multipart/form-data"
+      hx-disabled-elt="find button[type='submit']"
       style="animation: fadeIn 0.3s ease-out;">
   {% csrf_token %}
   

@@ -29,6 +29,29 @@
     <span>✅ <b>Checklist Saved Successfully!</b> Redirecting...</span>
   </div>
 
+  <!-- Validation Warning Modal -->
+  <div x-show="validationError" 
+       x-transition 
+       style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; display: none;"
+       :style="{ display: validationError ? 'flex' : 'none' }">
+    <div style="background: white; border-radius: 12px; max-width: 450px; width: 90%; padding: 28px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); border-top: 5px solid #dc2626; text-align: left;">
+      <h4 style="margin: 0 0 12px 0; color: #991b1b; font-weight: 700; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; font-family: 'Sora', sans-serif;">
+        ⚠️ Validation Error
+      </h4>
+      <p style="margin: 0 0 24px 0; font-size: 0.92rem; color: #475569; line-height: 1.6; font-family: 'Sora', sans-serif;" x-text="validationError"></p>
+      <div style="display: flex; justify-content: flex-end;">
+        <button type="button" 
+                @click="validationError = ''" 
+                class="btn-dashboard" 
+                style="height: 38px; padding: 0 24px; border-radius: 6px; font-weight: 700; font-size: 0.88rem; border: none; cursor: pointer; color: white; background: #dc2626; transition: background 0.15s;"
+                onmouseover="this.style.background='#b91c1c'"
+                onmouseout="this.style.background='#dc2626'">
+          Dismiss
+        </button>
+      </div>
+    </div>
+  </div>
+
   <form @submit.prevent="saveChecklist()" style="background: white; border: 1px solid var(--delays-border); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
     
     <!-- Excel Style Header Information -->
@@ -66,8 +89,8 @@
       </div>
     </div>
 
-    <!-- Actions/Inspection Checklist Table -->
-    <div class="table-responsive" style="border: 2px solid #000; background: white;">
+    <!-- Actions/Inspection Checklist Table (Default Layout) -->
+    <div x-show="!isConveyorChecklist && !isEAFChecklist && !isFESChecklist && !isPumpChecklist" class="table-responsive" style="border: 2px solid #000; background: white;">
       <table class="delays-table" style="margin: 0; width: 100%; border-collapse: collapse; border: 1px solid #000;">
         <thead>
           <tr style="background: #f8fafc; border-bottom: 2px solid #000;">
@@ -118,6 +141,251 @@
       </table>
     </div>
 
+    <!-- Actions/Inspection Checklist Table (Conveyors Special Grid Layout) -->
+    <div x-show="isConveyorChecklist" class="table-responsive" style="border: 2px solid #000; background: white; overflow-x: auto;">
+      <table class="delays-table" style="margin: 0; width: 100%; border-collapse: collapse; border: 1px solid #000; min-width: 1450px;">
+        <thead>
+          <tr style="background: #f8fafc; border-bottom: 2px solid #000;">
+            <th style="width: 130px; text-align: left; border-right: 1px solid #000; padding: 10px; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy);">Conveyor</th>
+            <template x-for="cp in ['Pull cord', 'Belt sway', 'Coupling guard', 'Tail pulley guard', 'Take up pulley guard', 'Emergency switch', 'Walk way', 'Hand railings', 'Acess to conveyors', 'Illumination Level', 'ZSS', 'Hooter']">
+              <th style="padding: 6px; border-right: 1px solid #000; text-align: center; font-size: 0.78rem; font-weight: bold; color: var(--jspl-navy); line-height: 1.2;" x-text="cp === 'Acess to conveyors' ? 'Access to conveyors' : cp"></th>
+            </template>
+            <th style="min-width: 200px; text-align: left; padding: 10px; font-size: 0.8rem; font-weight: bold; color: var(--jspl-navy);">Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(row, idx) in conveyorRows">
+            <tr style="border-bottom: 1px solid #000;"
+                :style="row.is_section_header ? 'background: #e2e8f0; border-top: 1px solid #000;' : ''">
+              
+              <!-- Left column: Section Header or Conveyor Name -->
+              <td :colspan="row.is_section_header ? 14 : 1"
+                  :style="row.is_section_header ? 'font-weight: bold; color: var(--jspl-navy); font-size: 0.95rem; padding: 10px 16px; text-align: left;' : 'border-right: 1px solid #000; padding: 8px; font-weight: bold; text-align: left; background: #f8fafc; font-size: 0.82rem;'"
+                  x-text="row.is_section_header ? row.title : row.conveyor_name">
+              </td>
+
+              <!-- 12 Checkpoint columns (Only rendered for conveyor rows) -->
+              <template x-for="cp in ['Pull cord', 'Belt sway', 'Coupling guard', 'Tail pulley guard', 'Take up pulley guard', 'Emergency switch', 'Walk way', 'Hand railings', 'Acess to conveyors', 'Illumination Level', 'ZSS', 'Hooter']">
+                <td x-show="!row.is_section_header" style="border-right: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle;">
+                  <template x-if="!row.is_section_header && row.checkpoints[cp]">
+                    <select x-model="row.checkpoints[cp].status"
+                            :style="row.checkpoints[cp].status === 'OK' ? 'background: #d1fae5; color: #065f46; font-weight: bold; border-color: #34d399;' : (row.checkpoints[cp].status === 'NOT OK' ? 'background: #fee2e2; color: #991b1b; font-weight: bold; border-color: #f87171;' : 'background: #f1f5f9; color: #475569;')"
+                            style="width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-size: 0.75rem; text-align: center; cursor: pointer; outline: none; height: 30px;">
+                      <option value="">—</option>
+                      <option value="OK">🟢 OK</option>
+                      <option value="NOT OK">🔴 NOT OK</option>
+                    </select>
+                  </template>
+                  <template x-if="!row.is_section_header && !row.checkpoints[cp]">
+                    <span style="color: #94a3b8; font-size: 0.8rem;">—</span>
+                  </template>
+                </td>
+              </template>
+
+              <!-- Remarks column (Only rendered for conveyor rows) -->
+              <td x-show="!row.is_section_header" style="padding: 6px; vertical-align: middle;">
+                <template x-if="!row.is_section_header && row.header_item">
+                  <input type="text" 
+                         x-model="row.header_item.remarks" 
+                         placeholder="Enter remarks..." 
+                         style="width: 100%; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 4px; font-size: 0.82rem; height: 30px;"
+                         :style="{ borderColor: isRowNotOk(row) && !row.header_item.remarks ? '#dc2626' : '#cbd5e1' }">
+                </template>
+                <template x-if="!row.is_section_header && !row.header_item">
+                  <span style="color: #94a3b8; font-size: 0.8rem;">—</span>
+                </template>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Actions/Inspection Checklist Table (EAF Special Layout) -->
+    <div x-show="isEAFChecklist" class="table-responsive" style="border: 2px solid #000; background: white;">
+      <table class="delays-table" style="margin: 0; width: 100%; border-collapse: collapse; border: 1px solid #000;">
+        <thead>
+          <tr style="background: #f8fafc; border-bottom: 2px solid #000;">
+            <th style="width: 50px; text-align: center; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy);">Sr.</th>
+            <th style="width: 250px; text-align: left; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy);">EQUIPMENT</th>
+            <th style="text-align: left; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy);">DETAILS / READINGS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(item, index) in items" :key="item.id">
+            <tr style="border-bottom: 1px solid #000;"
+                :style="item.is_header ? 'background: #e2e8f0; border-top: 1px solid #000;' : ''">
+              <!-- If it's a header -->
+              <template x-if="item.is_header">
+                <td colspan="3" style="font-weight: bold; color: var(--jspl-navy); font-size: 0.95rem; padding: 10px 16px; text-align: left;" x-text="item.action_item"></td>
+              </template>
+              
+              <!-- If it's not a header -->
+              <template x-if="!item.is_header">
+                <td style="text-align: center; border-right: 1px solid #000; font-weight: 600; padding: 8px;" x-text="item.sno"></td>
+              </template>
+              <template x-if="!item.is_header">
+                <td style="border-right: 1px solid #000; padding: 8px; text-align: left; font-weight: bold; color: var(--jspl-navy);" x-text="item.action_item.includes(' - ') ? item.action_item.split(' - ')[0] : item.action_item"></td>
+              </template>
+              <template x-if="!item.is_header">
+                <td style="padding: 8px; text-align: left;">
+                  <!-- Initialize EAF fields -->
+                  <div x-init="parseEAFDetails(item)" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+                    <template x-for="field in item.eafFields">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-weight: 600; color: #475569; font-size: 0.82rem;" x-text="field.label + ':'"></span>
+                        <input type="text" 
+                               x-model="field.value" 
+                               @input="updateEAFRemarks(item); item.status = 'OK'"
+                               placeholder="value..."
+                               style="border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 4px; font-size: 0.82rem; width: 100px; height: 28px;">
+                      </div>
+                    </template>
+                  </div>
+                </td>
+              </template>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Actions/Inspection Checklist Table (FES & Bag House Special Layout) -->
+    <div x-show="isFESChecklist" class="table-responsive" style="border: 2px solid #000; background: white; overflow-x: auto;">
+      <table class="delays-table" style="margin: 0; width: 100%; border-collapse: collapse; border: 1px solid #000; min-width: 1100px;">
+        <thead>
+          <tr style="background: #f8fafc; border-bottom: 2px solid #000;">
+            <th style="width: 50px; text-align: center; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy);">S.No.</th>
+            <th style="width: 320px; text-align: left; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy);">PARTICULARS</th>
+            <th style="width: 120px; text-align: center; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy);">Area Reading</th>
+            <th style="width: 150px; text-align: center; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy);">Max Range</th>
+            <th style="width: 140px; text-align: center; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy);">ID FAN # 1</th>
+            <th style="width: 140px; text-align: center; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy);">ID FAN # 2</th>
+            <th style="min-width: 180px; text-align: left; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy);">Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(item, index) in items" :key="item.id">
+            <tr style="border-bottom: 1px solid #000;"
+                :style="item.is_header ? 'background: #e2e8f0; border-top: 1px solid #000;' : ''">
+              <!-- If it's a header -->
+              <template x-if="item.is_header">
+                <td colspan="7" style="font-weight: bold; color: var(--jspl-navy); font-size: 0.95rem; padding: 10px 16px; text-align: left;" x-text="item.action_item"></td>
+              </template>
+              
+              <!-- If it's not a header -->
+              <template x-if="!item.is_header">
+                <td style="text-align: center; border-right: 1px solid #000; font-weight: 600; padding: 8px;" x-text="item.sno"></td>
+              </template>
+              <template x-if="!item.is_header">
+                <td style="border-right: 1px solid #000; padding: 8px; text-align: left;" x-text="item.action_item.includes(' - ') ? item.action_item.split(' - ').slice(1).join(' - ') : item.action_item"></td>
+              </template>
+              <template x-if="!item.is_header">
+                <td style="border-right: 1px solid #000; padding: 8px; text-align: center; font-weight: 600; color: #475569;" x-text="getFESMetadata(item.action_item).area"></td>
+              </template>
+              <template x-if="!item.is_header">
+                <td style="border-right: 1px solid #000; padding: 8px; text-align: center; font-weight: 600; color: #475569;" x-text="getFESMetadata(item.action_item).range"></td>
+              </template>
+              
+              <!-- ID FAN # 1 reading -->
+              <template x-if="!item.is_header">
+                <td style="border-right: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle;" x-init="parseFanReadings(item)">
+                  <template x-if="getFESMetadata(item.action_item).isOkNotOk">
+                    <select x-model="item._fan1" 
+                            @change="updateFanRemarks(item); item.status = (item._fan1 === 'NOT OK' || item._fan2 === 'NOT OK') ? 'NOT OK' : 'OK'"
+                            :style="item._fan1 === 'OK' ? 'background: #d1fae5; color: #065f46; font-weight: bold; border-color: #34d399;' : (item._fan1 === 'NOT OK' ? 'background: #fee2e2; color: #991b1b; font-weight: bold; border-color: #f87171;' : 'background: #f1f5f9; color: #475569;')"
+                            style="width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-size: 0.75rem; text-align: center; cursor: pointer; outline: none; height: 30px;">
+                      <option value="">—</option>
+                      <option value="OK">🟢 OK</option>
+                      <option value="NOT OK">🔴 NOT OK</option>
+                    </select>
+                  </template>
+                  <template x-if="!getFESMetadata(item.action_item).isOkNotOk">
+                    <input type="text" 
+                           x-model="item._fan1" 
+                           @input="updateFanRemarks(item); item.status = 'OK'"
+                           placeholder="value..."
+                           style="width: 100%; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 4px; font-size: 0.82rem; height: 30px; text-align: center;">
+                  </template>
+                </td>
+              </template>
+              
+              <!-- ID FAN # 2 reading -->
+              <template x-if="!item.is_header">
+                <td style="border-right: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle;">
+                  <template x-if="getFESMetadata(item.action_item).isOkNotOk">
+                    <select x-model="item._fan2" 
+                            @change="updateFanRemarks(item); item.status = (item._fan1 === 'NOT OK' || item._fan2 === 'NOT OK') ? 'NOT OK' : 'OK'"
+                            :style="item._fan2 === 'OK' ? 'background: #d1fae5; color: #065f46; font-weight: bold; border-color: #34d399;' : (item._fan2 === 'NOT OK' ? 'background: #fee2e2; color: #991b1b; font-weight: bold; border-color: #f87171;' : 'background: #f1f5f9; color: #475569;')"
+                            style="width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-size: 0.75rem; text-align: center; cursor: pointer; outline: none; height: 30px;">
+                      <option value="">—</option>
+                      <option value="OK">🟢 OK</option>
+                      <option value="NOT OK">🔴 NOT OK</option>
+                    </select>
+                  </template>
+                  <template x-if="!getFESMetadata(item.action_item).isOkNotOk">
+                    <input type="text" 
+                           x-model="item._fan2" 
+                           @input="updateFanRemarks(item); item.status = 'OK'"
+                           placeholder="value..."
+                           style="width: 100%; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 4px; font-size: 0.82rem; height: 30px; text-align: center;">
+                  </template>
+                </td>
+              </template>
+
+              <!-- Remarks column -->
+              <template x-if="!item.is_header">
+                <td style="padding: 6px; vertical-align: middle;">
+                  <input type="text" 
+                         x-model="item._general_remark" 
+                         @input="updateFanRemarks(item)"
+                         placeholder="Enter remarks..." 
+                         style="width: 100%; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 4px; font-size: 0.82rem; height: 30px;">
+                </td>
+              </template>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Actions/Inspection Checklist Table (Pump Vibration Checking Special Grid Layout) -->
+    <div x-show="isPumpChecklist" class="table-responsive" style="border: 2px solid #000; background: white;">
+      <table class="delays-table" style="margin: 0; width: 100%; border-collapse: collapse; border: 1px solid #000;">
+        <thead>
+          <tr style="background: #f8fafc; border-bottom: 2px solid #000;">
+            <th style="width: 150px; text-align: left; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy); padding: 10px;">POSITION</th>
+            <th style="text-align: center; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy); padding: 10px;">Horizontal</th>
+            <th style="text-align: center; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy); padding: 10px;">Axial</th>
+            <th style="text-align: center; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy); padding: 10px;">Vertical</th>
+            <th style="text-align: center; border-right: 1px solid #000; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy); padding: 10px;">Temperature</th>
+            <th style="text-align: center; font-size: 0.82rem; font-weight: bold; color: var(--jspl-navy); padding: 10px;">Pressure</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="row in pumpRows" :key="row.name">
+            <tr style="border-bottom: 1px solid #000;">
+              <td style="border-right: 1px solid #000; padding: 10px; font-weight: bold; text-align: left; background: #f8fafc; font-size: 0.85rem;" x-text="row.name"></td>
+              <template x-for="point in ['Horizontal', 'Axial', 'Vertical', 'Temperature', 'Pressure']">
+                <td style="border-right: 1px solid #000; padding: 8px; text-align: center; vertical-align: middle;">
+                  <template x-if="row.checkpoints[point]">
+                    <input type="text" 
+                           x-model="row.checkpoints[point].remarks" 
+                           @input="row.checkpoints[point].status = 'OK'"
+                           placeholder="value..."
+                           style="width: 100%; border: 1px solid #cbd5e1; padding: 6px; border-radius: 4px; font-size: 0.82rem; height: 30px; text-align: center;">
+                  </template>
+                  <template x-if="!row.checkpoints[point]">
+                    <span style="color: #94a3b8; font-size: 0.8rem;">—</span>
+                  </template>
+                </td>
+              </template>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
     <!-- Signatures Grid (Engineer & Operator) -->
     <div style="border: 2px solid #000; padding: 20px; background: white; margin-top: 12px; font-family: 'Sora', sans-serif;">
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; text-align: left;">
@@ -129,6 +397,14 @@
           <span style="font-weight: 700; color: black; font-size: 0.9rem; text-transform: uppercase;">OPERATOR:</span>
           <input type="text" x-model="operator" placeholder="Enter Operator name..." style="border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 4px; font-size: 0.9rem; width: 100%;">
         </div>
+      </div>
+    </div>
+
+    <!-- Complete Checklist Remark -->
+    <div style="border: 2px solid #000; padding: 20px; background: white; margin-top: 12px; font-family: 'Sora', sans-serif;">
+      <div style="display: flex; flex-direction: column; gap: 8px; text-align: left;">
+        <span style="font-weight: 700; color: black; font-size: 0.9rem; text-transform: uppercase;">COMPLETE CHECKLIST REMARK / FINDINGS:</span>
+        <textarea x-model="remark" placeholder="Enter complete remark for the checklist here..." rows="3" style="width: 100%; border: 1px solid #cbd5e1; padding: 10px; border-radius: 4px; font-size: 0.9rem; font-family: inherit; resize: vertical;"></textarea>
       </div>
     </div>
 
@@ -161,14 +437,22 @@
       shiftIncharge: "{{ checklist.shift_incharge|default:''|escapejs }}",
       engineer: "{{ checklist.engineer|default:''|escapejs }}",
       operator: "{{ checklist.operator|default:''|escapejs }}",
+      remark: "{{ checklist.remark|default:''|escapejs }}",
+      validationError: '',
       submitted: false,
+      conveyorRows: [],
+      isConveyorChecklist: false,
+      isEAFChecklist: false,
+      isFESChecklist: false,
+      isPumpChecklist: false,
+      pumpRows: [],
       
       items: [
         {% for item in items %}
           {
             id: {{ item.id }},
             action_item: "{{ item.action_item|escapejs }}",
-            status: "{{ item.status|default:'OK' }}",
+            status: "{{ item.status|default:'' }}",
             remarks: "{{ item.remarks|default:''|escapejs }}",
             is_header: {% if item.is_header %}true{% else %}false{% endif %}
           }{% if not forloop.last %},{% endif %}
@@ -185,9 +469,294 @@
             item.sno = '';
           }
         });
+
+        // Conveyor Grid init
+        this.isConveyorChecklist = "{{ checklist.equipment|escapejs }}".toLowerCase().includes("conveyor");
+        if (this.isConveyorChecklist) {
+          this.buildConveyorGrid();
+        }
+        this.isEAFChecklist = "{{ checklist.equipment|escapejs }}".toLowerCase() === "eaf" || "{{ checklist.equipment|escapejs }}".toLowerCase().includes("lrf") || "{{ checklist.equipment|escapejs }}".toLowerCase().includes("furnace");
+        this.isFESChecklist = "{{ checklist.equipment|escapejs }}".toLowerCase().includes("fes") || "{{ checklist.equipment|escapejs }}".toLowerCase().includes("bag house");
+        this.isPumpChecklist = "{{ checklist.equipment|escapejs }}".toLowerCase().includes("pump");
+        if (this.isPumpChecklist) {
+          this.buildPumpGrid();
+        }
+      },
+
+      buildPumpGrid() {
+        const rows = [];
+        const pumpMap = {};
+        const sides = ["D.S", "N.D.S", "ROTTED", "NORMAL"];
+        
+        sides.forEach(side => {
+          pumpMap[side] = {
+            name: side,
+            checkpoints: {}
+          };
+          rows.push(pumpMap[side]);
+        });
+        
+        this.items.forEach(item => {
+          if (!item.is_header && item.action_item.includes(' - ')) {
+            const parts = item.action_item.split(' - ');
+            const side = parts[0].trim();
+            const point = parts[1].trim();
+            if (pumpMap[side]) {
+              pumpMap[side].checkpoints[point] = item;
+            }
+          }
+        });
+        
+        this.pumpRows = rows;
+      },
+
+      parseEAFDetails(item) {
+        if (item.eafFields) return;
+        const detailPart = item.action_item.includes(' - ') ? item.action_item.split(' - ').slice(1).join(' - ') : item.action_item;
+        const regex = /([^,;:\n]+?)\s*(?::-|:)/g;
+        let match;
+        const fields = [];
+        const valMap = {};
+        const remarkParts = (item.remarks || "").split('|');
+        remarkParts.forEach(p => {
+          if (p.includes(':')) {
+            const idx = p.indexOf(':');
+            const k = p.substring(0, idx).trim();
+            const v = p.substring(idx + 1).trim();
+            valMap[k.toLowerCase()] = v;
+          }
+        });
+        if (!detailPart.includes(':-') && !detailPart.includes(':')) {
+          fields.push({
+            label: "Reading / Observation",
+            key: "detail_value",
+            value: item.remarks || ""
+          });
+        } else {
+          while ((match = regex.exec(detailPart)) !== null) {
+            const label = match[1].trim();
+            if (!label) continue;
+            const labelLower = label.toLowerCase();
+            if (labelLower.includes("temp") && !labelLower.includes("shell") && !labelLower.includes("roof") && !labelLower.includes("inlet") && !labelLower.includes("outlet")) {
+              continue;
+            }
+            if (labelLower.includes("flow") && !labelLower.includes("water")) {
+              continue;
+            }
+            const key = label.toLowerCase();
+            fields.push({
+              label: label,
+              key: key,
+              value: valMap[key] || ""
+            });
+          }
+        }
+        item.eafFields = fields;
+      },
+
+      updateEAFRemarks(item) {
+        item.remarks = item.eafFields.map(f => `${f.label}: ${f.value}`).join(' | ');
+      },
+
+      getFESMetadata(actionItem) {
+        const clean = actionItem.trim().toLowerCase();
+        
+        if (clean.includes("damper position")) {
+          return { area: "site", range: "50-55%" };
+        }
+        
+        if (clean.includes("bearing temp")) {
+          if (clean.includes("ground hopper") || clean.includes("fafa") || clean.includes("bag house")) {
+            return { area: "Field", range: ">55 deg" };
+          }
+          if (clean.includes("lf-1") || clean.includes("lf-2") || clean.includes("booster")) {
+            return { area: "Control room", range: ">55deg" };
+          }
+          if (clean.includes("nde")) {
+            if (clean.includes("fan")) return { area: "HMI", range: "95-102" };
+            return { area: "HMI", range: "95-100" };
+          }
+          if (clean.includes("de")) {
+            if (clean.includes("fan")) return { area: "HMI", range: "95-103" };
+            return { area: "HMI", range: "95-101" };
+          }
+          return { area: "Field", range: ">55 deg" };
+        }
+        
+        if (clean.includes("oil level")) {
+          if (clean.includes("coupling")) {
+            return { area: "Field", range: "Up to Mark", isOkNotOk: true };
+          }
+          if (clean.includes("bearing")) {
+            return { area: "Field", range: "Up to Mark", isOkNotOk: true };
+          }
+          return { area: "site", range: "(Ok / Not Ok)", isOkNotOk: true };
+        }
+        
+        if (clean.includes("vibration")) {
+          if (clean.includes("ground hopper") || clean.includes("fafa") || clean.includes("bag house")) {
+            return { area: "Field", range: ">4mm / sec" };
+          }
+          if (clean.includes("lf-1") || clean.includes("lf-2") || clean.includes("booster")) {
+            return { area: "Control room", range: "4mm/sec" };
+          }
+          if (clean.includes("nde")) {
+            return { area: clean.includes("motor") || clean.includes("moter") ? "Area" : "HMI", range: "4 mm/sec" };
+          }
+          if (clean.includes("de")) {
+            return { area: "HMI", range: "4 mm/sec" };
+          }
+          return { area: "Field", range: ">4mm / sec" };
+        }
+        
+        if (clean.includes("abnormal sound")) {
+          return { area: clean.includes("site") ? "site" : "Field", range: "(Ok / Not Ok)", isOkNotOk: true };
+        }
+        
+        if (clean.includes("pulsing")) {
+          if (clean.includes("sequence")) {
+            return { area: "Field", range: "It should be in Sequence", isOkNotOk: true };
+          }
+          return { area: "Field", range: "(Ok / Not Ok)", isOkNotOk: true };
+        }
+        
+        if (clean.includes("dp across")) {
+          if (clean.includes("field")) {
+            return { area: "HMI / Field", range: "250nmWC" };
+          }
+          return { area: "Field", range: ">250 mmwc" };
+        }
+        
+        if (clean.includes("fluid coupling")) {
+          if (clean.includes("inlet")) {
+            return { area: "HMI", range: "70-75" };
+          }
+          if (clean.includes("outlet")) {
+            return { area: "HMI", range: "100-110" };
+          }
+        }
+        
+        if (clean.includes("rpm")) {
+          return { area: "Field 1 HMI", range: "800" };
+        }
+        
+        if (clean.includes("air pressure")) {
+          if (clean.includes("receiver")) {
+            return { area: "Field", range: "—" };
+          }
+          return { area: "Field", range: "6 kg/cm2" };
+        }
+        
+        if (clean.includes("hopper position")) {
+          return { area: "Field", range: "75% of the Max" };
+        }
+        if (clean.includes("ash handling")) {
+          if (clean.includes("fdc")) return { area: "HMI", range: "—" };
+          return { area: "Field", range: "—" };
+        }
+        if (clean.includes("secondary damper")) {
+          return { area: "HMI", range: "Close", isOkNotOk: true };
+        }
+        if (clean.includes("primary damper")) {
+          return { area: "HMI", range: "Open", isOkNotOk: true };
+        }
+        if (clean.includes("incoming temp")) {
+          return { area: "HMI", range: "100" };
+        }
+        if (clean.includes("conveyor") || clean.includes("tail pulley") || clean.includes("drive end") || clean.includes("bc#")) {
+          return { area: "Field", range: "—" };
+        }
+        return { area: "Field", range: "—" };
+      },
+
+      parseFanReadings(item) {
+        if (item._fan1 !== undefined) return;
+        const match1 = (item.remarks || "").match(/FAN1:\s*([^|]*)/);
+        item._fan1 = match1 ? match1[1].trim() : "";
+        const match2 = (item.remarks || "").match(/FAN2:\s*([^|]*)/);
+        item._fan2 = match2 ? match2[1].trim() : "";
+        const parts = (item.remarks || "").split('||');
+        item._general_remark = parts.length > 1 ? parts[1].trim() : "";
+      },
+
+      updateFanRemarks(item) {
+        item.remarks = `FAN1: ${item._fan1 || ''} | FAN2: ${item._fan2 || ''} || ${item._general_remark || ''}`;
+      },
+
+      buildConveyorGrid() {
+        const rows = [];
+        const conveyorMap = {};
+        
+        // 1. Gather all conveyor names from checkpoint items
+        const conveyorNames = new Set();
+        this.items.forEach(item => {
+          if (!item.is_header && item.action_item.includes(' - ')) {
+            const conveyorName = item.action_item.split(' - ')[0].trim();
+            conveyorNames.add(conveyorName);
+          }
+        });
+        
+        // 2. Build rows sequentially to preserve order
+        this.items.forEach(item => {
+          if (item.is_header) {
+            const text = item.action_item.trim();
+            // If this header is one of the conveyor names
+            if (conveyorNames.has(text)) {
+              if (!conveyorMap[text]) {
+                conveyorMap[text] = {
+                  is_section_header: false,
+                  conveyor_name: text,
+                  header_item: item,
+                  checkpoints: {}
+                };
+                rows.push(conveyorMap[text]);
+              } else {
+                conveyorMap[text].header_item = item;
+              }
+              return;
+            }
+            // Section header
+            rows.push({
+              is_section_header: true,
+              title: text
+            });
+          } else {
+            // Checkpoint item
+            if (item.action_item.includes(' - ')) {
+              const parts = item.action_item.split(' - ');
+              const conveyorName = parts[0].trim();
+              const checkpointName = parts.slice(1).join(' - ').trim();
+              
+              if (!conveyorMap[conveyorName]) {
+                conveyorMap[conveyorName] = {
+                  is_section_header: false,
+                  conveyor_name: conveyorName,
+                  header_item: null,
+                  checkpoints: {}
+                };
+                rows.push(conveyorMap[conveyorName]);
+              }
+              
+              conveyorMap[conveyorName].checkpoints[checkpointName] = item;
+            }
+          }
+        });
+        
+        this.conveyorRows = rows;
+      },
+
+      isRowNotOk(row) {
+        if (!row || !row.checkpoints) return false;
+        return Object.values(row.checkpoints).some(cp => cp && cp.status === 'NOT OK');
       },
 
       saveChecklist() {
+        const unfilled = this.items.filter(item => !item.is_header && item.status !== 'OK' && item.status !== 'NOT OK');
+        if (unfilled.length > 0) {
+          this.validationError = 'Please select either OK or NOT OK status for all action items before saving the checklist.';
+          return;
+        }
+        
         const payload = {
           date: this.checklistDate,
           area: this.area,
@@ -198,6 +767,7 @@
           shift_incharge: this.shiftIncharge,
           engineer: this.engineer,
           operator: this.operator,
+          remark: this.remark,
           items: this.items
         };
 

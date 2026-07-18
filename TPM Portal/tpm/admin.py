@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from tpm.models import User, Department, PillarEntry, KPIValue, Workstation, WorkstationKPI, WorkstationValue, OPLSheet
+from tpm.models import User, Department, PillarEntry, KPIValue, Workstation, WorkstationKPI, WorkstationValue, OPLSheet, FuguaiRegister
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
@@ -43,3 +43,4 @@ admin.site.register(Workstation, WorkstationAdmin)
 admin.site.register(WorkstationKPI)
 admin.site.register(WorkstationValue, WorkstationValueAdmin)
 admin.site.register(OPLSheet, OPLSheetAdmin)
+admin.site.register(FuguaiRegister)

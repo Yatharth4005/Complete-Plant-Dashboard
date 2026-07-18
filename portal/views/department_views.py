@@ -24,6 +24,8 @@ def dept_hub(request, dept_id):
     
     module_cards = []
     for module in active_modules:
+        if module.key == 'PERFORMANCE' and department.code not in ['SMS2', 'SMS3']:
+            continue
         access_level = access_map.get(module.key)
         module_cards.append({
             'module': module,
@@ -125,5 +127,7 @@ def coming_soon(request, dept_id, module_key):
         return render(request, 'portal/department/safety_dashboard.html', context)
     elif module_key.upper() == 'AVAILABILITY':
         return redirect('delays:dept_overview', dept_id=department.id)
+    elif module_key.upper() in ['PRODUCTION', 'PERFORMANCE']:
+        return redirect(f"/delays/department/{department.id}/?tab=performance")
         
     return render(request, 'portal/department/coming_soon.html', context)

@@ -39,6 +39,12 @@ urlpatterns = [
     path('department/<int:dept_id>/pillar/ws-kpi/delete-kpi/<int:ws_id>/<int:kpi_id>/',
          ws_kpi_views.delete_workstation_kpi, name='delete_workstation_kpi'),
 
+    # Fuguai modal & list (above standard pillar URL to prevent string parameter clash)
+    path('department/<int:dept_id>/pillar/fuguai-modal/',
+         pillar_views.fuguai_modal_partial, name='fuguai_modal_partial'),
+    path('department/<int:dept_id>/pillar/fuguai-list/',
+         pillar_views.fuguai_list_partial, name='fuguai_list_partial'),
+
     # Pillar (standard 8)
     path('department/<int:dept_id>/pillar/<str:pillar_id>/',
          pillar_views.pillar_page, name='pillar_page'),

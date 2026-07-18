@@ -449,11 +449,37 @@ def get_opl_developed_count_range(dept, pillar, from_month, from_year, to_month,
                 count += 1
     return count
 
+def get_fuguai_identified_count(dept, tag_color, month, year):
+    from tpm.models import FuguaiTag
+    return FuguaiTag.objects.filter(
+        department=dept,
+        tag_color=tag_color,
+        created_at__month=month,
+        created_at__year=year
+    ).count()
+
+def get_fuguai_rectified_count(dept, tag_color, month, year):
+    from tpm.models import FuguaiTag
+    return FuguaiTag.objects.filter(
+        department=dept,
+        tag_color=tag_color,
+        rectified_at__month=month,
+        rectified_at__year=year
+    ).count()
+
 def get_automatic_kpi_value(dept, pillar_id, sl_no, month, year):
     if pillar_id == 'KK' and sl_no == '6':
         return float(get_kaizen_registered_count(dept, 'KK', month, year))
     elif pillar_id == 'KK' and sl_no == '7':
         return float(get_kaizen_completed_count(dept, 'KK', month, year))
+    elif pillar_id == 'JH' and sl_no == '2':
+        return float(get_fuguai_identified_count(dept, 'WHITE', month, year))
+    elif pillar_id == 'JH' and sl_no == '3':
+        return float(get_fuguai_rectified_count(dept, 'WHITE', month, year))
+    elif pillar_id == 'JH' and sl_no == '4':
+        return float(get_fuguai_identified_count(dept, 'RED', month, year))
+    elif pillar_id == 'JH' and sl_no == '5':
+        return float(get_fuguai_rectified_count(dept, 'RED', month, year))
     elif pillar_id == 'JH' and sl_no == '6':
         return float(get_kaizen_completed_count(dept, 'JH', month, year))
     elif pillar_id == 'JH' and sl_no == '7':
@@ -495,7 +521,7 @@ def get_automatic_kpi_value_range_split(dept, pillar_id, sl_no, from_month, from
     
     is_auto = (
         (pillar_id == 'KK' and sl_no in ('6', '7')) or
-        (pillar_id == 'JH' and sl_no in ('6', '7')) or
+        (pillar_id == 'JH' and sl_no in ('2', '3', '4', '5', '6', '7')) or
         (pillar_id == 'PM' and sl_no in ('10', '11')) or
         (pillar_id == 'QM' and sl_no == '4') or
         (pillar_id == 'ET' and sl_no == '7') or

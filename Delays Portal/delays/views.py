@@ -10,7 +10,7 @@ from django.db.models import Q, Sum, Avg, Count
 from django.utils import timezone
 from datetime import date, timedelta, datetime
 from tpm.models import Department, User
-from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification, EquipmentShutdownSetting, MaintenanceChecklist, MaintenanceChecklistItem, ChecklistSchedule
+from delays.models import DelayUpload, DelayRecord, DelayDropdownOption, DelayNotification, EquipmentShutdownSetting, MaintenanceChecklist, MaintenanceChecklistItem, ChecklistSchedule, PerformanceRecord
 from delays.forms import DelayRecordForm
 from delays.utils.parser import parse_excel_file, normalize_agency_name, normalize_equipment_or_area
 from portal.utils.access import user_can_access_module, user_can_edit_module
@@ -32,9 +32,13 @@ def format_date_range_bracket(start_str, end_str):
     if not start_str or not end_str:
         return ""
     try:
-        d1 = datetime.strptime(start_str, '%Y-%m-%d').strftime('%d-%m-%Y')
-        d2 = datetime.strptime(end_str, '%Y-%m-%d').strftime('%d-%m-%Y')
-        return f"({d1} to {d2})"
+        dt1 = datetime.strptime(start_str, '%Y-%m-%d')
+        dt2 = datetime.strptime(end_str, '%Y-%m-%d')
+        d1 = dt1.strftime('%d-%m-%Y')
+        d2 = dt2.strftime('%d-%m-%Y')
+        days = (dt2.date() - dt1.date()).days + 1
+        hours = days * 24
+        return f"({d1} to {d2}) - {days} Days ({hours} hrs)"
     except Exception:
         return f"({start_str} to {end_str})"
 
@@ -217,12 +221,24 @@ def dept_overview(request, dept_id):
         self_heal_dropdown_options(department_obj)
         
     tab = request.GET.get('tab', 'dashboard').strip()
-    if tab in ['summary', 'pareto', 'mttr_mtbf', 'capa_summary', 'checklist_summary', 'manual_checklist', 'checklist_schedule', 'checklist_calendar', 'checklist_status', 'uploads']:
+    if tab in ['summary', 'pareto', 'mttr_mtbf', 'capa_summary', 'checklist_summary', 'manual_checklist', 'checklist_schedule', 'checklist_calendar', 'checklist_status', 'uploads', 'performance']:
         active_tab = tab
     else:
         active_tab = 'dashboard'
     date_start = request.GET.get('date_start', '').strip()
     date_end = request.GET.get('date_end', '').strip()
+    
+    # Parse status compliance date
+    status_date_str = request.GET.get('status_date', '').strip()
+    from datetime import datetime
+    today = timezone.localtime(timezone.now()).date()
+    if status_date_str:
+        try:
+            status_date_val = datetime.strptime(status_date_str, '%Y-%m-%d').date()
+        except Exception:
+            status_date_val = today
+    else:
+        status_date_val = today
 
     # Set default date range if not specified
     today = timezone.localtime(timezone.now()).date()
@@ -259,11 +275,19 @@ def dept_overview(request, dept_id):
         department = get_object_or_404(Department, id=dept_id)
         
         # Check SSO Access
-        if not user_can_access_module(request.user, department, 'Delays'):
-            messages.error(request, "You do not have permission to access the Delays module.")
-            return redirect('portal:dept_hub', dept_id=dept_id)
-            
-        can_edit = user_can_edit_module(request.user, department, 'Delays')
+        if tab == 'performance':
+            if department.code not in ['SMS2', 'SMS3']:
+                messages.error(request, "Performance is only available for SMS-2 and SMS-3.")
+                return redirect('portal:dept_hub', dept_id=dept_id)
+            if not user_can_access_module(request.user, department, 'PERFORMANCE'):
+                messages.error(request, "You do not have permission to access the Performance module.")
+                return redirect('portal:dept_hub', dept_id=dept_id)
+            can_edit = user_can_edit_module(request.user, department, 'PERFORMANCE')
+        else:
+            if not user_can_access_module(request.user, department, 'Delays'):
+                messages.error(request, "You do not have permission to access the Delays module.")
+                return redirect('portal:dept_hub', dept_id=dept_id)
+            can_edit = user_can_edit_module(request.user, department, 'Delays')
         is_admin = request.user.is_admin()
         all_records = DelayRecord.objects.filter(department=department)
 
@@ -660,6 +684,49 @@ def dept_overview(request, dept_id):
     external_agency_frequency_sorted = sorted(external_agency_counts.items(), key=lambda x: x[1], reverse=True)
     top_external_agency_freq = external_agency_frequency_sorted[0][0] if external_agency_frequency_sorted else "N/A"
     top_external_agency_freq_count = external_agency_frequency_sorted[0][1] if external_agency_frequency_sorted else 0
+
+    # Build detailed tables for Pareto sidebar
+    internal_agency_table = []
+    for ab in internal_breakdown[:5]:
+        agency_name = ab['agency'] or "N/A"
+        top_desc_rec = internal_recs.filter(agency=ab['agency']).exclude(Q(description__isnull=True) | Q(description='')).order_by('-duration_mins').first()
+        reason = top_desc_rec.description if top_desc_rec else "No key breakdowns recorded"
+        internal_agency_table.append({
+            'agency': agency_name,
+            'mins': round(ab['total'], 1),
+            'reason': reason
+        })
+        
+    external_agency_table = []
+    for ab in external_breakdown[:5]:
+        agency_name = ab['agency'] or "N/A"
+        top_desc_rec = external_recs.filter(agency=ab['agency']).exclude(Q(description__isnull=True) | Q(description='')).order_by('-duration_mins').first()
+        reason = top_desc_rec.description if top_desc_rec else "No key breakdowns recorded"
+        external_agency_table.append({
+            'agency': agency_name,
+            'mins': round(ab['total'], 1),
+            'reason': reason
+        })
+
+    internal_agency_freq_table = []
+    for agency_name, count in internal_agency_frequency_sorted[:5]:
+        top_desc_rec = internal_recs.filter(agency=agency_name).exclude(Q(description__isnull=True) | Q(description='')).order_by('-duration_mins').first()
+        reason = top_desc_rec.description if top_desc_rec else "No key breakdowns recorded"
+        internal_agency_freq_table.append({
+            'agency': agency_name,
+            'count': count,
+            'reason': reason
+        })
+
+    external_agency_freq_table = []
+    for agency_name, count in external_agency_frequency_sorted[:5]:
+        top_desc_rec = external_recs.filter(agency=agency_name).exclude(Q(description__isnull=True) | Q(description='')).order_by('-duration_mins').first()
+        reason = top_desc_rec.description if top_desc_rec else "No key breakdowns recorded"
+        external_agency_freq_table.append({
+            'agency': agency_name,
+            'count': count,
+            'reason': reason
+        })
     
     agency_pareto_freq = []
     running_counts = 0
@@ -1132,6 +1199,10 @@ def dept_overview(request, dept_id):
         'equip_pareto_freq': equip_pareto_freq[:10],
         'top_agency_freq': top_agency_freq,
         'top_agency_freq_count': top_agency_freq_count,
+        'internal_agency_table': internal_agency_table,
+        'external_agency_table': external_agency_table,
+        'internal_agency_freq_table': internal_agency_freq_table,
+        'external_agency_freq_table': external_agency_freq_table,
         
         # Mitigation
         'mitigation_categories': sorted_keywords,
@@ -1199,18 +1270,19 @@ def dept_overview(request, dept_id):
             checklist_name__in=valid_checklist_names
         ).select_related('department', 'assigned_hod')
         
-    today_val = date.today()
+    today_val = status_date_val
     checklist_status_list = []
     for sched in schedules:
         latest = MaintenanceChecklist.objects.filter(
             department=sched.department,
-            equipment=sched.checklist_name
+            equipment=sched.checklist_name,
+            date__lte=today_val
         ).order_by('-date', '-id').first()
         
         if not latest:
             status_info = {
                 'completed': False,
-                'time': '—',
+                'time': f"Pending ({today_val.strftime('%d-%b-%Y')})",
                 'result': '—',
                 'color': 'gray'
             }
@@ -1243,6 +1315,11 @@ def dept_overview(request, dept_id):
                 completed = (latest.date.year == today_val.year)
                 
             if completed:
+                is_filled = not latest.items.filter(is_header=False).filter(Q(status__isnull=True) | Q(status='')).exists()
+                if not is_filled:
+                    completed = False
+                
+            if completed:
                 has_defect = latest.items.filter(status='NOT OK').exists()
                 result = 'NOT OK' if has_defect else 'OK'
                 color = 'red' if has_defect else 'green'
@@ -1256,7 +1333,7 @@ def dept_overview(request, dept_id):
             else:
                 status_info = {
                     'completed': False,
-                    'time': '—',
+                    'time': f"Pending ({today_val.strftime('%d-%b-%Y')})",
                     'result': 'Pending',
                     'color': 'orange'
                 }
@@ -1265,8 +1342,8 @@ def dept_overview(request, dept_id):
             'status': status_info,
             'area': (latest.area or '—') if latest else '—',
             'sub_area': (latest.sub_area or '—') if latest else '—',
-            'shift_incharge': (latest.shift_incharge or '—') if latest else '—',
-            'latest_date': latest.date.strftime('%d-%b-%Y') if latest else '—',
+            'shift_incharge': latest.shift_incharge if (latest and latest.shift_incharge) else (sched.shift_incharge or '—'),
+            'latest_date': today_val.strftime('%d-%b-%Y'),
             'latest_id': latest.id if latest else None,
         })
         
@@ -1297,10 +1374,15 @@ def dept_overview(request, dept_id):
                 date=target_date
             ).first()
             
+            sched = ChecklistSchedule.objects.filter(department=department, checklist_name=name).first()
+            default_incharge = sched.shift_incharge if (sched and sched.shift_incharge) else '—'
+            
             if checklist_inst:
+                is_filled = not checklist_inst.items.filter(is_header=False).filter(Q(status__isnull=True) | Q(status='')).exists()
                 checklists_data.append({
                     'name': name,
                     'exists': True,
+                    'is_filled': is_filled,
                     'instance': checklist_inst,
                     'date': checklist_inst.date,
                     'agency': checklist_inst.responsible_agency,
@@ -1308,7 +1390,7 @@ def dept_overview(request, dept_id):
                     'area': checklist_inst.area,
                     'sub_area': checklist_inst.sub_area,
                     'sub_equipment': checklist_inst.sub_equipment or '—',
-                    'shift_incharge': checklist_inst.shift_incharge or '—',
+                    'shift_incharge': checklist_inst.shift_incharge or default_incharge,
                     'has_defects': checklist_inst.has_defects(),
                     'id': checklist_inst.id
                 })
@@ -1326,12 +1408,12 @@ def dept_overview(request, dept_id):
                     'exists': False,
                     'instance': None,
                     'date': target_date,
-                    'agency': '—',
+                    'agency': 'Mechanical',
                     'agency_type': 'Internal',
                     'area': default_area or '—',
                     'sub_area': '—',
                     'sub_equipment': '—',
-                    'shift_incharge': '—',
+                    'shift_incharge': default_incharge,
                     'has_defects': False,
                     'id': None
                 })
@@ -1340,9 +1422,11 @@ def dept_overview(request, dept_id):
         checklists_data = []
         checklists_qs = MaintenanceChecklist.objects.all().select_related('department', 'created_by').order_by('-date', '-id')
         for cl in checklists_qs:
+            is_filled = not cl.items.filter(is_header=False).filter(Q(status__isnull=True) | Q(status='')).exists()
             checklists_data.append({
                 'name': cl.equipment or '—',
                 'exists': True,
+                'is_filled': is_filled,
                 'instance': cl,
                 'date': cl.date,
                 'agency': cl.responsible_agency,
@@ -1370,6 +1454,7 @@ def dept_overview(request, dept_id):
             })
     context['dropdown_options_json'] = json.dumps(dropdown_options_list)
     context['date_period_bracket'] = format_date_range_bracket(date_start, date_end)
+    context['status_date'] = status_date_val.strftime('%Y-%m-%d')
     
     return render(request, 'delays/dashboard.html', context)
 
@@ -1573,17 +1658,34 @@ def new_record(request, dept_id):
     department = get_object_or_404(Department, id=dept_id)
     
     # Get safe next redirect url
-    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER')
+    next_url = request.GET.get('next')
+    if not next_url:
+        referer = request.META.get('HTTP_REFERER')
+        if referer:
+            from urllib.parse import urlparse, parse_qs
+            parsed_ref = urlparse(referer)
+            ref_params = parse_qs(parsed_ref.query)
+            if 'next' in ref_params:
+                next_url = ref_params['next'][0]
+            else:
+                next_url = referer
+
     if next_url:
-        from urllib.parse import urlparse
+        from urllib.parse import urlparse, parse_qs, urlencode
         parsed = urlparse(next_url)
         if parsed.netloc and parsed.netloc != request.get_host():
             next_url = None
         else:
-            next_url = parsed.path
-            if parsed.query:
-                next_url += f"?{parsed.query}"
-    if not next_url or '/records/' in next_url:
+            path = parsed.path
+            if '/records/table/' in path:
+                query_params = parse_qs(parsed.query)
+                query_params['tab'] = ['summary']
+                next_url = f"/delays/department/{dept_id}/?{urlencode(query_params, doseq=True)}"
+            else:
+                next_url = path
+                if parsed.query:
+                    next_url += f"?{parsed.query}"
+    if not next_url or ('/records/' in next_url and '/records/table/' not in next_url):
         next_url = f"/delays/department/{dept_id}/?tab=summary"
     
     if not user_can_edit_module(request.user, department, 'Delays'):
@@ -1591,16 +1693,17 @@ def new_record(request, dept_id):
         return redirect(next_url)
         
     if request.method == 'POST':
-        form = DelayRecordForm(request.POST, department=department)
-        if form.is_valid():
-            record = form.save(commit=False)
-            record.department = department
-            record.sheet_name = 'Manual Entry'
-            record.save()
-            messages.success(request, f"Manual delay entry on {record.date} successfully logged.")
-            if request.POST.get('action_type') == 'capa':
-                return redirect(reverse('capa:report', args=[dept_id]) + f'?delay_record_id={record.id}')
-            return redirect(next_url)
+      form = DelayRecordForm(request.POST, department=department)
+      if form.is_valid():
+          record = form.save(commit=False)
+          record.department = department
+          record.sheet_name = 'Manual Entry'
+          record._created_by_user = request.user
+          record.save()
+          messages.success(request, f"Manual delay entry on {record.date} successfully logged.")
+          if request.POST.get('action_type') == 'capa':
+              return redirect(reverse('capa:report', args=[dept_id]) + f'?delay_record_id={record.id}')
+          return redirect(next_url)
     else:
         form = DelayRecordForm(department=department)
         
@@ -1649,17 +1752,34 @@ def edit_record(request, dept_id, record_id):
     record = get_object_or_404(DelayRecord, id=record_id, department=department)
     
     # Get safe next redirect url
-    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER')
+    next_url = request.GET.get('next')
+    if not next_url:
+        referer = request.META.get('HTTP_REFERER')
+        if referer:
+            from urllib.parse import urlparse, parse_qs
+            parsed_ref = urlparse(referer)
+            ref_params = parse_qs(parsed_ref.query)
+            if 'next' in ref_params:
+                next_url = ref_params['next'][0]
+            else:
+                next_url = referer
+
     if next_url:
-        from urllib.parse import urlparse
+        from urllib.parse import urlparse, parse_qs, urlencode
         parsed = urlparse(next_url)
         if parsed.netloc and parsed.netloc != request.get_host():
             next_url = None
         else:
-            next_url = parsed.path
-            if parsed.query:
-                next_url += f"?{parsed.query}"
-    if not next_url or '/records/' in next_url:
+            path = parsed.path
+            if '/records/table/' in path:
+                query_params = parse_qs(parsed.query)
+                query_params['tab'] = ['summary']
+                next_url = f"/delays/department/{dept_id}/?{urlencode(query_params, doseq=True)}"
+            else:
+                next_url = path
+                if parsed.query:
+                    next_url += f"?{parsed.query}"
+    if not next_url or ('/records/' in next_url and '/records/table/' not in next_url):
         next_url = f"/delays/department/{dept_id}/?tab=summary"
         
     if not user_can_edit_module(request.user, department, 'Delays'):
@@ -1674,7 +1794,9 @@ def edit_record(request, dept_id, record_id):
     if request.method == 'POST':
         form = DelayRecordForm(request.POST, instance=record, department=department)
         if form.is_valid():
-            form.save()
+            rec = form.save(commit=False)
+            rec._created_by_user = request.user
+            rec.save()
             messages.success(request, "Delay record updated successfully.")
             if request.POST.get('action_type') == 'capa':
                 return redirect(reverse('capa:report', args=[dept_id]) + f'?delay_record_id={record.id}')
@@ -1796,6 +1918,7 @@ def update_record_inline(request, dept_id, record_id):
         eq_name = record.equipment or "Unknown Equipment"
         record.description = f"Manual delay entry for {eq_name} ({record.agency})"
         
+        record._created_by_user = request.user
         record.save()
         
         # Render the updated single row back
@@ -2065,6 +2188,49 @@ def pareto_overall(request, dept_id):
     top_external_agency_freq = external_agency_frequency_sorted[0][0] if external_agency_frequency_sorted else "N/A"
     top_external_agency_freq_count = external_agency_frequency_sorted[0][1] if external_agency_frequency_sorted else 0
 
+    # Build detailed tables for Pareto sidebar
+    internal_agency_table = []
+    for ab in internal_breakdown[:5]:
+        agency_name = ab['agency'] or "N/A"
+        top_desc_rec = internal_recs.filter(agency=ab['agency']).exclude(Q(description__isnull=True) | Q(description='')).order_by('-duration_mins').first()
+        reason = top_desc_rec.description if top_desc_rec else "No key breakdowns recorded"
+        internal_agency_table.append({
+            'agency': agency_name,
+            'mins': round(ab['total'], 1),
+            'reason': reason
+        })
+        
+    external_agency_table = []
+    for ab in external_breakdown[:5]:
+        agency_name = ab['agency'] or "N/A"
+        top_desc_rec = external_recs.filter(agency=ab['agency']).exclude(Q(description__isnull=True) | Q(description='')).order_by('-duration_mins').first()
+        reason = top_desc_rec.description if top_desc_rec else "No key breakdowns recorded"
+        external_agency_table.append({
+            'agency': agency_name,
+            'mins': round(ab['total'], 1),
+            'reason': reason
+        })
+
+    internal_agency_freq_table = []
+    for agency_name, count in internal_agency_frequency_sorted[:5]:
+        top_desc_rec = internal_recs.filter(agency=agency_name).exclude(Q(description__isnull=True) | Q(description='')).order_by('-duration_mins').first()
+        reason = top_desc_rec.description if top_desc_rec else "No key breakdowns recorded"
+        internal_agency_freq_table.append({
+            'agency': agency_name,
+            'count': count,
+            'reason': reason
+        })
+
+    external_agency_freq_table = []
+    for agency_name, count in external_agency_frequency_sorted[:5]:
+        top_desc_rec = external_recs.filter(agency=agency_name).exclude(Q(description__isnull=True) | Q(description='')).order_by('-duration_mins').first()
+        reason = top_desc_rec.description if top_desc_rec else "No key breakdowns recorded"
+        external_agency_freq_table.append({
+            'agency': agency_name,
+            'count': count,
+            'reason': reason
+        })
+
     top_agency = agency_pareto[0]['agency'] if agency_pareto else "N/A"
     top_agency_mins = agency_pareto[0]['mins'] if agency_pareto else 0.0
 
@@ -2086,6 +2252,10 @@ def pareto_overall(request, dept_id):
         'top_internal_agency_freq_count': top_internal_agency_freq_count,
         'top_external_agency_freq': top_external_agency_freq,
         'top_external_agency_freq_count': top_external_agency_freq_count,
+        'internal_agency_table': internal_agency_table,
+        'external_agency_table': external_agency_table,
+        'internal_agency_freq_table': internal_agency_freq_table,
+        'external_agency_freq_table': external_agency_freq_table,
         'is_description': is_description,
         'pareto_type': pareto_type,
         'agencies': autocompletes['agencies'],
@@ -2554,7 +2724,8 @@ def submit_reason(request, dept_id, notification_id):
         super(DelayRecord, record).save()
         
         # Send a response notification back to the sender department
-        resp_msg = f"Department {notification.to_department.name} ({notification.to_department.code}) submitted a delay reason for the delay of {record.duration_mins} mins on {record.date}: '{reason}'"
+        user_name = request.user.get_full_name() or request.user.username
+        resp_msg = f"Department {notification.to_department.name} ({notification.to_department.code}) submitted a delay reason by {user_name} for the delay of {record.duration_mins} mins on {record.date}: '{reason}'"
         
         # Create the DelayNotification targeted to the department that filed it
         DelayNotification.objects.create(
@@ -2958,6 +3129,9 @@ def update_checklist_schedule_incharge(request, dept_id, schedule_id):
         shift_incharge = (data.get('shift_incharge') or '').strip()
         
         schedule = get_object_or_404(ChecklistSchedule, id=schedule_id, department=department)
+        schedule.shift_incharge = shift_incharge
+        schedule.save(update_fields=['shift_incharge'])
+        
         # Store shift_incharge on the most recent MaintenanceChecklist for this schedule
         latest = MaintenanceChecklist.objects.filter(
             department=department,
@@ -3032,6 +3206,7 @@ def edit_checklist(request, dept_id, checklist_id):
                 equipment=equipment_name,
                 responsible_agency=default_agency,
                 area=default_area,
+                shift_incharge=sched.shift_incharge if (sched and sched.shift_incharge) else '',
                 created_by=request.user
             )
             
@@ -3045,7 +3220,7 @@ def edit_checklist(request, dept_id, checklist_id):
                 MaintenanceChecklistItem.objects.create(
                     checklist=checklist,
                     action_item=act.value,
-                    status=None if act.is_header else 'OK',
+                    status=None,
                     is_header=act.is_header
                 )
         
@@ -3067,6 +3242,7 @@ def edit_checklist(request, dept_id, checklist_id):
             checklist.shift_incharge = data.get('shift_incharge', checklist.shift_incharge)
             checklist.engineer = data.get('engineer', checklist.engineer)
             checklist.operator = data.get('operator', checklist.operator)
+            checklist.remark = data.get('remark', checklist.remark)
             checklist.save()
             
             # Update items
@@ -3098,5 +3274,184 @@ def edit_checklist(request, dept_id, checklist_id):
         'active_module': 'Checklist',
     }
     return render(request, 'delays/edit_checklist.html', context)
+
+
+@login_required
+def get_performance_data(request, dept_id):
+    department = get_object_or_404(Department, id=dept_id)
+    if department.code not in ['SMS2', 'SMS3']:
+        return JsonResponse({'status': 'error', 'message': 'Performance is only available for SMS-2 and SMS-3.'}, status=400)
+    if not user_can_access_module(request.user, department, 'PERFORMANCE'):
+        return JsonResponse({'status': 'error', 'message': 'Permission denied.'}, status=403)
+        
+    month_str = request.GET.get('month') # e.g. '2025-05'
+    from datetime import date
+    if not month_str:
+        month_str = date.today().strftime('%Y-%m')
+        
+    try:
+        year, month = map(int, month_str.split('-'))
+    except Exception:
+        year, month = date.today().year, date.today().month
+        
+    import calendar
+    num_days = calendar.monthrange(year, month)[1]
+    
+    records = PerformanceRecord.objects.filter(
+        department=department,
+        date__year=year,
+        date__month=month
+    )
+    records_by_day = {r.date.day: r for r in records}
+    
+    days_data = []
+    for day in range(1, num_days + 1):
+        d_val = date(year, month, day)
+        record = records_by_day.get(day)
+        if record:
+            days_data.append({
+                'date': d_val.strftime('%Y-%m-%d'),
+                'day': day,
+                'exists': True,
+                'plan_tap_sms2': record.plan_tap_sms2,
+                'plan_prod_sms': record.plan_prod_sms,
+                'plan_eaf2': record.plan_eaf2,
+                'plan_prod_eaf2': record.plan_prod_eaf2,
+                'plan_neof': record.plan_neof,
+                'plan_prod_neof': record.plan_prod_neof,
+                'actual_tap_sms2': record.actual_tap_sms2,
+                'actual_prod_sms': record.actual_prod_sms,
+                'actual_eaf2': record.actual_eaf2,
+                'actual_prod_eaf2': record.actual_prod_eaf2,
+                'actual_neof': record.actual_neof,
+                'actual_prod_neof': record.actual_prod_neof,
+                'prod_loss_nof': record.prod_loss_nof,
+                'prod_loss_eaf2': record.prod_loss_eaf2,
+                'plan_eaf3_heats': record.plan_eaf3_heats,
+                'plan_prod_eaf3': record.plan_prod_eaf3,
+                'actual_eaf3_heats': record.actual_eaf3_heats,
+                'actual_prod_eaf3': record.actual_prod_eaf3,
+                'prod_loss_eaf3': record.prod_loss_eaf3,
+            })
+        else:
+            days_data.append({
+                'date': d_val.strftime('%Y-%m-%d'),
+                'day': day,
+                'exists': False,
+                'plan_tap_sms2': 0.0,
+                'plan_prod_sms': 0.0,
+                'plan_eaf2': 0.0,
+                'plan_prod_eaf2': 0.0,
+                'plan_neof': 0.0,
+                'plan_prod_neof': 0.0,
+                'actual_tap_sms2': 0.0,
+                'actual_prod_sms': 0.0,
+                'actual_eaf2': 0.0,
+                'actual_prod_eaf2': 0.0,
+                'actual_neof': 0.0,
+                'actual_prod_neof': 0.0,
+                'prod_loss_nof': 0.0,
+                'prod_loss_eaf2': 0.0,
+                'plan_eaf3_heats': 0.0,
+                'plan_prod_eaf3': 0.0,
+                'actual_eaf3_heats': 0.0,
+                'actual_prod_eaf3': 0.0,
+                'prod_loss_eaf3': 0.0,
+            })
+            
+    return JsonResponse({'days': days_data, 'month': month_str})
+
+
+@login_required
+def save_performance_data(request, dept_id):
+    department = get_object_or_404(Department, id=dept_id)
+    if department.code not in ['SMS2', 'SMS3']:
+        return JsonResponse({'status': 'error', 'message': 'Performance is only available for SMS-2 and SMS-3.'}, status=400)
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'POST request required.'}, status=405)
+    if not user_can_edit_module(request.user, department, 'PERFORMANCE'):
+        return JsonResponse({'status': 'error', 'message': 'Permission denied.'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        rows = data.get('rows', [])
+        for row in rows:
+            date_str = row.get('date')
+            if not date_str:
+                continue
+            date_val = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+            PerformanceRecord.objects.update_or_create(
+                department=department,
+                date=date_val,
+                defaults={
+                    'plan_tap_sms2': float(row.get('plan_tap_sms2') or 0),
+                    'plan_prod_sms': float(row.get('plan_prod_sms') or 0),
+                    'plan_eaf2': float(row.get('plan_eaf2') or 0),
+                    'plan_prod_eaf2': float(row.get('plan_prod_eaf2') or 0),
+                    'plan_neof': float(row.get('plan_neof') or 0),
+                    'plan_prod_neof': float(row.get('plan_prod_neof') or 0),
+                    'actual_tap_sms2': float(row.get('actual_tap_sms2') or 0),
+                    'actual_prod_sms': float(row.get('actual_prod_sms') or 0),
+                    'actual_eaf2': float(row.get('actual_eaf2') or 0),
+                    'actual_prod_eaf2': float(row.get('actual_prod_eaf2') or 0),
+                    'actual_neof': float(row.get('actual_neof') or 0),
+                    'actual_prod_neof': float(row.get('actual_prod_neof') or 0),
+                    'prod_loss_nof': float(row.get('prod_loss_nof') or 0),
+                    'prod_loss_eaf2': float(row.get('prod_loss_eaf2') or 0),
+                    
+                    # EAF III Specific
+                    'plan_eaf3_heats': float(row.get('plan_eaf3_heats') or 0),
+                    'plan_prod_eaf3': float(row.get('plan_prod_eaf3') or 0),
+                    'actual_eaf3_heats': float(row.get('actual_eaf3_heats') or 0),
+                    'actual_prod_eaf3': float(row.get('actual_prod_eaf3') or 0),
+                    'prod_loss_eaf3': float(row.get('prod_loss_eaf3') or 0),
+                }
+            )
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@login_required
+def export_performance_data(request, dept_id):
+    department = get_object_or_404(Department, id=dept_id)
+    if department.code not in ['SMS2', 'SMS3']:
+        messages.error(request, "Performance is only available for SMS-2 and SMS-3.")
+        return redirect('delays:dept_overview', dept_id=dept_id)
+    if not user_can_access_module(request.user, department, 'PERFORMANCE'):
+        messages.error(request, "Permission denied.")
+        return redirect('delays:dept_overview', dept_id=dept_id)
+        
+    month_str = request.GET.get('month') # e.g. '2025-05'
+    from datetime import date
+    if not month_str:
+        month_str = date.today().strftime('%Y-%m')
+        
+    try:
+        year, month = map(int, month_str.split('-'))
+    except Exception:
+        year, month = date.today().year, date.today().month
+        
+    records = PerformanceRecord.objects.filter(
+        department=department,
+        date__year=year,
+        date__month=month
+    ).order_by('date')
+    
+    from delays.utils.export import generate_performance_excel
+    wb = generate_performance_excel(department, year, month, records)
+    
+    from django.http import HttpResponse
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    import urllib.parse
+    filename = f"Performance_{department.code}_{month_str}.xlsx"
+    response['Content-Disposition'] = f"attachment; filename*=UTF-8''{urllib.parse.quote(filename)}"
+    
+    wb.save(response)
+    return response
+
 
 

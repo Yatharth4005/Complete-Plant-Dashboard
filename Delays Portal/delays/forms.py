@@ -39,11 +39,19 @@ class DelayRecordForm(forms.ModelForm):
             'step': 'any'
         })
     )
+    has_production_loss = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={
+            'id': 'id_has_production_loss',
+            'style': 'cursor: pointer; transform: scale(1.2); margin-right: 8px;'
+        })
+    )
 
     class Meta:
         model = DelayRecord
         fields = [
-            'date', 'end_date', 'start_time', 'end_time', 'duration_mins', 'production_loss',
+            'date', 'end_date', 'start_time', 'end_time', 'duration_mins', 'has_production_loss', 'production_loss',
             'agency_type', 'agency', 'sub_agency', 'sub_area', 'equipment', 'sub_equipment',
             'shift_incharge', 'description', 'action'
         ]

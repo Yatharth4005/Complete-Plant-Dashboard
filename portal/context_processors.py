@@ -58,7 +58,9 @@ def sidebar_context(request):
             
     tab_param = request.GET.get('tab', '').lower()
     parts_lower = [p.lower() for p in parts]
-    if 'tpm' in parts_lower:
+    if tab_param == 'performance':
+        active_module = 'PERFORMANCE'
+    elif 'tpm' in parts_lower:
         active_module = 'TPM'
     elif 'cmc' in parts_lower:
         active_module = 'CMC'
@@ -126,14 +128,26 @@ def sidebar_context(request):
         {'id': 'OTPM', 'label': 'OTPM (Office TPM)'},
     ]
 
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    is_mobile_app = "JSPLMobileApp" in user_agent
+    
+    active_dept_obj = None
+    if active_dept_id:
+        try:
+            active_dept_obj = Department.objects.get(id=active_dept_id)
+        except Department.DoesNotExist:
+            pass
+
     return {
         'sidebar_departments': depts,
         'sidebar_departments_data': sidebar_departments_data,
         'sidebar_modules': sidebar_modules,
         'active_dept_id': active_dept_id,
+        'active_dept_obj': active_dept_obj,
         'active_module': active_module,
         'user_modules_map': user_modules_map,
         'pillars': pillars,
         'header_notifications': header_notifications,
         'header_notifications_count': header_notifications_count,
+        'is_mobile_app': is_mobile_app,
     }

@@ -63,6 +63,16 @@
         </button>
         
         {% if pillar_id == 'JH' %}
+        <button class="tab-btn" id="btn-fuguais" :class="{ 'active': activeTab === 'fuguais' }"
+                hx-get="{% url 'fuguai_list_partial' dept.id %}"
+                hx-target="#tab-content"
+                hx-swap="innerHTML"
+                @click="activeTab = 'fuguais';">
+          📸 Fuguais
+        </button>
+        {% endif %}
+        
+        {% if pillar_id == 'JH' %}
         <div x-data="{ open: false }" style="position: relative; display: inline-block;" @click.outside="open = false">
           <button class="tab-btn" id="btn-jh-master" :class="{ 'active': activeTab.startsWith('jh-master') }"
                   @click="open = !open">
@@ -116,6 +126,8 @@
           {% include "partials/_jh_machine_list.html" %}
         {% elif active_tab == 'jh-master-plan' %}
           {% include "partials/_jh_master_plan.html" %}
+        {% elif active_tab == 'fuguais' %}
+          {% include "partials/_fuguai_list.html" %}
         {% else %}
           {% include "partials/_kpi_table.html" %}
         {% endif %}

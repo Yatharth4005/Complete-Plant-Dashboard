@@ -15,7 +15,12 @@ sys.path.append(str(BASE_DIR / 'EFMEA'))
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-jspl-tpm-portal-secret-key-1029384756')
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['172.17.18.13', '127.0.0.1', 'localhost','0.0.0.0']
+ALLOWED_HOSTS = ['172.17.18.43', '172.17.18.13', '127.0.0.1', 'localhost', '0.0.0.0', '*']
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.loca.lt', 'http://*.loca.lt',
+    'https://*.ngrok-free.app', 'http://*.ngrok-free.app',
+    'https://*.ngrok-free.dev', 'http://*.ngrok-free.dev'
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -28,6 +33,8 @@ INSTALLED_APPS = [
     'django_htmx',
     'crispy_forms',
     'crispy_bootstrap5',
+    'rest_framework',
+    'corsheaders',
     'portal',
     'tpm',
     'cmc',
@@ -38,10 +45,14 @@ INSTALLED_APPS = [
     'hod_kpi',
     'quality',
     'smed',
+    'api',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # Must be first
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files in production
+    'portal.middleware.StaticCacheMiddleware',  # Caches static files to optimize mobile WebView load times
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -50,6 +61,23 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
 ]
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# REST Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+# CORS configuration
+CORS_ALLOW_ALL_ORIGINS = True  # Allowed for mobile app development/access
+CORS_ALLOW_CREDENTIALS = True
+
 
 ROOT_URLCONF = 'main_portal.urls'
 
@@ -72,17 +100,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'main_portal.wsgi.application'
 
-# Shared Database - PostgreSQL on Company Server
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'departments_dashboard',
-        'USER': 'dept_db_user',
-        'PASSWORD': 'TMPortal@4321',
-        'HOST': '172.17.0.20',
-        'PORT': '5432',
+# Shared Database - SQLite by default, or PostgreSQL on Company Server if DB_NAME is set
+if os.environ.get('DB_NAME'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ['DB_NAME'],
+            'USER': os.environ.get('DB_USER', 'dept_db_user'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', 'TMPortal@4321'),
+            'HOST': os.environ.get('DB_HOST', '172.17.0.20'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Custom User Model mapped to existing tpm_user table
 AUTH_USER_MODEL = 'tpm.User'

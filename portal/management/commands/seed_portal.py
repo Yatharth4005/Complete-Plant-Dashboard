@@ -43,7 +43,7 @@ class Command(BaseCommand):
             ("SMS-3", "SMS3"),
             ("Sinter", "SINT"),
             ("Special Profile Mill (SPM)", "SPM"),
-            ("Main Receiving Sub Station (MRSS)", "MRSS"),
+            ("MRSS Hub", "MRSS"),
         ]
         
         for name, code in DEPARTMENTS:
@@ -54,6 +54,15 @@ class Command(BaseCommand):
     def seed_modules(self):
         # Clean up old deprecated modules
         Module.objects.filter(key__in=['HR']).delete()
+
+        # Rename PRODUCTION key to PERFORMANCE in database if it exists, to preserve accesses
+        Module.objects.filter(key='PRODUCTION').update(
+            key='PERFORMANCE',
+            label='Performance',
+            description='Track, record, and analyze daily planned and actual production performance metrics',
+            color_class='module-performance',
+            redirect_url_template='/delays/department/{dept_id}/?tab=performance'
+        )
 
         MODULES = [
             {
@@ -147,12 +156,12 @@ class Command(BaseCommand):
                 'sort_order': 10,
             },
             {
-                'key': 'PRODUCTION',
-                'label': 'Production',
-                'description': 'Production targets, daily output logs, and efficiency metrics',
+                'key': 'PERFORMANCE',
+                'label': 'Performance',
+                'description': 'Track, record, and analyze daily planned and actual production performance metrics',
                 'icon': 'layers',
-                'color_class': 'module-production',
-                'redirect_url_template': '/department/{dept_id}/coming-soon/PRODUCTION/',
+                'color_class': 'module-performance',
+                'redirect_url_template': '/delays/department/{dept_id}/?tab=performance',
                 'sort_order': 11,
             },
             {
@@ -215,6 +224,9 @@ class Command(BaseCommand):
                 'is_active': True,
             }
         )
+        if not created or admin.password != admin_pass:
+            admin.set_password('Admin@1234')
+            admin.save()
         self.stdout.write('  [OK] Seeded Plant Admin: saurabh.agrawal@jindalsteel.in')
 
         # 2. Update/Create Lalit Goyal as SMS-2 user
@@ -232,6 +244,9 @@ class Command(BaseCommand):
                 'is_active': True,
             }
         )
+        if not created or lalit.password != user_pass:
+            lalit.set_password('Dept@1234')
+            lalit.save()
         self.stdout.write('  [OK] Seeded Department User: lalit.goyal@jindalsteel.in')
 
         # Grant Lalit TPM and CMC access inside SMS-2 for testing

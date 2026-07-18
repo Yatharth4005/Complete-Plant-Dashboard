@@ -79,6 +79,40 @@
       <div style="display: inline-flex; align-items: center; gap: 6px;">
         <span x-text="actual !== null ? actual : '0'" style="font-weight: bold; color: var(--jspl-navy);"></span>
         <span class="badge" style="background-color: #E0F2FE; color: #0369A1; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Auto</span>
+        
+        {% if pillar_id == 'JH' and row.sl_no == '2' %}
+          <button type="button" class="btn btn-secondary" 
+                  style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; font-weight: 600; cursor: pointer; border: 1px solid var(--jspl-border); background-color: #fff;"
+                  hx-get="{% url 'fuguai_modal_partial' dept.id %}?month={{ month }}&year={{ year }}&color=WHITE&type=identified"
+                  hx-target="#fuguai-modal-body"
+                  @click="openModal = true">
+            📸 View / Log
+          </button>
+        {% elif pillar_id == 'JH' and row.sl_no == '3' %}
+          <button type="button" class="btn btn-secondary" 
+                  style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; font-weight: 600; cursor: pointer; border: 1px solid var(--jspl-border); background-color: #fff;"
+                  hx-get="{% url 'fuguai_modal_partial' dept.id %}?month={{ month }}&year={{ year }}&color=WHITE&type=rectified"
+                  hx-target="#fuguai-modal-body"
+                  @click="openModal = true">
+            📸 View / Log
+          </button>
+        {% elif pillar_id == 'JH' and row.sl_no == '4' %}
+          <button type="button" class="btn btn-secondary" 
+                  style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; font-weight: 600; cursor: pointer; border: 1px solid var(--jspl-border); background-color: #fff;"
+                  hx-get="{% url 'fuguai_modal_partial' dept.id %}?month={{ month }}&year={{ year }}&color=RED&type=identified"
+                  hx-target="#fuguai-modal-body"
+                  @click="openModal = true">
+            📸 View / Log
+          </button>
+        {% elif pillar_id == 'JH' and row.sl_no == '5' %}
+          <button type="button" class="btn btn-secondary" 
+                  style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; font-weight: 600; cursor: pointer; border: 1px solid var(--jspl-border); background-color: #fff;"
+                  hx-get="{% url 'fuguai_modal_partial' dept.id %}?month={{ month }}&year={{ year }}&color=RED&type=rectified"
+                  hx-target="#fuguai-modal-body"
+                  @click="openModal = true">
+            📸 View / Log
+          </button>
+        {% endif %}
       </div>
       <input type="hidden" name="actual" x-model="actual">
     {% else %}

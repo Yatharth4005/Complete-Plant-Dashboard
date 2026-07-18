@@ -55,6 +55,10 @@ Thumbs.db
 # Project specific ignores
 *.webp
 *.png
+!jspl_mobile/**/*.png
+!jspl_mobile/**/*.jpg
+!jspl_mobile/**/*.jpeg
+!jspl_mobile/**/*.webp
 .gemini/
 
 # Excel/PDF Formats and Templates

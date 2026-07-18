@@ -1025,3 +1025,200 @@ def analytics_partial(request, dept_id, pillar_id):
     dept = get_object_or_404(Department, id=dept_id)
     context = get_analytics_context(request, dept, pillar_id)
     return render(request, 'partials/_analytics_charts.html', context)
+
+
+from django.utils import timezone
+from tpm.models import FuguaiTag
+
+@login_required
+@dept_access_required
+def fuguai_modal_partial(request, dept_id):
+    dept = get_object_or_404(Department, id=dept_id)
+    month = int(request.GET.get('month', timezone.now().month))
+    year = int(request.GET.get('year', timezone.now().year))
+    color = request.GET.get('color', 'WHITE').upper()
+    status_type = request.GET.get('type', 'identified').lower() # 'identified' or 'rectified'
+    
+    can_edit = user_can_edit_module(request.user, dept, 'TPM')
+    
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    is_mobile = any(kw in user_agent for kw in ['Mobi', 'Android', 'iPhone', 'iPad'])
+    
+    if request.method == 'POST':
+        action = request.POST.get('action') or request.GET.get('action')
+        if action == 'delete':
+            if not request.user.is_admin():
+                return HttpResponseForbidden("Only administrators can delete fuguai tags.")
+            tag_id = request.POST.get('tag_id') or request.GET.get('tag_id')
+            tag = get_object_or_404(FuguaiTag, id=tag_id, department=dept)
+            tag.delete()
+        elif action == 'audit':
+            if not request.user.is_admin():
+                return HttpResponseForbidden("Only administrators can audit fuguai tags.")
+            tag_id = request.POST.get('tag_id') or request.GET.get('tag_id')
+            audit_status = request.POST.get('audit_status')
+            audit_remarks = request.POST.get('audit_remarks', '').strip()
+            
+            if not tag_id or not audit_status:
+                return HttpResponse("Missing fields", status=400)
+                
+            tag = get_object_or_404(FuguaiTag, id=tag_id, department=dept)
+            tag.audit_status = audit_status
+            tag.audit_remarks = audit_remarks
+            tag.audited_by = request.user
+            tag.audited_at = timezone.now()
+            tag.save()
+        else:
+            if not can_edit:
+                return HttpResponseForbidden("You do not have permission to log/rectify abnormalities.")
+                
+            if action == 'create':
+                theme = request.POST.get('theme', '').strip()
+                before_image = request.FILES.get('before_image')
+                
+                if not theme:
+                    return HttpResponse("Abnormality description is required", status=400)
+                if not before_image:
+                    return HttpResponse("Before photo is required", status=400)
+                    
+                tag = FuguaiTag.objects.create(
+                    department=dept,
+                    theme=theme,
+                    tag_color=color,
+                    before_image=before_image,
+                    created_by=request.user
+                )
+                # Override created_at to match the selected month/year of data entry!
+                FuguaiTag.objects.filter(id=tag.id).update(created_at=timezone.make_aware(datetime.datetime(year, month, 1, 12, 0, 0)))
+                
+            elif action == 'rectify':
+                tag_id = request.POST.get('tag_id')
+                after_image = request.FILES.get('after_image')
+                
+                if not tag_id or not after_image:
+                    return HttpResponse("Missing fields", status=400)
+                    
+                tag = get_object_or_404(FuguaiTag, id=tag_id, department=dept)
+                tag.after_image = after_image
+                # Set rectified_at to match the selected month/year of data entry!
+                tag.rectified_at = timezone.make_aware(datetime.datetime(year, month, 1, 12, 0, 0))
+                tag.save()
+            
+        # Refetch tags
+        if status_type == 'identified':
+            tags = FuguaiTag.objects.filter(
+                department=dept,
+                tag_color=color,
+                created_at__month=month,
+                created_at__year=year
+            ).order_by('-created_at')
+        else:
+            tags = FuguaiTag.objects.filter(
+                department=dept,
+                tag_color=color,
+                rectified_at__month=month,
+                rectified_at__year=year
+            ).order_by('-rectified_at')
+            
+        context = {
+            'dept': dept,
+            'month': month,
+            'year': year,
+            'color': color,
+            'status_type': status_type,
+            'tags': tags,
+            'can_edit': can_edit,
+            'is_mobile': is_mobile,
+            'month_label': dict(get_months_list()).get(month),
+            'success_msg': "Abnormality logged successfully" if action == 'create' else "Abnormality rectified successfully"
+        }
+        
+        response = render(request, 'partials/_fuguai_modal.html', context)
+        response['HX-Trigger'] = 'refreshKPITable'
+        return response
+        
+    # GET request
+    if status_type == 'identified':
+        tags = FuguaiTag.objects.filter(
+            department=dept,
+            tag_color=color,
+            created_at__month=month,
+            created_at__year=year
+        ).order_by('-created_at')
+    else:
+        tags = FuguaiTag.objects.filter(
+            department=dept,
+            tag_color=color,
+            rectified_at__month=month,
+            rectified_at__year=year
+        ).order_by('-rectified_at')
+        
+    context = {
+        'dept': dept,
+        'month': month,
+        'year': year,
+        'color': color,
+        'status_type': status_type,
+        'tags': tags,
+        'can_edit': can_edit,
+        'is_mobile': is_mobile,
+        'month_label': dict(get_months_list()).get(month),
+    }
+    return render(request, 'partials/_fuguai_modal.html', context)
+
+
+@login_required
+@dept_access_required
+def fuguai_list_partial(request, dept_id):
+    dept = get_object_or_404(Department, id=dept_id)
+    can_edit = user_can_edit_module(request.user, dept, 'TPM')
+    
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    is_mobile = any(kw in user_agent for kw in ['Mobi', 'Android', 'iPhone', 'iPad'])
+    
+    if request.method == 'POST':
+        action = request.POST.get('action') or request.GET.get('action')
+        if action == 'delete':
+            if not request.user.is_admin():
+                return HttpResponseForbidden("Only administrators can delete fuguai tags.")
+            tag_id = request.POST.get('tag_id') or request.GET.get('tag_id')
+            tag = get_object_or_404(FuguaiTag, id=tag_id, department=dept)
+            tag.delete()
+        elif action == 'audit':
+            if not request.user.is_admin():
+                return HttpResponseForbidden("Only administrators can audit fuguai tags.")
+            tag_id = request.POST.get('tag_id') or request.GET.get('tag_id')
+            audit_status = request.POST.get('audit_status')
+            audit_remarks = request.POST.get('audit_remarks', '').strip()
+            
+            if not tag_id or not audit_status:
+                return HttpResponse("Missing fields", status=400)
+                
+            tag = get_object_or_404(FuguaiTag, id=tag_id, department=dept)
+            tag.audit_status = audit_status
+            tag.audit_remarks = audit_remarks
+            tag.audited_by = request.user
+            tag.audited_at = timezone.now()
+            tag.save()
+        elif action == 'rectify':
+            if not can_edit:
+                return HttpResponseForbidden("You do not have permission to rectify abnormalities.")
+            tag_id = request.POST.get('tag_id')
+            after_image = request.FILES.get('after_image')
+            
+            if not tag_id or not after_image:
+                return HttpResponse("Missing fields", status=400)
+                
+            tag = get_object_or_404(FuguaiTag, id=tag_id, department=dept)
+            tag.after_image = after_image
+            tag.rectified_at = timezone.now()
+            tag.save()
+            
+    tags = FuguaiTag.objects.filter(department=dept).order_by('-created_at')
+    context = {
+        'dept': dept,
+        'tags': tags,
+        'can_edit': can_edit,
+        'is_mobile': is_mobile,
+    }
+    return render(request, 'partials/_fuguai_list.html', context)

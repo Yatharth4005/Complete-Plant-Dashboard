@@ -1,5 +1,6 @@
 {# partials/_kpi_table.html #}
-<div id="kpi-table-container" x-data="{ showAddForm: false }">
+<style>[x-cloak] { display: none !important; }</style>
+<div id="kpi-table-container" x-data="{ showAddForm: false, openModal: false }" hx-get="{% url 'kpi_table_partial' dept.id pillar_id %}?month={{ month }}&year={{ year }}&selected_equipment={{ selected_equipment|default:'' }}" hx-trigger="refreshKPITable from:body">
   {% if filter_type == 'range' %}
     <div class="lock-banner" style="background-color: var(--jspl-light); border-color: var(--jspl-border); color: var(--jspl-navy);">
       <span>ℹ️ You are viewing a summary of data aggregated for the period: <b>{{ period_label }}</b>. Data entry is disabled.</span>
@@ -121,4 +122,23 @@
       </div>
     </div>
   {% endif %}
+
+  <!-- Fuguai Modal Dialog -->
+  <div x-show="openModal" 
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0 scale-95"
+       x-transition:enter-end="opacity-100 scale-100"
+       x-transition:leave="transition ease-in duration-75"
+       x-transition:leave-start="opacity-100 scale-100"
+       x-transition:leave-end="opacity-0 scale-95"
+       style="position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;" 
+       x-cloak>
+    <div @click.outside="openModal = false" style="background-color: #fff; width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden;">
+      <div id="fuguai-modal-body" style="padding: 24px; max-height: 90vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: center; align-items: center; padding: 40px; color: var(--jspl-muted);">
+          <span>⏳ Loading details...</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

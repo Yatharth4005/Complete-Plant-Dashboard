@@ -547,6 +547,42 @@ def capa_report(request, dept_id):
         while len(whys_list) < 3:
             whys_list.append('')
  
+        report_data = {
+            'uploadFilename': r.docx_upload.filename if r.docx_upload else '',
+            'documentNo': r.document_no or '',
+            'issueNo': r.issue_no or '',
+            'issueDate': r.issue_date or '',
+            'areaSection': r.area_section or '',
+            'dateIncident': r.date_incident or '',
+            'capaNo': r.capa_no or '',
+            'status': r.status or '',
+            'problemWhat': r.problem_what or '',
+            'problemWhere': r.problem_where or '',
+            'problemWhen': r.problem_when or '',
+            'problemExtent': r.problem_extent or '',
+            'breakdownApplicable': r.breakdown_applicable or '',
+            'breakdownHrs': r.breakdown_hrs or '',
+            'breakdownFrom': r.breakdown_from or '',
+            'breakdownTo': r.breakdown_to or '',
+            'immediateAction': r.immediate_action or '',
+            'actionTimeframe': r.action_timeframe or '',
+            'actionResponsibility': r.action_responsibility or '',
+            'why1': r.why_1 or '',
+            'why2': r.why_2 or '',
+            'why3': r.why_3 or '',
+            'why4': r.why_4 or '',
+            'why5': r.why_5 or '',
+            'conclusion': r.conclusion or '',
+            'detailedPlan': r.detailed_plan or '',
+            'modifiedDocsOther': r.modified_documents_other or '',
+            'trainingDetails': r.training_details or '',
+            'dateImplementation': r.date_implementation or '',
+            'effectivenessEvaluation': r.effectiveness_evaluation or '',
+            'preparedBy': r.prepared_by or '',
+            'reviewedBy': r.reviewed_by or '',
+            'approvedBy': r.approved_by or ''
+        }
+
         # Build structure for rowspan logic if needed, or simply flat display of actions
         reports_data.append({
             'record': r,
@@ -559,6 +595,7 @@ def capa_report(request, dept_id):
             'five_m_applicable_json': json.dumps(r.five_m_applicable if isinstance(r.five_m_applicable, list) else []),
             'modified_documents_json': json.dumps(r.modified_documents if isinstance(r.modified_documents, list) else []),
             'whys_json': json.dumps(whys_list),
+            'serialized_report_json': json.dumps(report_data),
         })
         
     dropdown_res = get_dropdown_resources(active_dept)
@@ -734,6 +771,12 @@ def save_capa(request, dept_id, record_id=None):
                     pass
         else:
             report.docx_upload = None
+
+    # Update associated upload filename if provided
+    upload_filename = request.POST.get('upload_filename', '').strip()
+    if report.docx_upload and upload_filename:
+        report.docx_upload.filename = upload_filename
+        report.docx_upload.save()
 
     # Retrieve parameters
     report.area_section = request.POST.get('area_section', '').strip()
@@ -1385,10 +1428,48 @@ def get_dropdown_resources(active_dept):
     
     user_choices = shift_incharges_list
     
+    # Map shift incharges from DelayDropdownOption to their phone numbers and roles
+    user_phones = {}
+    user_roles = {}
+    for o in DelayDropdownOption.objects.filter(category__iexact='Shift Incharge'):
+        name_val = o.value.strip() if o.value else ""
+        if not name_val:
+            continue
+        parent_val = o.parent_value or ""
+        role_val = ""
+        phone_val = ""
+        if '|' in parent_val:
+            try:
+                role_val, phone_val = parent_val.split('|', 1)
+                role_val = role_val.strip()
+                phone_val = phone_val.strip()
+            except Exception:
+                pass
+        else:
+            role_val = parent_val.strip()
+            
+        if phone_val:
+            user_phones[name_val] = phone_val
+            user_phones[name_val.lower()] = phone_val
+            parts = name_val.split()
+            if parts:
+                user_phones[parts[0]] = phone_val
+                user_phones[parts[0].lower()] = phone_val
+                
+        if role_val:
+            user_roles[name_val] = role_val
+            user_roles[name_val.lower()] = role_val
+            parts = name_val.split()
+            if parts:
+                user_roles[parts[0]] = role_val
+                user_roles[parts[0].lower()] = role_val
+            
     return {
         'shift_incharges': shift_incharges_list,
         'shift_incharges_json': json.dumps(shift_incharges_list),
         'user_choices': user_choices,
         'user_choices_json': json.dumps(user_choices),
+        'user_phones_json': json.dumps(user_phones),
+        'user_roles_json': json.dumps(user_roles),
     }
 

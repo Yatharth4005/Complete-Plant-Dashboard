@@ -34,6 +34,8 @@ def plant_dashboard(request):
         
         module_states = []
         for module in active_modules:
+            if module.key == 'PERFORMANCE' and dept.code not in ['SMS2', 'SMS3']:
+                continue
             access_level = access_map.get(module.key)
             module_states.append({
                 'module': module,
@@ -146,12 +148,12 @@ def overall_plant_dashboard(request):
             'url': '/department/0/coming-soon/SAFETY/',
         },
         {
-            'key': 'PRODUCTION',
-            'label': 'Production',
-            'description': 'Production targets, daily output logs, and efficiency metrics',
+            'key': 'PERFORMANCE',
+            'label': 'Performance',
+            'description': 'Track, record, and analyze daily planned and actual production performance metrics',
             'icon': 'layers',
-            'color_class': 'module-production',
-            'url': '/department/0/coming-soon/PRODUCTION/',
+            'color_class': 'module-performance',
+            'url': '/delays/department/0/?tab=performance',
         },
         {
             'key': 'QUALITY',
@@ -281,4 +283,188 @@ def mark_notification_read(request, notification_id):
         return JsonResponse({'status': 'success'})
     except PortalNotification.DoesNotExist:  # type: ignore
         return JsonResponse({'status': 'error', 'message': 'Notification not found'}, status=404)
+
+
+@login_required
+@require_POST
+def mark_all_notifications_read(request):
+    PortalNotification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({'status': 'success'})
+
+
+@login_required
+def tpm_admin_dashboard(request):
+    """
+    Dashboard for TPM Admin under Administration tab.
+    Shows cards for Kaizens, OPLs, and Fuguai Registers.
+    Supports filtering by department, month, date range, and lists all files plantwide.
+    """
+    if not request.user.is_admin():
+        from django.contrib import messages
+        messages.error(request, "Only administrators can access the TPM Admin Dashboard.")
+        return redirect('portal:plant_dashboard')
+
+    import os
+    from tpm.models import KaizenSheet, OPLSheet, FuguaiRegister
+    from tpm.models import Department
+
+    # Get search/filter parameters
+    selected_dept_id = request.GET.get('department_id')
+    doc_type = request.GET.get('doc_type', 'kaizen') # 'kaizen', 'opl', 'fuguai'
+    filter_month = request.GET.get('filter_month', '')
+    start_date = request.GET.get('start_date', '')
+    end_date = request.GET.get('end_date', '')
+
+    departments = Department.objects.filter(is_active=True).order_by('name')
+
+    # Base lists
+    kaizens_list = KaizenSheet.objects.all().select_related('department').order_by('-created_at')
+    opls_list = OPLSheet.objects.all().select_related('department').order_by('-created_at')
+    fuguais_list = FuguaiRegister.objects.all().select_related('department').order_by('-created_at')
+
+    # Apply Department Filter
+    if selected_dept_id:
+        try:
+            dept_id = int(selected_dept_id)
+            kaizens_list = kaizens_list.filter(department_id=dept_id)
+            opls_list = opls_list.filter(department_id=dept_id)
+            fuguais_list = fuguais_list.filter(department_id=dept_id)
+        except ValueError:
+            pass
+
+    # Apply Month Filter (YYYY-MM)
+    if filter_month:
+        try:
+            year, month = map(int, filter_month.split('-'))
+            kaizens_list = kaizens_list.filter(created_at__year=year, created_at__month=month)
+            opls_list = opls_list.filter(created_at__year=year, created_at__month=month)
+            fuguais_list = fuguais_list.filter(created_at__year=year, created_at__month=month)
+        except (ValueError, TypeError):
+            pass
+
+    # Apply Date Range Filter (YYYY-MM-DD)
+    if start_date:
+        kaizens_list = kaizens_list.filter(created_at__date__gte=start_date)
+        opls_list = opls_list.filter(created_at__date__gte=start_date)
+        fuguais_list = fuguais_list.filter(created_at__date__gte=start_date)
+    if end_date:
+        kaizens_list = kaizens_list.filter(created_at__date__lte=end_date)
+        opls_list = opls_list.filter(created_at__date__lte=end_date)
+        fuguais_list = fuguais_list.filter(created_at__date__lte=end_date)
+
+    # Handle ZIP Download
+    if request.GET.get('download_zip') == '1':
+        import zipfile
+        import io
+        from django.http import HttpResponse
+        from django.contrib import messages
+
+        zip_buffer = io.BytesIO()
+        files_added = 0
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            if doc_type == 'kaizen':
+                from tpm.views.kaizen_views import generate_kaizen_pdf
+                for item in kaizens_list:
+                    if item.uploaded_file:
+                        try:
+                            file_path = item.uploaded_file.path
+                            if os.path.exists(file_path):
+                                filename = os.path.basename(file_path)
+                                zip_file.write(file_path, f"Kaizen_{item.kaizen_no or item.id}_{filename}")
+                                files_added += 1
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            pdf_bytes = generate_kaizen_pdf(item)
+                            pdf_name = f"KAIZEN_{item.kaizen_no or item.id}.pdf"
+                            zip_file.writestr(pdf_name, pdf_bytes)
+                            files_added += 1
+                        except Exception:
+                            pass
+
+            elif doc_type == 'opl':
+                for item in opls_list:
+                    if item.uploaded_file:
+                        try:
+                            file_path = item.uploaded_file.path
+                            if os.path.exists(file_path):
+                                filename = os.path.basename(file_path)
+                                zip_file.write(file_path, f"OPL_{item.opl_no or item.id}_{filename}")
+                                files_added += 1
+                        except Exception:
+                            pass
+
+            elif doc_type == 'fuguai':
+                for item in fuguais_list:
+                    if item.uploaded_file:
+                        try:
+                            file_path = item.uploaded_file.path
+                            if os.path.exists(file_path):
+                                filename = os.path.basename(file_path)
+                                zip_file.write(file_path, f"Fuguai_{item.id}_{filename}")
+                                files_added += 1
+                        except Exception:
+                            pass
+
+        if files_added == 0:
+            messages.error(request, "No files found to download for the current filters.")
+            query_params = request.GET.copy()
+            if 'download_zip' in query_params:
+                del query_params['download_zip']
+            return redirect(f"{request.path}?{query_params.urlencode()}")
+
+        zip_buffer.seek(0)
+        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="TPM_{doc_type.upper()}_FILES.zip"'
+        return response
+
+    # Total counts for cards matching the current filters
+    total_kaizens = kaizens_list.count()
+    total_opls = opls_list.count()
+    total_fuguais = fuguais_list.count()
+
+    # Handle file uploads for Fuguai Register or others if needed
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'upload_fuguai':
+            dept_id = request.POST.get('upload_dept_id')
+            theme = request.POST.get('theme', '').strip()
+            fuguai_file = request.FILES.get('fuguai_file')
+            if dept_id and fuguai_file:
+                try:
+                    dept = Department.objects.get(id=dept_id)
+                    FuguaiRegister.objects.create(
+                        department=dept,
+                        theme=theme,
+                        uploaded_file=fuguai_file,
+                        created_by=request.user
+                    )
+                    from django.contrib import messages
+                    messages.success(request, f"Fuguai Register for {dept.name} uploaded successfully.")
+                except Exception as e:
+                    from django.contrib import messages
+                    messages.error(request, f"Error uploading Fuguai Register: {str(e)}")
+            else:
+                from django.contrib import messages
+                messages.error(request, "Please select a department and file to upload.")
+            return redirect('portal:tpm_admin_dashboard')
+
+    context = {
+        'departments': departments,
+        'selected_dept_id': selected_dept_id,
+        'doc_type': doc_type,
+        'filter_month': filter_month,
+        'start_date': start_date,
+        'end_date': end_date,
+        'total_kaizens': total_kaizens,
+        'total_opls': total_opls,
+        'total_fuguais': total_fuguais,
+        'kaizens_list': kaizens_list,
+        'opls_list': opls_list,
+        'fuguais_list': fuguais_list,
+        'active_section': 'tpm_admin_dashboard',
+    }
+    return render(request, 'portal/dashboard/tpm_admin_dashboard.html', context)
 

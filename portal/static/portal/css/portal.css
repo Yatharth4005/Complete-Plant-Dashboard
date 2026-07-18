@@ -1340,6 +1340,10 @@ a {
   border-left: 4.5px solid #f59e0b;
 }
 
+.dept-hub-module-btn.module-performance {
+  border-left: 4.5px solid #4f46e5;
+}
+
 .dept-hub-module-btn.module-quality {
   border-left: 4.5px solid #2563eb;
 }
@@ -1398,6 +1402,10 @@ a {
 
 .dept-hub-module-btn.accessible.module-production:hover {
   border-color: #f59e0b;
+}
+
+.dept-hub-module-btn.accessible.module-performance:hover {
+  border-color: #4f46e5;
 }
 
 .dept-hub-module-btn.accessible.module-quality:hover {
@@ -1752,6 +1760,10 @@ select.input-mono {
 
 .module-card.module-production {
   border-top: 4px solid #f59e0b;
+}
+
+.module-card.module-performance {
+  border-top: 4px solid #4f46e5;
 }
 
 .module-card.module-quality {

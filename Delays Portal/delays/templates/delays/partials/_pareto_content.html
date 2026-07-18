@@ -42,16 +42,56 @@
       
       <!-- Time-based Priorities -->
       <div x-show="paretoType === 'time'">
-        <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Internal Agency Bottleneck</h5>
-        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 10px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden; margin-bottom: 12px;" onclick="drillDownPareto('{{ top_internal_agency|escapejs }}')" title="Drill down to {{ top_internal_agency }}">
-          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_internal_agency }}</span>
-          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_internal_agency_mins }} mins</span>
+        <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Internal Agency Bottlenecks</h5>
+        <div style="border-radius: 6px; overflow: hidden; margin-bottom: 16px; border: 1px solid #fee2e2;">
+          <table style="width: 100%; border-collapse: collapse; background: white; font-size: 0.78rem; border-left: 4px solid #DC2626;">
+            <thead>
+              <tr style="background: rgba(220, 38, 38, 0.03); border-bottom: 1px solid #fee2e2;">
+                <th style="text-align: left; padding: 6px 10px; font-weight: 700; color: #991b1b;">Agency</th>
+                <th style="text-align: right; padding: 6px 10px; font-weight: 700; color: #991b1b; width: 75px;">Time</th>
+                <th style="text-align: left; padding: 6px 10px; font-weight: 700; color: #991b1b;">Reason Summary</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in internal_agency_table %}
+                <tr style="border-bottom: 1px solid #fee2e2; cursor: pointer;" onclick="drillDownPareto('{{ row.agency|escapejs }}')" title="Click to view details for {{ row.agency }}" class="pareto-row">
+                  <td style="padding: 6px 10px; font-weight: 600; color: #991b1b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px;">{{ row.agency }}</td>
+                  <td style="padding: 6px 10px; text-align: right; font-weight: 700; color: #DC2626;" class="font-mono">{{ row.mins }}m</td>
+                  <td style="padding: 6px 10px; color: #4b5563; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px;" title="{{ row.reason }}">{{ row.reason }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="3" style="padding: 10px; text-align: center; color: #991b1b; font-style: italic;">No internal delay records.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
 
-        <h5 style="margin: 12px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top External Agency Bottleneck</h5>
-        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #16a34a; padding: 10px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; color: #166534; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden;" onclick="drillDownPareto('{{ top_external_agency|escapejs }}')" title="Drill down to {{ top_external_agency }}">
-          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_external_agency }}</span>
-          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_external_agency_mins }} mins</span>
+        <h5 style="margin: 12px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top External Agency Bottlenecks</h5>
+        <div style="border-radius: 6px; overflow: hidden; margin-bottom: 16px; border: 1px solid #dcfce7;">
+          <table style="width: 100%; border-collapse: collapse; background: white; font-size: 0.78rem; border-left: 4px solid #16a34a;">
+            <thead>
+              <tr style="background: rgba(22, 163, 74, 0.03); border-bottom: 1px solid #dcfce7;">
+                <th style="text-align: left; padding: 6px 10px; font-weight: 700; color: #166534;">Agency</th>
+                <th style="text-align: right; padding: 6px 10px; font-weight: 700; color: #166534; width: 75px;">Time</th>
+                <th style="text-align: left; padding: 6px 10px; font-weight: 700; color: #166534;">Reason Summary</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in external_agency_table %}
+                <tr style="border-bottom: 1px solid #dcfce7; cursor: pointer;" onclick="drillDownPareto('{{ row.agency|escapejs }}')" title="Click to view details for {{ row.agency }}" class="pareto-row">
+                  <td style="padding: 6px 10px; font-weight: 600; color: #166534; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px;">{{ row.agency }}</td>
+                  <td style="padding: 6px 10px; text-align: right; font-weight: 700; color: #16a34a;" class="font-mono">{{ row.mins }}m</td>
+                  <td style="padding: 6px 10px; color: #4b5563; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px;" title="{{ row.reason }}">{{ row.reason }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="3" style="padding: 10px; text-align: center; color: #166534; font-style: italic;">No external delay records.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
 
         <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top {% if is_description %}Delay Reason{% else %}Equipment{% endif %} Bottlenecks (Vital Few)</h5>
@@ -69,16 +109,56 @@
 
       <!-- Frequency-based Priorities -->
       <div x-show="paretoType === 'frequency'">
-        <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Internal Agency by Frequency</h5>
-        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #DC2626; padding: 10px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; color: #991b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden; margin-bottom: 12px;" onclick="drillDownPareto('{{ top_internal_agency_freq|escapejs }}')" title="Drill down to {{ top_internal_agency_freq }}">
-          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_internal_agency_freq }}</span>
-          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_internal_agency_freq_count }} events</span>
+        <h5 style="margin: 15px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top Internal Agencies by Frequency</h5>
+        <div style="border-radius: 6px; overflow: hidden; margin-bottom: 16px; border: 1px solid #fee2e2;">
+          <table style="width: 100%; border-collapse: collapse; background: white; font-size: 0.78rem; border-left: 4px solid #DC2626;">
+            <thead>
+              <tr style="background: rgba(220, 38, 38, 0.03); border-bottom: 1px solid #fee2e2;">
+                <th style="text-align: left; padding: 6px 10px; font-weight: 700; color: #991b1b;">Agency</th>
+                <th style="text-align: right; padding: 6px 10px; font-weight: 700; color: #991b1b; width: 75px;">Events</th>
+                <th style="text-align: left; padding: 6px 10px; font-weight: 700; color: #991b1b;">Reason Summary</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in internal_agency_freq_table %}
+                <tr style="border-bottom: 1px solid #fee2e2; cursor: pointer;" onclick="drillDownPareto('{{ row.agency|escapejs }}')" title="Click to view details for {{ row.agency }}" class="pareto-row">
+                  <td style="padding: 6px 10px; font-weight: 600; color: #991b1b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px;">{{ row.agency }}</td>
+                  <td style="padding: 6px 10px; text-align: right; font-weight: 700; color: #DC2626;" class="font-mono">{{ row.count }}</td>
+                  <td style="padding: 6px 10px; color: #4b5563; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px;" title="{{ row.reason }}">{{ row.reason }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="3" style="padding: 10px; text-align: center; color: #991b1b; font-style: italic;">No internal delay records.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
 
-        <h5 style="margin: 12px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top External Agency by Frequency</h5>
-        <div style="background: white; border: 1px solid #fee2e2; border-left: 4px solid #16a34a; padding: 10px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; color: #166534; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; overflow: hidden;" onclick="drillDownPareto('{{ top_external_agency_freq|escapejs }}')" title="Drill down to {{ top_external_agency_freq }}">
-          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;">{{ top_external_agency_freq }}</span>
-          <span style="white-space: nowrap; flex-shrink: 0;">{{ top_external_agency_freq_count }} events</span>
+        <h5 style="margin: 12px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top External Agencies by Frequency</h5>
+        <div style="border-radius: 6px; overflow: hidden; margin-bottom: 16px; border: 1px solid #dcfce7;">
+          <table style="width: 100%; border-collapse: collapse; background: white; font-size: 0.78rem; border-left: 4px solid #16a34a;">
+            <thead>
+              <tr style="background: rgba(22, 163, 74, 0.03); border-bottom: 1px solid #dcfce7;">
+                <th style="text-align: left; padding: 6px 10px; font-weight: 700; color: #166534;">Agency</th>
+                <th style="text-align: right; padding: 6px 10px; font-weight: 700; color: #166534; width: 75px;">Events</th>
+                <th style="text-align: left; padding: 6px 10px; font-weight: 700; color: #166534;">Reason Summary</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in external_agency_freq_table %}
+                <tr style="border-bottom: 1px solid #dcfce7; cursor: pointer;" onclick="drillDownPareto('{{ row.agency|escapejs }}')" title="Click to view details for {{ row.agency }}" class="pareto-row">
+                  <td style="padding: 6px 10px; font-weight: 600; color: #166534; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px;">{{ row.agency }}</td>
+                  <td style="padding: 6px 10px; text-align: right; font-weight: 700; color: #16a34a;" class="font-mono">{{ row.count }}</td>
+                  <td style="padding: 6px 10px; color: #4b5563; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px;" title="{{ row.reason }}">{{ row.reason }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="3" style="padding: 10px; text-align: center; color: #166534; font-style: italic;">No external delay records.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
 
         <h5 style="margin: 20px 0 6px 0; font-size: 0.8rem; text-transform: uppercase; color: var(--delays-primary);">Top {% if is_description %}Delay Reason{% else %}Equipment{% endif %} by Frequency (Vital Few)</h5>

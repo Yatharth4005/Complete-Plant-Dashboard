@@ -10,8 +10,12 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         excel_path = 'CMC Requirements.xlsx'
         if not os.path.exists(excel_path):
-            self.stdout.write(self.style.ERROR(f"Could not find '{excel_path}' in the current directory."))
-            return
+            alt_path = os.path.join('CMC Portal', 'CMC Requirements.xlsx')
+            if os.path.exists(alt_path):
+                excel_path = alt_path
+            else:
+                self.stdout.write(self.style.ERROR(f"Could not find '{excel_path}' or '{alt_path}'."))
+                return
 
         self.stdout.write("Loading workbook...")
         wb = openpyxl.load_workbook(excel_path, data_only=True)

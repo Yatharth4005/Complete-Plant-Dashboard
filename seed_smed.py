@@ -98,7 +98,7 @@ def seed_smed():
             ]
         },
         {
-            "name": "SMED SHELL CHANGE OVER",
+            "name": "SMED EBT Repair",
             "code": "SHELL_CHANGE_OVER",
             "activities": [
                 {
@@ -119,7 +119,7 @@ def seed_smed():
             ]
         },
         {
-            "name": "SMED CC SECTION CHANGE FROM BLOOM TO ROUND",
+            "name": "SMED BILLET SECTION CHANGE FROM BLOOM TO ROUND",
             "code": "CC_SECTION_CHANGE",
             "activities": [
                 {

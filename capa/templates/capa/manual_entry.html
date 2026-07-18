@@ -277,27 +277,33 @@
                 <tr>
                   <!-- Team Leader -->
                   <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
-                    <select name="team_leader" class="capa-input" x-model="team.team_leader" style="height: 32px;">
-                      <option value="">Select Team Leader...</option>
+                    <input list="team_leaders_list" name="team_leader" class="capa-input" x-model="team.team_leader" placeholder="Type or select Leader..." style="height: 32px; width: 100%;">
+                    <datalist id="team_leaders_list">
                       {% for si in shift_incharges %}
-                        <option value="{{ si }}" {% if si == prefills.responsible_team.team_leader %}selected{% endif %}>{{ si }}</option>
+                        <option value="{{ si }}">
                       {% endfor %}
-                    </select>
+                    </datalist>
                   </td>
                   <!-- Team Members -->
                   <td style="border: none; border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
                     <div x-data="{ open: false }" class="multiselect-dropdown" style="position: relative; width: 100%;" @click.away="open = false">
-                      <button type="button" @click="open = !open" class="capa-input" style="width: 100%; text-align: left; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; height: auto; min-height: 38px; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                      <button type="button" @click="open = !open; if(open) searchQuery = '';" class="capa-input" style="width: 100%; text-align: left; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; height: auto; min-height: 38px; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
                         <span style="font-size: 0.85rem; color: #0f172a; white-space: normal; word-break: break-word;" x-text="selectedMembers.length > 0 ? selectedMembers.join(', ') : 'Select Team Members...'"></span>
                         <span style="color: #64748b; font-size: 0.8rem;">▼</span>
                       </button>
-                      <div x-show="open" style="position: absolute; top: 100%; left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); max-height: 200px; overflow-y: auto; z-index: 50; padding: 8px;" x-transition>
-                        {% for name in user_choices %}
-                          <label style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; color: #334155; user-select: none; text-align: left;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                            <input type="checkbox" :value="'{{ name|escapejs }}'" x-model="selectedMembers" style="accent-color: var(--jspl-blue); cursor: pointer;">
-                            <span>{{ name }}</span>
-                          </label>
-                        {% endfor %}
+                      <div x-show="open" style="position: absolute; top: 100%; left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); max-height: 250px; overflow-y: auto; z-index: 50; padding: 8px;" x-transition>
+                        <!-- Search Bar -->
+                        <div style="padding: 2px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px;">
+                          <input type="text" x-model="searchQuery" placeholder="Search members..." class="capa-input" style="height: 28px; font-size: 0.8rem; padding: 4px 8px; width: 100%;" @click.stop>
+                        </div>
+                        <div style="max-height: 160px; overflow-y: auto;">
+                          <template x-for="name in membersList.filter(m => m.toLowerCase().includes(searchQuery.toLowerCase()))" :key="name">
+                            <label style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; color: #334155; user-select: none; text-align: left;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                              <input type="checkbox" :value="name" x-model="selectedMembers" style="accent-color: var(--jspl-blue); cursor: pointer;">
+                              <span x-text="name"></span>
+                            </label>
+                          </template>
+                        </div>
                       </div>
                       <input type="hidden" name="team_members" :value="selectedMembers.join('\n')">
                     </div>
@@ -623,6 +629,8 @@
       existingFileId: '',
       breakdownHrs: '{{ prefills.breakdown_hrs|escapejs }}',
       breakdownApplicable: '',
+      membersList: JSON.parse('{{ user_choices_json|escapejs }}' || '[]'),
+      searchQuery: '',
       selectedMembers: [],
       init() {
         // Auto-update breakdown duration checkbox based on duration changes
@@ -655,10 +663,41 @@
           }
         }
         
-        // Watch selectedMembers to sync with team.team_members
+        // Watch selectedMembers to sync with team.team_members and update contacts
         this.$watch('selectedMembers', value => {
           this.team.team_members = value.join('\n');
+          this.updateContactNos();
         });
+        
+        // Watch team_leader to update contacts
+        this.$watch('team.team_leader', value => {
+          this.updateContactNos();
+        });
+      },
+      updateContactNos() {
+        const phones = [];
+        const roles = [];
+        const userPhones = JSON.parse('{{ user_phones_json|escapejs }}' || '{}');
+        const userRoles = JSON.parse('{{ user_roles_json|escapejs }}' || '{}');
+        
+        if (this.team.team_leader) {
+          if (userPhones[this.team.team_leader]) {
+            phones.push(userPhones[this.team.team_leader]);
+          }
+          if (userRoles[this.team.team_leader]) {
+            roles.push(userRoles[this.team.team_leader] + " (Leader)");
+          }
+        }
+        this.selectedMembers.forEach(member => {
+          if (userPhones[member]) {
+            phones.push(userPhones[member]);
+          }
+          if (userRoles[member]) {
+            roles.push(userRoles[member]);
+          }
+        });
+        this.team.contact_nos = phones.join('\n');
+        this.team.role_function = roles.join('\n');
       },
       isClosed(dateStr) {
         if (!dateStr) return false;

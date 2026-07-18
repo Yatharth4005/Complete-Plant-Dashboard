@@ -129,6 +129,19 @@
       box-shadow: 0 -2px 6px rgba(225, 29, 72, 0.05);
     }
     
+    /* 7. Performance (Indigo Theme) */
+    .main-tab-link.theme-indigo:hover {
+      background: #e0e7ff;
+      color: #4f46e5;
+    }
+    .main-tab-link.theme-indigo.active {
+      background: white;
+      border-color: #e2e8f0 #e2e8f0 white;
+      color: #4f46e5;
+      border-top: 3px solid #4f46e5;
+      box-shadow: 0 -2px 6px rgba(79, 70, 229, 0.05);
+    }
+    
     /* Sub Tabs Container and Sub Tab Link styles */
     .sub-tabs-bar {
       display: flex;
@@ -257,6 +270,8 @@
           📊 Pareto — {{ dept.name }}
         {% elif active_tab == 'mttr_mtbf' %}
           ⏱ MTTR / MTBF Analysis — {{ dept.name }}
+        {% elif active_tab == 'performance' %}
+          📈 Performance — {{ dept.name }}
         {% elif active_tab == 'checklist_summary' or active_tab == 'manual_checklist' or active_tab == 'checklist_schedule' or active_tab == 'checklist_calendar' or active_tab == 'checklist_status' or is_manage_options_page and request.GET.module == 'checklist' %}
           📋 Checklist — {{ dept.name }}
         {% else %}
@@ -272,6 +287,8 @@
           Analyze 80/20 distribution of breakdown downtime causes
         {% elif active_tab == 'mttr_mtbf' %}
           Mean Time to Repair, Mean Time Between Failures, and Operational Availability metrics
+        {% elif active_tab == 'performance' %}
+          Track, record, and analyze daily planned and actual production performance metrics
         {% elif active_tab == 'checklist_summary' or active_tab == 'manual_checklist' or active_tab == 'checklist_schedule' or active_tab == 'checklist_calendar' or active_tab == 'checklist_status' or is_manage_options_page and request.GET.module == 'checklist' %}
           Manage department shift checklists, inspections, and actions
         {% else %}
@@ -292,6 +309,14 @@
       <a href="{% url 'delays:dept_overview' dept.id %}?tab=checklist_schedule{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}" 
          class="main-tab-link theme-emerald active">
         📋 Checklist
+      </a>
+    </div>
+  {% elif active_tab == 'performance' %}
+    <div class="main-tabs-container">
+      <!-- Performance -->
+      <a href="{% url 'delays:dept_overview' dept.id %}?tab=performance" 
+         class="main-tab-link theme-indigo active">
+        📈 Performance
       </a>
     </div>
   {% else %}
@@ -415,6 +440,6 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'delays/js/delays.js' %}?v=7"></script>
+  <script src="{% static 'delays/js/delays.js' %}?v=8"></script>
   {% block delays_extra_js %}{% endblock %}
 {% endblock %}

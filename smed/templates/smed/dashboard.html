@@ -350,11 +350,11 @@
         </select>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 6px;" x-show="fy === 'custom'">
         <span class="filter-label">From:</span>
         <input type="date" x-model="dateStart" class="filter-input" @change="onHeaderDateChange()">
       </div>
-      <div style="display: flex; align-items: center; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 6px;" x-show="fy === 'custom'">
         <span class="filter-label">To:</span>
         <input type="date" x-model="dateEnd" class="filter-input" @change="onHeaderDateChange()">
       </div>
@@ -374,7 +374,7 @@
                   color: {% if t.id == selected_template.id %}white{% else %}#475569{% endif %};"
            onmouseover="if(this.style.color!=='white'){this.style.background='#f8fafc';}" 
            onmouseout="if(this.style.color!=='white'){this.style.background='white';}">
-          <span>⏱ {{ t.name|cut:"SMED " }}</span>
+          <span>⏱ {{ t.name|cut:"SMED "|cut:" FROM BLOOM TO ROUND"|cut:" FROM ROUND TO BLOOM"|cut:" from bloom to round"|cut:" from round to bloom" }}</span>
         </a>
       {% empty %}
         <div style="color: #64748b; font-size: 0.85rem; padding: 4px 0;">No templates available.</div>
@@ -386,13 +386,6 @@
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
     <!-- Tabs on Left (Combined View) -->
     <div style="display: flex; gap: 12px; align-items: center;" x-show="selectedTemplateId">
-      <div style="display: inline-flex; align-items: center; gap: 8px; background: var(--smed-amber-bg); border: 1px solid var(--smed-amber-border); color: var(--smed-amber-accent); padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.88rem;">
-        🗓️ 1. Planned Schedule
-      </div>
-      <span style="color: #cbd5e1; font-weight: 700;">+</span>
-      <div style="display: inline-flex; align-items: center; gap: 8px; background: var(--smed-green-bg); border: 1px solid var(--smed-green-border); color: var(--smed-green-accent); padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.88rem;">
-        ⏱️ 2. Actual Tracking
-      </div>
     </div>
 
     <!-- Actions on Right -->

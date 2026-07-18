@@ -14,6 +14,11 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-jspl-tpm-portal-secre
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.loca.lt', 'http://*.loca.lt',
+    'https://*.ngrok-free.app', 'http://*.ngrok-free.app',
+    'https://*.ngrok-free.dev', 'http://*.ngrok-free.dev'
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -34,6 +39,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # serve static files
+    'portal.middleware.StaticCacheMiddleware',  # Caches static files to optimize mobile WebView load times
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

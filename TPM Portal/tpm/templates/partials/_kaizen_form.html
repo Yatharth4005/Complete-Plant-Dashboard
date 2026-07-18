@@ -18,6 +18,7 @@
       hx-encoding="multipart/form-data"
       hx-target="#tab-content"
       hx-swap="innerHTML"
+      hx-disabled-elt="find button[type='submit']"
       style="background-color: var(--jspl-white); border: 1px solid var(--jspl-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
   {% csrf_token %}
   

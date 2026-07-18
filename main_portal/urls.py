@@ -14,6 +14,7 @@ urlpatterns = [
     path('hod-kpi/', include('hod_kpi.urls', namespace='hod_kpi')),
     path('quality/', include('quality.urls', namespace='quality')),
     path('smed/', include('smed.urls', namespace='smed')),
+    path('api/', include('api.urls')),
     path('admin/', admin.site.urls),
 ]
 

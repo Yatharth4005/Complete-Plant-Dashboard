@@ -456,9 +456,51 @@ class OPLSheet(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    uploaded_file = models.FileField(upload_to='opl_files/', blank=True, null=True)
 
     def __str__(self):
         return f"OPL {self.opl_no or 'Draft'} - {self.theme or 'No Theme'}"
+
+
+class FuguaiRegister(models.Model):
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='fuguai_registers')
+    theme = models.CharField(max_length=255, blank=True)
+    uploaded_file = models.FileField(upload_to='fuguai_registers/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return f"Fuguai Register - {self.department.name} - {self.theme or 'No Theme'}"
+
+
+class FuguaiTag(models.Model):
+    TAG_COLOR_CHOICES = [
+        ('WHITE', 'White Tag'),
+        ('RED', 'Red Tag'),
+    ]
+    AUDIT_STATUS_CHOICES = [
+        ('PENDING', 'Pending Audit'),
+        ('OK', 'OK (Correct)'),
+        ('REWORK', 'Rework Required'),
+    ]
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='fuguai_tags')
+    theme = models.CharField(max_length=255, blank=True)
+    tag_color = models.CharField(max_length=10, choices=TAG_COLOR_CHOICES, default='WHITE')
+    before_image = models.ImageField(upload_to='fuguai_images/', blank=True, null=True)
+    after_image = models.ImageField(upload_to='fuguai_images/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    rectified_at = models.DateTimeField(blank=True, null=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+
+    # Audit fields for admins / tpm admin
+    audit_status = models.CharField(max_length=20, choices=AUDIT_STATUS_CHOICES, default='PENDING')
+    audit_remarks = models.TextField(blank=True)
+    audited_at = models.DateTimeField(blank=True, null=True)
+    audited_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='audited_fuguais')
+
+    def __str__(self):
+        return f"{self.tag_color} Tag {self.id} - {self.department.name} - {self.theme or 'No Theme'}"
+
 
 
 

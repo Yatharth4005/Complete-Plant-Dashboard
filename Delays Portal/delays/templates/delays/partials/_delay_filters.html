@@ -1,7 +1,8 @@
 <form id="filter-form-{{ filter_tab_id }}" 
       hx-get="{{ hx_get_url }}" 
-      hx-trigger="change, keyup changed delay:300ms" 
+      hx-trigger="submit, change, keyup changed delay:300ms" 
       hx-target="{{ hx_target }}"
+      onsubmit="event.preventDefault();"
       class="filter-bar"
       style="margin-bottom: 20px;">
   

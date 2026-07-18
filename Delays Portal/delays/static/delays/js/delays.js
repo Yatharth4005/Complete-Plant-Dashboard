@@ -1,15 +1,27 @@
 /* JSPL Delays Module — Interactive Charts & UI Handler */
 
-document.addEventListener('DOMContentLoaded', function() {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCharts);
+} else {
     initCharts();
-});
+}
 
 // Store chart instances globally to allow destroying/updating if needed
 let charts = {};
 
 function initCharts() {
+    console.log("initCharts triggered. Document readyState:", document.readyState);
+    if (typeof Chart === 'undefined') {
+        console.error("Chart.js is not loaded! Chart is undefined.");
+        return;
+    }
     const data = window.delayChartData;
-    if (!data) return;
+    if (!data) {
+        console.warn("window.delayChartData is not available on the window.");
+        return;
+    }
+    console.log("delayChartData loaded. Creating charts...", data);
+    try {
 
     // Corporate Color Palettes (JSPL Navy & Orange variations)
     const orangePalette = [
@@ -341,5 +353,8 @@ function initCharts() {
             })
         });
     }
+  } catch (err) {
+        console.error("Exception thrown inside initCharts:", err);
+  }
     // NOTE: Pareto chart is now dynamically handled inside _pareto_content.html and _pareto_agency_content.html
 }

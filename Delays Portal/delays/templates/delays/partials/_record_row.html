@@ -22,6 +22,11 @@
     <span class="agency-badge">{{ r.agency }}</span>
   </td>
   
+  <!-- Area text -->
+  <td class="td-area" style="font-weight: 600; color: var(--jspl-navy);">
+    {{ r.sub_agency|default:"—" }}
+  </td>
+  
   <!-- Equipment text -->
   <td class="td-equipment">
     {% if r.equipment_category %}

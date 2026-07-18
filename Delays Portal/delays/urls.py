@@ -39,6 +39,11 @@ urlpatterns = [
     path('department/<int:dept_id>/checklist/schedule/update/', views.update_checklist_schedule, name='update_checklist_schedule'),
     path('department/<int:dept_id>/checklist/schedule/<int:schedule_id>/update-incharge/', views.update_checklist_schedule_incharge, name='update_checklist_schedule_incharge'),
     path('department/<int:dept_id>/checklist/<int:checklist_id>/edit/', views.edit_checklist, name='edit_checklist'),
+
+    # Performance Data APIs
+    path('department/<int:dept_id>/performance/data/', views.get_performance_data, name='get_performance_data'),
+    path('department/<int:dept_id>/performance/save/', views.save_performance_data, name='save_performance_data'),
+    path('department/<int:dept_id>/performance/export/', views.export_performance_data, name='export_performance_data'),
 ]
 
 
