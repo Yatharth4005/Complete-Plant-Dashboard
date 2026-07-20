@@ -1,6 +1,8 @@
-# Jindal Steel Operations Portal - Unified Departments & Modules Hub (RGH Plant)
+# Jindal PRISM - Unified Departments & Modules Hub (RGH Plant)
 
-This repository houses the **Jindal Steel Operations Portal** for the RGH Plant. Acting as a Single Sign-On (SSO) central gateway, it consolidates **28 plant departments** and operational modules (TPM, CMC, Delays, FMEA, CAPA, Safety, Quality, HOD KPI, SMED, REST API, Mobile App) under a unified Django project sharing a single database runtime.
+> **PRISM**: **P**lant **R**eporting & **I**ntegrated **S**mart **M**anagement System
+
+This repository houses **Jindal PRISM** for the RGH Plant. Acting as a Single Sign-On (SSO) central gateway, it consolidates **28 plant departments** and operational modules (TPM, CMC, Delays, FMEA, CAPA, Safety, Quality, HOD KPI, SMED, REST API, Mobile App) under a unified Django project sharing a single database runtime.
 
 ### 🗄️ Dual Database Runtime Architecture
 * **Development & Local Testing**: Uses a zero-configuration shared **SQLite3** database (`db.sqlite3`).
