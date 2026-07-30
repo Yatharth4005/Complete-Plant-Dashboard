@@ -9,7 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main_portal.settings')
 django.setup()
 
 from tpm.models import Department
-from delays.models import DelayDropdownOption
+from delays.models import DelayDropdownOption, ChecklistSchedule, MaintenanceChecklist
 
 def seed_checklists():
     folder = r"E:\Jindal Steel Projects\DEPARTMENTS DASHBOARD\Checklists\SMS3"
@@ -27,9 +27,15 @@ def seed_checklists():
     print(f"Found Department: {target_dept.name} ({target_dept.code})")
 
     # Clear old options and checklists for target_dept to prevent duplicates/scrambling
-    from delays.models import MaintenanceChecklist, DelayDropdownOption
-    DelayDropdownOption.objects.filter(department=target_dept, category__in=['Equipment', 'Action']).delete()
-    MaintenanceChecklist.objects.filter(department=target_dept).delete()
+    # We construct the checklist names to clear only those options
+    checklist_names = [
+        "Conveyors", "DG Engines", "Pump Vibration Checking", "Ladle Repairing",
+        "100T VD", "EAF", "FES & Bag House", "Ladle Refining Furnace (LRF)", "Hydraulic"
+    ]
+    
+    DelayDropdownOption.objects.filter(department=target_dept, category='Equipment', value__in=checklist_names, parent_value='Maintenance').delete()
+    DelayDropdownOption.objects.filter(department=target_dept, category='Action', parent_value__in=checklist_names).delete()
+    MaintenanceChecklist.objects.filter(department=target_dept, equipment__in=checklist_names).delete()
     print("Cleared existing dropdown options and checklist entries for SMS-3 to ensure a clean slate.")
 
     # Define helper to seed Option
@@ -290,6 +296,15 @@ def seed_checklists():
                         else:
                             val_to_seed = f"{current_eq} - {eq}" if detail == "" else f"{eq} - {detail}"
                             seed_option('Action', val_to_seed, cl['name'], is_header=False)
+
+    # Seed ChecklistSchedules
+    for cl in checklists:
+        ChecklistSchedule.objects.get_or_create(
+            department=target_dept,
+            checklist_name=cl["name"],
+            defaults={'frequency': 'Daily'}
+        )
+    print("Created/verified ChecklistSchedules for SMS-3 checklists.")
 
     print("Seeding SMS-3 daily checklists completed successfully!")
 
