@@ -11,6 +11,38 @@ django.setup()
 from django.db import transaction
 from tpm.models import Department, PillarEntry, KPIValue
 
+EXPLICIT_DEPT_MAPPING = {
+    'BF - I': 'Blast Furnace-1',
+    'BF - II': 'Blast Furnace-2',
+    'Cement Plant': 'Cement Plant',
+    'Coke Oven': 'Coke Oven',
+    'DRI - I': 'DRI-1',
+    'DRI - II': 'DRI-2',
+    'Lime & Dolo Plant': 'Lime and Dolo Plant',
+    'Oxygen Plant': 'Oxygen Plant',
+    'PGP - II': 'PGP-2',
+    'PGP - III': 'PGP-3',
+    'Plate Mill': 'Plate Mill',
+    'Power Plant - I': 'Power Plant 1',
+    'Power Plant - II (Ph-1&2)': 'Power Plant 2',
+    'Power Plant - II (Ph. 3)': 'Power Plant Phase #3',
+    'Power Plant - III': 'Power Plant 3',
+    'RMH - I': 'RMHS-1',
+    'RMH - III': 'RMHS-3',
+    'RAIL MILL': 'Rail Mill',
+    'SMS - II': 'SMS-2',
+    'SMS - III': 'SMS-3',
+    'SMS - II/BILLET CASTER': 'SMS-2',
+    'SMS - II/COMBI CASTER': 'SMS-2',
+    'SMS - II/EAF': 'SMS-2',
+    'SMS - II/NOF': 'SMS-2',
+    'SMS - II/SLAB CASTER': 'SMS-2',
+    'SMS - III/BILLET CASTER': 'SMS-3',
+    'SMS - III/COMBI CASTER': 'SMS-3',
+    'Sinter Plant': 'Sinter',
+    'SPM': 'Special Profile Mill (SPM)',
+}
+
 def to_float(val):
     if val is None or str(val).strip() == "" or str(val).strip().lower() in ['none', 'null', 'n/a', '-']:
         return None
@@ -63,6 +95,9 @@ def main():
                 continue
                 
             raw_dept_name = str(row[1]).strip()
+            
+            # Map raw name using EXPLICIT_DEPT_MAPPING
+            raw_dept_name = EXPLICIT_DEPT_MAPPING.get(raw_dept_name, raw_dept_name)
             
             # Normalise SMS-2 and SMS-3 variants (including sub-areas) into SMS-2 and SMS-3
             dept_name_upper = raw_dept_name.upper()
